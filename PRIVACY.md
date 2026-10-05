@@ -1,8 +1,8 @@
 # Privacy
 
-Gallery reads the pictures on the phone to show them to you. It sends none of them anywhere.
-If you give it an Immich server, it reads your albums from that server, and talks to nothing
-else.
+Gallery reads the pictures on the phone to show them to you. If you give it an Immich server,
+it reads your albums from that server; if you also turn backing up on, it sends the camera's
+pictures there. It talks to that server and nothing else.
 
 That is the whole policy. The rest of this page is the evidence for it, because a privacy
 policy that cannot be checked is just a promise.
@@ -23,8 +23,13 @@ them, and never lists or opens any other kind of file.
 **`INTERNET` is there for Immich alone.** Until a server is set in settings the app opens no
 connection at all. Once one is, it asks that server — and only that server — for the list of
 albums, an album's pictures, and each picture's image. Every request carries the API key you
-gave it. It uploads nothing and changes nothing on the server; every call it makes is in
-`media/Immich.kt`. Plain `http://` is refused: Android blocks unencrypted
+gave it. Every call it makes is in `media/Immich.kt`.
+
+**Backing up is off until you turn it on.** Turned on, it sends the camera's pictures —
+those under `DCIM` and nothing else — to the same server, and only when the network and the
+charger allow as set. Before sending, it asks the server which it already has, by each file's
+SHA-1; the checksums go to your server and nowhere else. It never deletes anything, on the
+phone or the server. Plain `http://` is refused: Android blocks unencrypted
 traffic for this app, so the address has to be `https://`.
 
 There is **no all-files permission** (`MANAGE_EXTERNAL_STORAGE`), which the gallery this
@@ -69,15 +74,23 @@ The source is here in full. If you would rather not read it:
 aapt2 dump badging app-release.apk | grep uses-permission
 ```
 
-That prints every permission the built app actually carries. It prints three lines:
+That prints every permission the built app actually carries. It prints seven lines:
 
 ```
 uses-permission: name='android.permission.READ_EXTERNAL_STORAGE'
 uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.WAKE_LOCK'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.RECEIVE_BOOT_COMPLETED'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
 uses-permission: name='com.wanderwildwood.garo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
-The first two are the ones described above. The third is not mine: AndroidX defines it
+The first two are the ones described above. The next four come with WorkManager, Android's
+own library for work that waits on conditions, which is what runs the backup: it needs to
+know whether the phone is on Wi-Fi, to keep the phone awake for an upload already started, to
+put the schedule back after a restart, and to run a long job. None of them reads anything, and
+with backing up off they are not used. The last is not mine either: AndroidX defines it
 automatically for every app, it is signature-level and scoped to this package so only this
 app can hold it, and it exists so a runtime-registered broadcast receiver is not exported to
 other apps. It grants access to nothing.

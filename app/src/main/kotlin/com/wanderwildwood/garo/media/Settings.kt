@@ -51,6 +51,11 @@ class Settings(context: Context) {
     fun writeImmichServer(server: String?) = prefs.edit().putString(IMMICH_SERVER, server?.trim()).apply()
     fun writeImmichKey(key: String?) = prefs.edit().putString(IMMICH_KEY, key?.trim()).apply()
 
+    fun backupOn(): Boolean = prefs.getBoolean(BACKUP_ON, false)
+    fun backupWhen(): BackupWhen = enumOr(prefs.getString(BACKUP_WHEN, null), BackupWhen.WIFI_CHARGING)
+    fun writeBackupOn(on: Boolean) = prefs.edit().putBoolean(BACKUP_ON, on).apply()
+    fun writeBackupWhen(w: BackupWhen) = prefs.edit().putString(BACKUP_WHEN, w.name).apply()
+
     private inline fun <reified E : Enum<E>> enumOr(name: String?, fallback: E): E =
         enumValues<E>().firstOrNull { it.name == name } ?: fallback
 
@@ -60,5 +65,7 @@ class Settings(context: Context) {
         const val PER_ROW = "per_row"
         const val IMMICH_SERVER = "immich_server"
         const val IMMICH_KEY = "immich_key"
+        const val BACKUP_ON = "backup_on"
+        const val BACKUP_WHEN = "backup_when"
     }
 }

@@ -7,7 +7,11 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wanderwildwood.garo.R
+import com.wanderwildwood.garo.backup.BackupWorker
 import com.wanderwildwood.garo.media.Arrange
+import com.wanderwildwood.garo.media.Backup
+import com.wanderwildwood.garo.media.BackupRecord
+import com.wanderwildwood.garo.media.BackupWhen
 import com.wanderwildwood.garo.media.Choices
 import com.wanderwildwood.garo.media.Decoder
 import com.wanderwildwood.garo.media.Folder
@@ -56,6 +60,18 @@ data class GalleryState(
     val hasKey: Boolean = false,
     /** Albums whose pictures are being read just now. */
     val opening: Set<String> = emptySet(),
+    val backup: BackupState = BackupState(),
+)
+
+/** What the backup row says. */
+data class BackupState(
+    val on: Boolean = false,
+    val whenTo: BackupWhen = BackupWhen.WIFI_CHARGING,
+    /** The camera's pictures on the phone, and how many of those are up. */
+    val total: Int = 0,
+    val done: Int = 0,
+    val lastRun: Long = 0L,
+    val problem: BackupRecord.Problem? = null,
 )
 
 class GalleryViewModel(app: Application) : AndroidViewModel(app) {
@@ -108,6 +124,8 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun refresh() {
         askServer()
+        // Put the schedule back every time: a phone that force-stopped the app forgot it.
+        BackupWorker.schedule(getApplication())
         val granted = getApplication<Application>().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) {
@@ -122,6 +140,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             everything = pictures
             indexRead = true
             arrange()
+            readBackup()
         }
     }
 
@@ -155,7 +174,12 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     fun setServer(address: String) {
         val changed = address.trim() != settings.immichServer()
         settings.writeImmichServer(address.takeIf { it.isNotBlank() })
-        if (changed) forgetAlbums()
+        if (changed) {
+            forgetAlbums()
+            // What went up went to the old server; the new one is asked from the start.
+            BackupWorker.record(getApplication()).forget()
+            readBackup()
+        }
         _state.update { it.copy(serverAddress = settings.immichServer()) }
         connect()
         askServer()
@@ -166,6 +190,39 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(hasKey = settings.hasImmichKey()) }
         connect()
         askServer()
+        BackupWorker.schedule(getApplication())
+        BackupWorker.runSoon(getApplication())
+    }
+
+    fun setBackup(on: Boolean) {
+        settings.writeBackupOn(on)
+        BackupWorker.schedule(getApplication())
+        BackupWorker.runSoon(getApplication())
+        readBackup()
+    }
+
+    fun setBackupWhen(whenTo: BackupWhen) {
+        settings.writeBackupWhen(whenTo)
+        BackupWorker.schedule(getApplication())
+        readBackup()
+    }
+
+    /** Read the record again: the worker writes it from outside this screen. */
+    fun readBackup() {
+        val record = BackupWorker.record(getApplication())
+        val camera = everything.filter(Backup::isCamera)
+        _state.update {
+            it.copy(
+                backup = BackupState(
+                    on = settings.backupOn(),
+                    whenTo = settings.backupWhen(),
+                    total = camera.size,
+                    done = camera.count(record::isDone),
+                    lastRun = record.status.lastRun,
+                    problem = record.status.problem,
+                ),
+            )
+        }
     }
 
     /** The key as saved, read only when the key dialog opens, so it can be checked by eye. */
@@ -175,6 +232,10 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     fun forgetServer() {
         settings.writeImmichServer(null)
         settings.writeImmichKey(null)
+        settings.writeBackupOn(false)
+        BackupWorker.schedule(getApplication())
+        BackupWorker.record(getApplication()).forget()
+        readBackup()
         forgetAlbums()
         _state.update { it.copy(serverAddress = null, hasKey = false) }
         connect()

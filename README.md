@@ -44,7 +44,7 @@ It is made to be the phone's picture app, not a room of its own.
 
 With an [Immich](https://immich.app) server set in settings — its address and an API key —
 its albums appear below the phone's own folders, under their own heading, and open the same
-way. Read-only: nothing on the server is changed. Pictures are fetched at the size the screen
+way. Showing albums changes nothing on the server. Pictures are fetched at the size the screen
 needs and kept on the phone, so a page turned once turns again without the network.
 
 The address has to be `https://`. A server on a Tailscale network can be given one with
@@ -54,6 +54,13 @@ When the server cannot be reached the albums last seen are still listed, and the
 says so.
 
 Album pictures cannot yet be shared, deleted, or chosen for another app.
+
+**Backing up.** With a server set, "Back up the camera to Immich" sends the camera's pictures —
+anything under `DCIM`, whichever camera app saved it — to the server. By default only on Wi-Fi
+while charging, so a backlog goes up overnight; it can also be any Wi-Fi, or any network. The
+server is asked first what it already has, by checksum, so nothing goes up twice. Screenshots,
+downloads and pictures saved from messages stay on the phone. The settings row says how many
+are up and when it last checked, or what stopped it. The key needs permission to upload assets.
 
 ## What it does not do
 

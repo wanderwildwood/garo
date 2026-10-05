@@ -178,6 +178,8 @@ private fun Gallery(
     when {
         settingsOpen -> {
             BackHandler { settingsOpen = false }
+            // The worker writes its record from outside; read it fresh whenever settings show.
+            LaunchedEffect(Unit) { viewModel.readBackup() }
             SettingsScreen(
                 choices = state.choices,
                 onChoose = viewModel::choose,
@@ -188,6 +190,9 @@ private fun Gallery(
                 onKey = viewModel::setKey,
                 onForgetServer = viewModel::forgetServer,
                 savedKey = viewModel::savedKey,
+                backup = state.backup,
+                onBackup = viewModel::setBackup,
+                onBackupWhen = viewModel::setBackupWhen,
             )
         }
 

@@ -3,6 +3,7 @@ package com.wanderwildwood.garo.media
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
@@ -12,9 +13,9 @@ import java.util.UUID
 /**
  * Albums and pictures from an Immich server, read-only.
  *
- * Three calls and an API key, nothing else: the albums (owned and shared), one album's pictures
- * a page at a time, and a picture at the size asked for. The key needs only album.read,
- * asset.read and asset.view. Written against Immich 2.7.5's API; no Immich library, because the
+ * Reading takes three calls: the albums (owned and shared), one album's pictures a page at a time,
+ * and a picture at the size asked for — album.read, asset.read and asset.view. Backing up takes
+ * two more, a check for what the server already has and the upload itself — asset.upload. Written against Immich 2.7.5's API; no Immich library, because the
  * official one brings a generated client several times the size of this app.
  */
 class Immich(server: String, private val key: String) {
@@ -58,6 +59,67 @@ class Immich(server: String, private val key: String) {
     /** "thumbnail" (about 250 px, for the grid) or "preview" (1440 px, for the viewer). */
     fun image(assetId: String, size: String): ByteArray =
         open("/api/assets/$assetId/thumbnail?size=$size").use { it.readBytes() }
+
+    /**
+     * Which of these pictures the server already has, by SHA-1. Answers the ids to upload; one
+     * it has — from this phone or anywhere else — is left alone, so nothing goes up twice.
+     */
+    fun toUpload(checksums: Map<String, String>): Set<String> {
+        if (checksums.isEmpty()) return emptySet()
+        val assets = JSONArray()
+        checksums.forEach { (id, sha1) -> assets.put(JSONObject().put("id", id).put("checksum", sha1)) }
+        val reply = JSONObject(post("/api/assets/bulk-upload-check", JSONObject().put("assets", assets).toString()))
+        val results = reply.getJSONArray("results")
+        return (0 until results.length()).map { results.getJSONObject(it) }
+            .filter { it.optString("action") == "accept" }
+            .map { it.getString("id") }
+            .toSet()
+    }
+
+    /**
+     * One picture, streamed from [open] rather than read into memory — a camera's photo is
+     * several megabytes and this phone has little to spare. The fields are the ones Immich
+     * requires and no more.
+     */
+    fun upload(
+        open: () -> InputStream,
+        name: String,
+        mime: String?,
+        deviceAssetId: String,
+        deviceId: String,
+        created: Long,
+        modified: Long,
+    ) {
+        val boundary = "garo" + UUID.randomUUID().toString().replace("-", "")
+        val c = connect("/api/assets")
+        c.requestMethod = "POST"
+        c.doOutput = true
+        c.readTimeout = UPLOAD_TIMEOUT
+        c.setChunkedStreamingMode(64 * 1024)
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        try {
+            c.outputStream.buffered().use { out ->
+                fun field(fieldName: String, value: String) {
+                    out.write("--$boundary\r\nContent-Disposition: form-data; name=\"$fieldName\"\r\n\r\n$value\r\n".toByteArray())
+                }
+                field("deviceAssetId", deviceAssetId)
+                field("deviceId", deviceId)
+                field("fileCreatedAt", Instant.ofEpochMilli(created).toString())
+                field("fileModifiedAt", Instant.ofEpochMilli(modified).toString())
+                field("filename", name)
+                val safeName = name.replace("\"", "")
+                out.write(
+                    ("--$boundary\r\nContent-Disposition: form-data; name=\"assetData\"; filename=\"$safeName\"\r\n" +
+                        "Content-Type: ${mime ?: "application/octet-stream"}\r\n\r\n").toByteArray(),
+                )
+                open().use { it.copyTo(out, 64 * 1024) }
+                out.write("\r\n--$boundary--\r\n".toByteArray())
+            }
+        } catch (e: IOException) {
+            throw Trouble.Unreachable(e)
+        }
+        answer(c).close()
+    }
 
     private fun get(path: String): String = open(path).bufferedReader().use { it.readText() }
 
@@ -109,6 +171,8 @@ class Immich(server: String, private val key: String) {
     companion object {
         private const val PAGE = 250
         private const val TIMEOUT = 15_000
+        /** A photo going up over a slow link can take a while; the answer comes only after. */
+        private const val UPLOAD_TIMEOUT = 120_000
 
         /** The key a folder made from an album goes by, kept apart from the phone's bucket ids. */
         fun folderKey(albumId: String) = "immich:$albumId"

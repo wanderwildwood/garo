@@ -29,6 +29,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
 import kotlinx.coroutines.delay
+import android.text.format.DateFormat
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import com.mudita.mmd.components.switcher.SwitchMMD
+import com.wanderwildwood.garo.media.BackupRecord
+import com.wanderwildwood.garo.media.BackupWhen
+import java.util.Date
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +70,9 @@ fun SettingsScreen(
     onKey: (String) -> Unit,
     onForgetServer: () -> Unit,
     savedKey: () -> String = { "" },
+    backup: BackupState = BackupState(),
+    onBackup: (Boolean) -> Unit = {},
+    onBackupWhen: (BackupWhen) -> Unit = {},
 ) {
     var aboutOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Entry?>(null) }
@@ -138,6 +148,26 @@ fun SettingsScreen(
                     onClick = { editing = Entry.KEY },
                 )
             }
+            // Backing up asks for a server and a key first; without them there is nothing to
+            // back up to, and a switch that cannot do anything is not shown.
+            if (serverAddress != null && hasKey) {
+                item { BackupRow(backup, onBackup) }
+                if (backup.on) {
+                    item {
+                        Setting(
+                            title = stringResource(R.string.settings_backup_when),
+                            value = stringResource(
+                                when (backup.whenTo) {
+                                    BackupWhen.WIFI_CHARGING -> R.string.backup_when_wifi_charging
+                                    BackupWhen.WIFI -> R.string.backup_when_wifi
+                                    BackupWhen.ANY_NETWORK -> R.string.backup_when_any
+                                },
+                            ),
+                            onClick = { onBackupWhen(backup.whenTo.next()) },
+                        )
+                    }
+                }
+            }
             if (serverAddress != null || hasKey) {
                 item { ForgetRow(onForgetServer) }
             }
@@ -170,6 +200,59 @@ fun SettingsScreen(
 }
 
 private enum class Entry { SERVER, KEY }
+
+/**
+ * The switch, and under it the one line worth reading: how far the backup has got, or what
+ * stopped it. Said plainly, including "not yet" — a backup that only looks finished is worse
+ * than none, because nobody goes looking.
+ */
+@Composable
+private fun BackupRow(backup: BackupState, onBackup: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val status = when {
+        !backup.on -> stringResource(R.string.backup_off)
+        backup.problem == BackupRecord.Problem.REFUSED -> stringResource(R.string.backup_refused)
+        backup.total == 0 -> stringResource(R.string.backup_nothing)
+        else -> {
+            val count = if (backup.done >= backup.total) {
+                stringResource(R.string.backup_all, backup.total)
+            } else {
+                stringResource(R.string.backup_some, backup.done, backup.total)
+            }
+            val last = when {
+                backup.problem == BackupRecord.Problem.UNREACHABLE -> stringResource(R.string.backup_last_unreachable)
+                backup.lastRun > 0 -> stringResource(
+                    R.string.backup_last_run,
+                    DateFormat.getMediumDateFormat(context).format(Date(backup.lastRun)) + ", " +
+                        DateFormat.getTimeFormat(context).format(Date(backup.lastRun)),
+                )
+                else -> stringResource(
+                    when (backup.whenTo) {
+                        BackupWhen.WIFI_CHARGING -> R.string.backup_waiting_wifi_charging
+                        BackupWhen.WIFI -> R.string.backup_waiting_wifi
+                        BackupWhen.ANY_NETWORK -> R.string.backup_waiting_network
+                    },
+                )
+            }
+            "$count. $last"
+        }
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onBackup(!backup.on) }
+            .padding(vertical = 14.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            TextMMD(text = stringResource(R.string.settings_backup), style = MaterialTheme.typography.bodyMedium)
+            TextMMD(text = status, style = MaterialTheme.typography.labelSmall)
+        }
+        Spacer(Modifier.width(12.dp))
+        // The row takes the press; the switch only draws the state.
+        SwitchMMD(checked = backup.on, onCheckedChange = null)
+    }
+}
 
 /** "Forget the server — tap again", disarming itself after four seconds, as every armed row does. */
 @Composable

@@ -113,11 +113,30 @@
     <!-- Value of the key row once a key is saved; the key itself is never shown -->
     <string name="settings_key_set">Set</string>
     <string name="settings_immich_server_note">Its address, as the Immich app has it, starting https://.</string>
-    <string name="settings_immich_key_note">Made in Immich under Account settings, API keys. It needs to read albums and assets, and to view assets.</string>
+    <string name="settings_immich_key_note">Made in Immich under Account settings, API keys. It needs to read albums and assets and to view assets; to back up, also to upload assets.</string>
+    <!-- Backing up the camera's pictures to Immich -->
+    <string name="settings_backup">Back up the camera to Immich</string>
+    <string name="backup_off">Off. Pictures from the camera stay only on the phone.</string>
+    <!-- %1$d backed up, %2$d camera pictures on the phone -->
+    <string name="backup_some">%1$d of %2$d backed up</string>
+    <!-- %1$d camera pictures, all backed up -->
+    <string name="backup_all">All %1$d backed up</string>
+    <string name="backup_nothing">The camera has no pictures on the phone yet.</string>
+    <!-- %1$s is a date and time -->
+    <string name="backup_last_run">Last checked %1$s</string>
+    <string name="backup_last_unreachable">The last try could not reach Immich; it will try again</string>
+    <string name="backup_waiting_wifi_charging">Waiting for Wi-Fi and the charger</string>
+    <string name="backup_waiting_wifi">Waiting for Wi-Fi</string>
+    <string name="backup_waiting_network">Waiting for a network</string>
+    <string name="backup_refused">Immich would not take an upload with this key. It needs permission to upload assets.</string>
+    <string name="settings_backup_when">Upload</string>
+    <string name="backup_when_wifi_charging">On Wi-Fi, while charging</string>
+    <string name="backup_when_wifi">On Wi-Fi</string>
+    <string name="backup_when_any">On any network, mobile data too</string>
     <string name="settings_forget_server">Forget the Immich server</string>
     <!-- The same row once pressed: the action, a dash, and "tap again" -->
     <string name="settings_forget_server_armed">Forget the Immich server — tap again</string>
-    <string name="settings_forget_server_note">Removes the address, the key and the pictures kept from it. Nothing on the server changes.</string>
+    <string name="settings_forget_server_note">Removes the address, the key and the pictures kept from it, and stops backing up. Nothing on the server changes.</string>
     <!-- Buttons in the entry dialog -->
     <string name="entry_cancel">Cancel</string>
     <string name="entry_save">Save</string>
@@ -130,7 +149,7 @@
 
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
     <string name="about_title">Gallery %1$s</string>
-    <string name="about_privacy">It reads the pictures on this phone to show them. With an Immich server set, it also reads your albums from it, using the key you gave it, and talks to nothing else.</string>
+    <string name="about_privacy">It reads the pictures on this phone to show them. With an Immich server set, it also reads your albums from it and, if you turn backing up on, sends the camera\'s pictures to it — to that server only, using the key you gave it.</string>
     <string name="about_after">After Fossify Gallery, GPL 3.0, whose ways of ordering folders and pictures this keeps.</string>
     <!-- The name of the app's licence -->
     <string name="about_licence">GNU General Public License v3</string>

@@ -12,6 +12,7 @@ androidx-compose = "1.9.5"
 androidx-material3 = "1.4.0"
 
 junit = "4.13.2"
+work = "2.11.2"
 json = "20240303"
 
 [libraries]
@@ -27,6 +28,9 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = 
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidx-compose" }
 
 mmd = { module = "com.mudita:MMD", version.ref = "mmd" }
+
+# Backing up to Immich in the background, within the network and charging limits set.
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 # Android's org.json is a stub in local unit tests; this is the real one, for tests only.
