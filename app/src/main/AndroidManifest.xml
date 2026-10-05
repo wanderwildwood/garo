@@ -93,6 +93,15 @@
                 <data android:mimeType="vnd.android.cursor.dir/image" />
             </intent-filter>
         </activity>
+
+        <!-- Camera (shashinki) saying it has just saved a photo; see NewPictureReceiver. -->
+        <receiver
+            android:name=".backup.NewPictureReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.wanderwildwood.garo.action.NEW_PICTURE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
