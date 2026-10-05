@@ -21,6 +21,17 @@
     <!-- Button (verb): opens Android's page for this app -->
     <string name="folders_open_app_settings">Open app settings</string>
     <string name="folders_none">There are no pictures on this phone yet.</string>
+    <!-- Heading over the phone's own folders, shown only when an Immich server is set -->
+    <string name="folders_on_phone">On the phone</string>
+    <!-- Heading over the albums from the Immich server. Immich is a product name -->
+    <string name="folders_immich">Immich</string>
+    <string name="immich_asking">Asking Immich for its albums.</string>
+    <string name="immich_unreachable">Immich could not be reached. It may be off, or the phone off the network it is on.</string>
+    <string name="immich_unreachable_last_seen">Immich could not be reached; these are the albums as they were last seen.</string>
+    <string name="immich_refused">Immich did not accept the key. It can be changed in settings.</string>
+    <string name="immich_no_albums">There are no albums on Immich with pictures in them.</string>
+    <!-- In place of a grid while an album's pictures are being fetched -->
+    <string name="immich_reading_album">Reading the album from Immich.</string>
     <!-- Folder name for pictures at the very top of the phone's own storage, which have no folder -->
     <string name="folder_root_phone">Phone</string>
     <!-- Folder name for pictures at the very top of a memory card -->
@@ -57,6 +68,8 @@
     <!-- Width by height in pixels. %1$d width, %2$d height -->
     <string name="info_dimensions">%1$d × %2$d</string>
     <string name="info_folder">Folder</string>
+    <!-- For a picture on the Immich server: the album it was opened from -->
+    <string name="info_album">Immich album</string>
     <string name="info_camera">Camera</string>
     <!-- Button (verb) -->
     <!-- Button (verb): opens the picture's folder in the phone's file manager -->
@@ -91,13 +104,28 @@
     <string name="order_newest_first">Newest first</string>
     <string name="order_oldest_first">Oldest first</string>
     <string name="order_name">By name</string>
+    <!-- Immich rows. Immich is a product name; API key is its own term -->
+    <string name="settings_immich_server">Immich server</string>
+    <string name="settings_immich_key">Immich API key</string>
+    <string name="settings_not_set">Not set</string>
+    <!-- Value of the key row once a key is saved; the key itself is never shown -->
+    <string name="settings_key_set">Set</string>
+    <string name="settings_immich_server_note">Its address, as the Immich app has it, starting https://.</string>
+    <string name="settings_immich_key_note">Made in Immich under Account settings, API keys. It needs to read albums and assets, and to view assets.</string>
+    <string name="settings_forget_server">Forget the Immich server</string>
+    <!-- The same row once pressed: the action, a dash, and "tap again" -->
+    <string name="settings_forget_server_armed">Forget the Immich server — tap again</string>
+    <string name="settings_forget_server_note">Removes the address, the key and the pictures kept from it. Nothing on the server changes.</string>
+    <!-- Buttons in the entry dialog -->
+    <string name="entry_cancel">Cancel</string>
+    <string name="entry_save">Save</string>
 
     <!-- ============================================================ -->
     <!-- About dialog. Keep the names of the app, people, projects and licences as they are -->
 
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
     <string name="about_title">Gallery %1$s</string>
-    <string name="about_privacy">It reads the pictures on this phone to show them, and cannot reach the network at all.</string>
+    <string name="about_privacy">It reads the pictures on this phone to show them. With an Immich server set, it also reads your albums from it, using the key you gave it, and talks to nothing else.</string>
     <string name="about_after">After Fossify Gallery, GPL 3.0, whose ways of ordering folders and pictures this keeps.</string>
     <!-- The name of the app's licence -->
     <string name="about_licence">GNU General Public License v3</string>

@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -48,6 +49,8 @@ fun GridScreen(
     /** Pictures marked while choosing for another app; drawn with a bold edge. */
     chosen: Set<Long> = emptySet(),
     actions: @Composable RowScope.() -> Unit = {},
+    /** Said in place of the grid while it has nothing to show: an album still being read. */
+    note: String? = null,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -60,6 +63,10 @@ fun GridScreen(
         },
     ) { padding ->
         val rows = folder.pictures.chunked(perRow)
+        if (rows.isEmpty() && note != null) {
+            Box(Modifier.fillMaxSize().padding(padding)) { Explain(text = note) }
+            return@Scaffold
+        }
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
             // Asked for at the size it is drawn, so the phone hands back a thumbnail that
             // fills the square without being stretched up from a smaller one.
@@ -75,7 +82,7 @@ fun GridScreen(
                         rows[r].forEachIndexed { c, picture ->
                             Thumbnail(
                                 decoder = decoder,
-                                uri = picture.uri,
+                                picture = picture,
                                 px = cellPx,
                                 modifier = Modifier
                                     .weight(1f)

@@ -10,7 +10,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
+import com.mudita.mmd.components.buttons.OutlinedButtonMMD
+import com.mudita.mmd.components.text_field.TextFieldMMD
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,7 +43,7 @@ import com.wanderwildwood.garo.media.FolderOrder
 import com.wanderwildwood.garo.media.PictureOrder
 
 /**
- * Three rows, each cycling through its few values in place.
+ * Three rows that cycle through their few values in place, then the Immich server.
  *
  * Fossify has some sixty settings. What survives is what changes what a person sees on this
  * screen; the rest — themes, animations, swipe-to-dismiss, slideshow timing, the editor, video
@@ -39,8 +55,14 @@ fun SettingsScreen(
     choices: Choices,
     onChoose: (Choices) -> Unit,
     onClose: () -> Unit,
+    serverAddress: String?,
+    hasKey: Boolean,
+    onServer: (String) -> Unit,
+    onKey: (String) -> Unit,
+    onForgetServer: () -> Unit,
 ) {
     var aboutOpen by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Entry?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -94,11 +116,130 @@ fun SettingsScreen(
                     },
                 )
             }
+
+            // Immich: the server and the key, then — only once there is something to forget —
+            // the way to forget it, last, as the one row here that undoes anything.
+            item {
+                Setting(
+                    title = stringResource(R.string.settings_immich_server),
+                    value = serverAddress ?: stringResource(R.string.settings_not_set),
+                    onClick = { editing = Entry.SERVER },
+                )
+            }
+            item {
+                Setting(
+                    title = stringResource(R.string.settings_immich_key),
+                    // Never the key itself, not even its first letters: this screen may be
+                    // photographed, and the key opens every picture on the server.
+                    value = stringResource(if (hasKey) R.string.settings_key_set else R.string.settings_not_set),
+                    onClick = { editing = Entry.KEY },
+                )
+            }
+            if (serverAddress != null || hasKey) {
+                item { ForgetRow(onForgetServer) }
+            }
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
 
     if (aboutOpen) AboutDialog(onDismiss = { aboutOpen = false })
+
+    when (editing) {
+        Entry.SERVER -> EntryDialog(
+            title = stringResource(R.string.settings_immich_server),
+            note = stringResource(R.string.settings_immich_server_note),
+            initial = serverAddress ?: "https://",
+            secret = false,
+            onDone = onServer,
+            onDismiss = { editing = null },
+        )
+        Entry.KEY -> EntryDialog(
+            title = stringResource(R.string.settings_immich_key),
+            note = stringResource(R.string.settings_immich_key_note),
+            initial = "",
+            secret = true,
+            onDone = onKey,
+            onDismiss = { editing = null },
+        )
+        null -> Unit
+    }
+}
+
+private enum class Entry { SERVER, KEY }
+
+/** "Forget the server — tap again", disarming itself after four seconds, as every armed row does. */
+@Composable
+private fun ForgetRow(onForget: () -> Unit) {
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(armed) {
+        if (armed) {
+            delay(4_000)
+            armed = false
+        }
+    }
+    Setting(
+        title = stringResource(if (armed) R.string.settings_forget_server_armed else R.string.settings_forget_server),
+        value = stringResource(R.string.settings_forget_server_note),
+        onClick = {
+            if (armed) {
+                armed = false
+                onForget()
+            } else {
+                armed = true
+            }
+        },
+    )
+}
+
+/**
+ * Typing a server address or a key. Done on the keyboard saves it: a keyboard up over this
+ * panel covers the dialog's own buttons.
+ */
+@Composable
+private fun EntryDialog(
+    title: String,
+    note: String,
+    initial: String,
+    secret: Boolean,
+    onDone: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(initial.length))) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    val save = {
+        onDone(value.text)
+        onDismiss()
+    }
+    EInkDialog(onDismiss = onDismiss) {
+        TextMMD(text = title, style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(6.dp))
+        TextMMD(text = note, style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(12.dp))
+        TextFieldMMD(
+            value = value,
+            onValueChange = { value = it },
+            modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            singleLine = true,
+            visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Done,
+                keyboardType = if (secret) KeyboardType.Password else KeyboardType.Uri,
+                autoCorrectEnabled = false,
+            ),
+            keyboardActions = KeyboardActions(onDone = { save() }),
+        )
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth()) {
+            OutlinedButtonMMD(onClick = onDismiss, modifier = Modifier.weight(1f).height(48.dp)) {
+                TextMMD(text = stringResource(R.string.entry_cancel), style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.width(10.dp))
+            OutlinedButtonMMD(onClick = save, modifier = Modifier.weight(1f).height(48.dp)) {
+                TextMMD(text = stringResource(R.string.entry_save), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
 }
 
 private inline fun <reified E : Enum<E>> E.next(): E {

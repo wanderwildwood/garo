@@ -108,4 +108,5 @@ dependencies {
     implementation(libs.mmd)
 
     testImplementation(libs.junit)
+    testImplementation(libs.json)
 }

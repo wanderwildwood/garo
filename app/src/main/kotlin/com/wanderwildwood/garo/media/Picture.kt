@@ -30,13 +30,17 @@ data class Picture(
     val mime: String? = null,
     /** Set only for a picture another app handed over; everything else is found by its id. */
     val handed: Uri? = null,
+    /** Immich's id for a picture that lives on the server rather than the phone. */
+    val remote: String? = null,
+    /** The camera, when it is already known; for the phone's own pictures it is read from the file. */
+    val camera: String? = null,
 ) {
     /**
      * Where to read it from. Worked out from the id rather than stored, so the ordering code
      * that never reads it can be tested without Android's own classes.
      */
     val uri: Uri by lazy {
-        handed ?: ContentUris.withAppendedId(MediaStore.Images.Media.getContentUri(volume ?: MediaStore.VOLUME_EXTERNAL), id)
+        remote?.let { Uri.parse("immich://asset/$it") } ?: handed ?: ContentUris.withAppendedId(MediaStore.Images.Media.getContentUri(volume ?: MediaStore.VOLUME_EXTERNAL), id)
     }
 
     /**
@@ -84,7 +88,14 @@ data class Folder(
     val key: String,
     val label: String,
     val pictures: List<Picture>,
+    /** An Immich album: how many pictures the server says it holds, before they are read. */
+    val count: Int = pictures.size,
+    /** An Immich album's own cover, shown before its pictures are read. */
+    val albumCover: Picture? = null,
+    val remote: Boolean = false,
+    /** For an album, its newest picture's date as the server gives it. */
+    val albumNewest: Long = 0L,
 ) {
-    val cover: Picture? get() = pictures.firstOrNull()
-    val newest: Long get() = pictures.maxOfOrNull { it.`when` } ?: 0L
+    val cover: Picture? get() = albumCover ?: pictures.firstOrNull()
+    val newest: Long get() = if (remote) albumNewest else pictures.maxOfOrNull { it.`when` } ?: 0L
 }

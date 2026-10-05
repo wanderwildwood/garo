@@ -38,7 +38,8 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
     val context = LocalContext.current
 
     // The camera's make and model sit inside the file, not in the index, so it is opened to read them.
-    val camera by produceState<String?>(null, picture.uri) {
+    val camera by produceState(picture.camera, picture.uri) {
+        if (picture.remote != null) return@produceState
         value = withContext(Dispatchers.IO) {
             runCatching {
                 context.contentResolver.openInputStream(picture.uri)?.use { stream ->
@@ -78,6 +79,7 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
         }
 
         picture.path?.let { Fact(stringResource(R.string.info_folder), it.trimEnd('/')) }
+        if (picture.remote != null) Fact(stringResource(R.string.info_album), picture.folderName)
         camera?.let { Fact(stringResource(R.string.info_camera), it) }
 
         // The folder in Files, when there is a file manager to open it in.

@@ -101,17 +101,17 @@ fun ViewerScreen(
     // previous picture's — which would otherwise be drawn for a frame under the new number,
     // and on this panel a frame is a full repaint.
     var shown by remember(picture.uri) {
-        mutableStateOf(decoder.cachedFull(picture.uri)?.let { Shown.Ready(it) } ?: Shown.Decoding)
+        mutableStateOf(decoder.cachedFull(picture)?.let { Shown.Ready(it) } ?: Shown.Decoding)
     }
     LaunchedEffect(picture.uri) {
-        if (shown !is Shown.Ready) shown = decoder.full(picture.uri, longSide)?.let { Shown.Ready(it) } ?: Shown.Failed
+        if (shown !is Shown.Ready) shown = decoder.full(picture, longSide)?.let { Shown.Ready(it) } ?: Shown.Failed
     }
 
     // The pictures either side, decoded while this one is being looked at.
     LaunchedEffect(picture.uri, shown is Shown.Ready) {
         if (shown !is Shown.Ready) return@LaunchedEffect
-        pictures.getOrNull(index + 1)?.let { decoder.full(it.uri, longSide) }
-        pictures.getOrNull(index - 1)?.let { decoder.full(it.uri, longSide) }
+        pictures.getOrNull(index + 1)?.let { decoder.full(it, longSide) }
+        pictures.getOrNull(index - 1)?.let { decoder.full(it, longSide) }
     }
 
     fun turn(by: Int) {
@@ -154,7 +154,9 @@ fun ViewerScreen(
                 navigationIcon = { BarButton(Icons.Back, stringResource(R.string.viewer_cd_back), onBack) },
                 actions = {
                     BarButton(Icons.Info, stringResource(R.string.viewer_cd_info)) { infoOpen = true }
-                    BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
+                    // A picture on the server is not a file here to hand over or to delete; sharing
+                    // one would mean fetching the original first, which is for a later version.
+                    if (picture.remote == null) BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
                         val send = Intent(Intent.ACTION_SEND)
                             .setType(context.contentResolver.getType(picture.uri) ?: "image/*")
                             .putExtra(Intent.EXTRA_STREAM, picture.uri)
@@ -168,7 +170,7 @@ fun ViewerScreen(
                             Toast.makeText(context, R.string.viewer_no_share, Toast.LENGTH_SHORT).show()
                         }
                     }
-                    if (canDelete) {
+                    if (canDelete && picture.remote == null) {
                         BarButton(Icons.Delete, stringResource(R.string.viewer_cd_delete)) { onDelete(picture) }
                     }
                 },

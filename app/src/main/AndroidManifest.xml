@@ -6,10 +6,17 @@
       the phone's own Android, so the split into READ_MEDIA_IMAGES that came with 13 does not
       apply. Deleting needs no permission of its own: the phone asks the person each time.
 
-      There is no INTERNET permission, so nothing the app can see can leave the phone, and no
-      all-files permission, which Fossify asks for to find folders the media index does not.
+      There is no all-files permission, which Fossify asks for to find folders the media index
+      does not.
     -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <!--
+      Only for an Immich server, and only when one has been set: its albums are read from it.
+      The app talks to the address given in settings and to nothing else, and plain http is
+      refused — the address has to be https.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Android 11 and later hide other apps unless asked for by what they do: Files, to show a
          folder in, and whatever takes a shared picture. -->
@@ -24,8 +31,10 @@
         </intent>
     </queries>
 
+    <!-- No backup: the Immich key is the one thing kept here worth anything, and a copy of it in
+         a phone backup is a copy of the key to every picture on the server. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

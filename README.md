@@ -40,6 +40,20 @@ It is made to be the phone's picture app, not a room of its own.
   the app takes several, a tap marks a picture with a bold edge and "Choose" sends them all.
 - **Show in Files** opens the picture's folder in the file manager.
 
+## Immich
+
+With an [Immich](https://immich.app) server set in settings — its address and an API key —
+its albums appear below the phone's own folders, under their own heading, and open the same
+way. Read-only: nothing on the server is changed. Pictures are fetched at the size the screen
+needs and kept on the phone, so a page turned once turns again without the network.
+
+The address has to be `https://`. A server on a Tailscale network can be given one with
+`tailscale serve`. The key needs to read albums and assets and to view assets, and nothing
+more. When the server cannot be reached the albums last seen are still listed, and the screen
+says so.
+
+Album pictures cannot yet be shared, deleted, or chosen for another app.
+
 ## What it does not do
 
 No videos — the panel cannot play them. No editor, no slideshow, no wallpapers, no themes.

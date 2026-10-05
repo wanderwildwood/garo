@@ -25,9 +25,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
+import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
@@ -90,55 +92,97 @@ fun FoldersScreen(
                     button = stringResource(R.string.folders_open_app_settings),
                     onClick = onAppSettings,
                 )
-                state.folders.isEmpty() -> Explain(text = none ?: stringResource(R.string.folders_none))
-                else -> FolderList(state.folders, decoder, listState, onOpen)
+                state.folders.isEmpty() && state.server == Server.NONE ->
+                    Explain(text = none ?: stringResource(R.string.folders_none))
+                else -> FolderList(state, decoder, listState, onOpen)
             }
         }
     }
 }
 
+/**
+ * The phone's folders, and below them, when a server is set, its albums under their own heading.
+ * With no server there are no headings at all: a heading over the only list there is would be
+ * a label on the obvious.
+ */
 @Composable
-private fun FolderList(folders: List<Folder>, decoder: Decoder, listState: LazyListState, onOpen: (Folder) -> Unit) {
+private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyListState, onOpen: (Folder) -> Unit) {
     val coverPx = with(LocalDensity.current) { COVER.roundToPx() }
+    val withServer = state.server != Server.NONE
     LazyColumnMMD(
         state = listState,
         scrollStep = rememberPageStep(listState),
         modifier = Modifier.fillMaxSize().padding(start = 20.dp),
     ) {
-        items(folders, key = { it.key }) { folder ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpen(folder) }
-                    .padding(vertical = 10.dp),
-            ) {
-                folder.cover?.let {
-                    Thumbnail(
-                        decoder = decoder,
-                        uri = it.uri,
-                        px = coverPx,
-                        modifier = Modifier
-                            .size(COVER)
-                            .border(1.dp, MaterialTheme.colorScheme.onSurface),
-                    )
-                }
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    TextMMD(
-                        text = folder.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    TextMMD(
-                        text = pluralStringResource(R.plurals.folders_count, folder.pictures.size, folder.pictures.size),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
+        if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
+        if (withServer && state.folders.isEmpty()) {
+            item(key = "none-phone") { Note(stringResource(R.string.folders_none)) }
+        }
+        items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
+
+        if (withServer) {
+            item(key = "h-immich") { Heading(stringResource(R.string.folders_immich)) }
+            // Said, not hidden: the albums below may be what was last seen rather than what is
+            // there now, and the reader should know which.
+            val note = when (state.server) {
+                Server.ASKING -> if (state.albums.isEmpty()) R.string.immich_asking else null
+                Server.UNREACHABLE -> if (state.albums.isEmpty()) R.string.immich_unreachable else R.string.immich_unreachable_last_seen
+                Server.REFUSED -> R.string.immich_refused
+                else -> if (state.albums.isEmpty()) R.string.immich_no_albums else null
             }
+            if (note != null) item(key = "immich-note") { Note(stringResource(note)) }
+            items(state.albums, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
         }
     }
+}
+
+@Composable
+private fun FolderRow(folder: Folder, decoder: Decoder, coverPx: Int, onOpen: (Folder) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpen(folder) }
+            .padding(vertical = 10.dp),
+    ) {
+        Box(Modifier.size(COVER).border(1.dp, MaterialTheme.colorScheme.onSurface)) {
+            folder.cover?.let {
+                Thumbnail(decoder = decoder, picture = it, px = coverPx, modifier = Modifier.matchParentSize())
+            }
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            TextMMD(
+                text = folder.label,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            TextMMD(
+                text = pluralStringResource(R.plurals.folders_count, folder.count, folder.count),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+/** A group's name, bold over a rule — the same as Files' start page. */
+@Composable
+private fun Heading(text: String) {
+    Column(Modifier.fillMaxWidth()) {
+        TextMMD(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+        )
+        HorizontalDividerMMD()
+    }
+}
+
+@Composable
+private fun Note(text: String) {
+    TextMMD(text = text, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(vertical = 12.dp))
 }
 
 /** A sentence in the middle of an empty screen, and the one thing to do about it. */

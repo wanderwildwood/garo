@@ -1,7 +1,6 @@
 package com.wanderwildwood.garo.ui
 
 import android.graphics.Bitmap
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.wanderwildwood.garo.media.Decoder
+import com.wanderwildwood.garo.media.Picture
 
 /** A 48dp press with a 22dp glyph in it, the size every top bar in this shop uses. */
 @Composable
@@ -49,11 +49,12 @@ internal fun BarButton(icon: ImageVector, description: String, onClick: () -> Un
  * is all anybody sees anyway.
  */
 @Composable
-internal fun Thumbnail(decoder: Decoder, uri: Uri, px: Int, modifier: Modifier) {
+internal fun Thumbnail(decoder: Decoder, picture: Picture, px: Int, modifier: Modifier) {
+    val uri = picture.uri
     // Keyed on the picture, so a square reused for another one never shows the old one first.
-    var bitmap by remember(uri, px) { mutableStateOf(decoder.cachedThumbnail(uri, px)) }
+    var bitmap by remember(uri, px) { mutableStateOf(decoder.cachedThumbnail(picture, px)) }
     LaunchedEffect(uri, px) {
-        if (bitmap == null) bitmap = decoder.thumbnail(uri, px)
+        if (bitmap == null) bitmap = decoder.thumbnail(picture, px)
     }
     Box(modifier.background(MaterialTheme.colorScheme.surface)) {
         bitmap?.let {

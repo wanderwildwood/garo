@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mudita.mmd.ThemeMMD
@@ -30,6 +31,7 @@ import com.wanderwildwood.garo.ui.FoldersScreen
 import com.wanderwildwood.garo.ui.GalleryViewModel
 import com.wanderwildwood.garo.ui.GridScreen
 import com.wanderwildwood.garo.ui.RefreshOnResume
+import com.wanderwildwood.garo.ui.Server
 import com.wanderwildwood.garo.ui.SettingsScreen
 import com.wanderwildwood.garo.ui.ViewerScreen
 import com.wanderwildwood.garo.ui.monochrome
@@ -154,7 +156,12 @@ private fun Gallery(
         if (result.resultCode == Activity.RESULT_OK && gone != null) viewModel.deleted(gone.uri)
     }
 
-    val folder = state.folders.firstOrNull { it.key == folderKey }
+    val folder = state.folders.firstOrNull { it.key == folderKey } ?: state.albums.firstOrNull { it.key == folderKey }
+
+    // An album's pictures are read from the server when it is opened, and again each time.
+    LaunchedEffect(folderKey) {
+        folderKey?.let { key -> if (state.albums.any { it.key == key }) viewModel.openAlbum(key) }
+    }
 
     // A folder emptied from outside — every picture deleted elsewhere — has nothing left to show.
     // Asked of the state as it is when the effect runs, not of the folder this composition saw:
@@ -162,7 +169,7 @@ private fun Gallery(
     // one from before it, which would undo the search as soon as it succeeded.
     LaunchedEffect(folderKey, folder, state.reading) {
         val key = folderKey
-        if (key != null && !state.reading && found && state.folders.none { it.key == key }) {
+        if (key != null && !state.reading && found && state.folders.none { it.key == key } && state.albums.none { it.key == key }) {
             folderKey = null
             viewing = null
         }
@@ -175,6 +182,11 @@ private fun Gallery(
                 choices = state.choices,
                 onChoose = viewModel::choose,
                 onClose = { settingsOpen = false },
+                serverAddress = state.serverAddress,
+                hasKey = state.hasKey,
+                onServer = viewModel::setServer,
+                onKey = viewModel::setKey,
+                onForgetServer = viewModel::forgetServer,
             )
         }
 
@@ -197,7 +209,7 @@ private fun Gallery(
                 pictures = folder.pictures,
                 startIndex = viewing ?: 0,
                 decoder = viewModel.decoder,
-                canDelete = true,
+                canDelete = !folder.remote,
                 onIndex = { viewing = it },
                 onBack = closeViewer,
                 onDelete = { picture ->
@@ -217,6 +229,14 @@ private fun Gallery(
                 listState = gridList,
                 onBack = { folderKey = null },
                 onOpen = { viewing = it },
+                // Only an answer that went wrong says so; until then it is being read, including
+                // the frame before the reading has started, which would otherwise flash an error.
+                note = when {
+                    !folder.remote -> null
+                    folder.key !in state.opening && state.server == Server.REFUSED -> stringResource(R.string.immich_refused)
+                    folder.key !in state.opening && state.server == Server.UNREACHABLE -> stringResource(R.string.immich_unreachable)
+                    else -> stringResource(R.string.immich_reading_album)
+                },
             )
         }
 

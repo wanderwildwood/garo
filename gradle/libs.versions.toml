@@ -12,6 +12,7 @@ androidx-compose = "1.9.5"
 androidx-material3 = "1.4.0"
 
 junit = "4.13.2"
+json = "20240303"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -28,6 +29,8 @@ compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview"
 mmd = { module = "com.mudita:MMD", version.ref = "mmd" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
+# Android's org.json is a stub in local unit tests; this is the real one, for tests only.
+json = { module = "org.json:json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
