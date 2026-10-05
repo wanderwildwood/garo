@@ -1,0 +1,11 @@
+*.iml
+.gradle/
+.idea/
+build/
+local.properties
+
+signing/signing.properties
+signing/signing.keystore
+
+# Built screenshots come from the kompakt AVD, not from a build
+*.apk

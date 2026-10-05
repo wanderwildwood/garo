@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A picture hung on a wall: a nail, the wire from it, and a frame hanging a little off true,
+     with a ridge line inside it. What a gallery is, before anything about what is in it.
+
+     The ridge rather than the stock mountain-and-sun: the sun is a small circle, the first
+     shape to smudge on sixteen greys, and the peaks are drawn uneven because a real skyline is.
+     The frame is turned two degrees, the way every hung picture ends up.
+
+     Thin register, at the the weights of Tuning Fork and Mesh: 108 viewport, stroke 3.0, round caps, no fill
+     except the nail, which is a droplet. Every point sits within 33 units of the centre. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- the nail stays put; only the frame and its wire are off true -->
+    <path android:fillColor="#000000" android:pathData="M51.5,25.0 A2.5,2.5 0 1 0 56.5,25.0 A2.5,2.5 0 1 0 51.5,25.0 Z" />
+
+    <group android:rotation="-2" android:pivotX="54" android:pivotY="25">
+        <!-- the wire, from the nail to either side of the frame -->
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="3.0"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M37.0,42.0 L54.0,25.0 L71.0,42.0" />
+
+        <!-- the frame -->
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="3.0"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M32.0,42.0 L76.0,42.0 L76.0,76.0 L32.0,76.0 Z" />
+
+        <!-- the ridge -->
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="3.0"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M37.0,70.0 L45.5,57.0 L50.5,63.0 L59.0,50.5 L71.0,70.0" />
+    </group>
+</vector>

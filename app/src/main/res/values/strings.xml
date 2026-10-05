@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gallery</string>
+
+    <!-- ============================================================ -->
+    <!-- Folders: the first screen, every folder that holds a picture -->
+
+    <!-- Cog button in the top bar, read aloud by a screen reader -->
+    <string name="folders_cd_settings">Settings</string>
+    <!-- Under a folder's name -->
+    <plurals name="folders_count">
+        <item quantity="one">%d picture</item>
+        <item quantity="other">%d pictures</item>
+    </plurals>
+    <!-- Before the permission has been asked for -->
+    <string name="folders_need_permission">To show your pictures, this needs Android\'s permission to read photos and media. It reads only the pictures, and sends nothing anywhere.</string>
+    <!-- Button (verb) -->
+    <string name="folders_allow">Allow pictures</string>
+    <!-- After the permission was refused and Android will not ask again -->
+    <string name="folders_refused">The phone will not ask again. Permission to read pictures can be given in this app\'s settings, under Permissions.</string>
+    <!-- Button (verb): opens Android's page for this app -->
+    <string name="folders_open_app_settings">Open app settings</string>
+    <string name="folders_none">There are no pictures on this phone yet.</string>
+    <!-- Folder name for pictures at the very top of the phone's own storage, which have no folder -->
+    <string name="folder_root_phone">Phone</string>
+    <!-- Folder name for pictures at the very top of a memory card -->
+    <string name="folder_root_card">Card</string>
+    <!-- Added after a folder's name when it is on a memory card and another folder has the same name, e.g. "Camera · card" -->
+    <string name="folder_on_card">card</string>
+
+    <!-- ============================================================ -->
+    <!-- Grid: one folder's pictures -->
+
+    <!-- Back arrow in the top bar, read aloud by a screen reader -->
+    <string name="grid_cd_back">Back to folders</string>
+
+    <!-- ============================================================ -->
+    <!-- Viewer: one picture on the whole screen -->
+
+    <!-- Top bar title. %1$d is the picture's place in the folder, %2$d how many there are -->
+    <string name="viewer_position">%1$d of %2$d</string>
+    <!-- Top bar buttons, read aloud by a screen reader -->
+    <string name="viewer_cd_back">Back</string>
+    <string name="viewer_cd_info">Details</string>
+    <string name="viewer_cd_share">Share</string>
+    <string name="viewer_cd_delete">Delete</string>
+    <string name="viewer_failed">This picture could not be opened. It may be in a format this phone cannot read, or no longer there.</string>
+    <!-- Toast when nothing on the phone can receive a shared picture -->
+    <string name="viewer_no_share">Nothing on this phone can take a picture.</string>
+
+    <!-- Details dialog -->
+    <!-- The date the camera recorded -->
+    <string name="info_taken">Taken</string>
+    <!-- When no camera date is known: the date the file was written, which may be much later -->
+    <string name="info_saved">Saved to the phone</string>
+    <string name="info_size">Size</string>
+    <!-- Width by height in pixels. %1$d width, %2$d height -->
+    <string name="info_dimensions">%1$d × %2$d</string>
+    <string name="info_folder">Folder</string>
+    <string name="info_camera">Camera</string>
+    <!-- Button (verb) -->
+    <!-- Button (verb): opens the picture's folder in the phone's file manager -->
+    <string name="info_show_folder">Show in Files</string>
+    <string name="info_close">Close</string>
+
+    <!-- ============================================================ -->
+    <!-- Choosing pictures for another app, e.g. an attachment in Email -->
+
+    <!-- Top bar title when the other app takes one picture -->
+    <string name="pick_title_one">Choose a picture</string>
+    <!-- Top bar title when it takes several -->
+    <string name="pick_title_several">Choose pictures</string>
+    <!-- Close button in the top bar, read aloud by a screen reader: leaves without choosing -->
+    <string name="pick_cd_cancel">Cancel</string>
+    <!-- Top bar button once pictures are marked. %d is how many; it sends them to the app that asked -->
+    <string name="pick_send">Choose %d</string>
+    <!-- When the asking app takes only kinds of picture this phone has none of -->
+    <string name="pick_none_fit">None of the pictures here are of a kind that app can take.</string>
+
+    <!-- ============================================================ -->
+    <!-- Settings screen -->
+
+    <string name="settings_title">Settings</string>
+    <!-- Top bar buttons, read aloud by a screen reader -->
+    <string name="settings_cd_close">Close</string>
+    <string name="settings_cd_about">About</string>
+    <string name="settings_folder_order">Folders</string>
+    <string name="settings_picture_order">Pictures in a folder</string>
+    <string name="settings_per_row">Pictures across a row</string>
+    <!-- Order values, shown under the two rows above -->
+    <string name="order_newest_first">Newest first</string>
+    <string name="order_oldest_first">Oldest first</string>
+    <string name="order_name">By name</string>
+
+    <!-- ============================================================ -->
+    <!-- About dialog. Keep the names of the app, people, projects and licences as they are -->
+
+    <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
+    <string name="about_title">Gallery %1$s</string>
+    <string name="about_privacy">It reads the pictures on this phone to show them, and cannot reach the network at all.</string>
+    <string name="about_after">After Fossify Gallery, GPL 3.0, whose ways of ordering folders and pictures this keeps.</string>
+    <!-- The name of the app's licence -->
+    <string name="about_licence">GNU General Public License v3</string>
+    <string name="about_icons">Icons from Material Symbols, Apache 2.0</string>
+    <!-- The donation link label, beside a drawing of a llama. A fixed phrase: a verb and an object, so the reader knows what pressing it does -->
+    <string name="about_feed_the_llamas">feed the llamas</string>
+    <!-- Toast when the donation link cannot be opened -->
+    <string name="about_no_browser">There is no browser on this phone to open that with.</string>
+    <!-- Button that closes the About dialog -->
+    <string name="about_close">Close</string>
+</resources>
