@@ -222,6 +222,9 @@ fun SettingsScreen(
 
 private enum class Entry { SERVER, KEY }
 
+/** Hidden folders the dialog lists as they are, before it needs a list that pages. */
+private const val FITS = 5
+
 /** The hidden folders, each a press away from coming back. Holding a folder hides it again. */
 @Composable
 private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, onDismiss: () -> Unit) {
@@ -230,16 +233,25 @@ private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, 
         Spacer(Modifier.height(4.dp))
         TextMMD(text = stringResource(R.string.hidden_note), style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(8.dp))
-        LazyColumnMMD(modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp)) {
-            items(hidden.entries.sortedBy { it.value.lowercase() }.toList(), key = { it.key }) { (key, label) ->
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { onShow(key) }
-                        .padding(vertical = 12.dp),
-                ) {
-                    TextMMD(text = label, style = MaterialTheme.typography.bodyMedium)
-                }
+        val rows = hidden.entries.sortedBy { it.value.lowercase() }
+        val row: @Composable (Map.Entry<String, String>) -> Unit = { (key, label) ->
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onShow(key) }
+                    .padding(vertical = 12.dp),
+            ) {
+                TextMMD(text = label, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        // A few fit as they are; MMD's list fills whatever height it is given, so it is kept for
+        // the case it is for — more than the dialog can hold — and the dialog is not left mostly
+        // blank around one name.
+        if (rows.size <= FITS) {
+            rows.forEach { row(it) }
+        } else {
+            LazyColumnMMD(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+                items(rows, key = { it.key }) { row(it) }
             }
         }
         Spacer(Modifier.height(14.dp))
