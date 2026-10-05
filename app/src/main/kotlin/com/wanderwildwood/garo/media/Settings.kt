@@ -44,6 +44,8 @@ class Settings(context: Context) {
     }
 
     fun immichServer(): String? = prefs.getString(IMMICH_SERVER, null)?.takeIf { it.isNotBlank() }
+    /** The saved key, for the key dialog to open with — hidden there until the eye is pressed. */
+    fun immichKey(): String? = prefs.getString(IMMICH_KEY, null)?.takeIf { it.isNotBlank() }
     fun hasImmichKey(): Boolean = !prefs.getString(IMMICH_KEY, null).isNullOrBlank()
 
     fun writeImmichServer(server: String?) = prefs.edit().putString(IMMICH_SERVER, server?.trim()).apply()

@@ -45,7 +45,8 @@ access to the ones you chose and nothing else.
 
 The settings — how folders and pictures are ordered, how many go across a row, and the Immich
 address and key — in `SharedPreferences`, which no other app can read. See
-`media/Settings.kt`. The key is never shown on screen once saved.
+`media/Settings.kt`. The settings row never shows the key. Its dialog opens with the key
+hidden, behind an eye that shows it — for reading back a key typed by hand.
 
 The app is excluded from Android backups (`allowBackup="false"`), so the key does not travel
 into a phone backup.

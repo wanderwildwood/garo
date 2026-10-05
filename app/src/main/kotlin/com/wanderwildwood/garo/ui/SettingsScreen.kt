@@ -19,6 +19,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextRange
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -60,6 +62,7 @@ fun SettingsScreen(
     onServer: (String) -> Unit,
     onKey: (String) -> Unit,
     onForgetServer: () -> Unit,
+    savedKey: () -> String = { "" },
 ) {
     var aboutOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Entry?>(null) }
@@ -156,7 +159,8 @@ fun SettingsScreen(
         Entry.KEY -> EntryDialog(
             title = stringResource(R.string.settings_immich_key),
             note = stringResource(R.string.settings_immich_key_note),
-            initial = "",
+            // The saved key, hidden: opening this is how a key typed by hand gets checked.
+            initial = remember { savedKey() },
             secret = true,
             onDone = onKey,
             onDismiss = { editing = null },
@@ -205,6 +209,9 @@ private fun EntryDialog(
     onDismiss: () -> Unit,
 ) {
     var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(initial.length))) }
+    // Hidden to begin with, and shown only while the eye says so: keys are typed by hand on
+    // this phone, from a screen elsewhere, and the only way to find a slip is to read it back.
+    var shown by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     // Save with nothing typed changes nothing: an empty field is not a request to remove the key,
@@ -224,7 +231,21 @@ private fun EntryDialog(
             onValueChange = { value = it },
             modifier = Modifier.fillMaxWidth().focusRequester(focus),
             singleLine = true,
-            visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+            // A key in Lato puts l, I and 1 side by side looking alike; a monospaced face keeps
+            // every character its own width and shape, which is what checking one by eye needs.
+            textStyle = if (secret) LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace) else LocalTextStyle.current,
+            visualTransformation = if (secret && !shown) PasswordVisualTransformation() else VisualTransformation.None,
+            trailingIcon = if (secret) {
+                {
+                    BarButton(
+                        icon = if (shown) Icons.VisibilityOff else Icons.Visibility,
+                        description = stringResource(if (shown) R.string.entry_hide_key else R.string.entry_show_key),
+                        onClick = { shown = !shown },
+                    )
+                }
+            } else {
+                null
+            },
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Done,
                 keyboardType = if (secret) KeyboardType.Password else KeyboardType.Uri,

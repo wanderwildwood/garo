@@ -168,6 +168,9 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         askServer()
     }
 
+    /** The key as saved, read only when the key dialog opens, so it can be checked by eye. */
+    fun savedKey(): String = settings.immichKey().orEmpty()
+
     /** Server, key and everything fetched from it, gone. */
     fun forgetServer() {
         settings.writeImmichServer(null)

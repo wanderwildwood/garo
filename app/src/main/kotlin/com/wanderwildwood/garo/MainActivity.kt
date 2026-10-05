@@ -187,6 +187,7 @@ private fun Gallery(
                 onServer = viewModel::setServer,
                 onKey = viewModel::setKey,
                 onForgetServer = viewModel::forgetServer,
+                savedKey = viewModel::savedKey,
             )
         }
 

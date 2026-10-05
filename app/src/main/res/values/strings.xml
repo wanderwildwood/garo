@@ -121,6 +121,9 @@
     <!-- Buttons in the entry dialog -->
     <string name="entry_cancel">Cancel</string>
     <string name="entry_save">Save</string>
+    <!-- The eye beside the key, read aloud by a screen reader -->
+    <string name="entry_show_key">Show the key</string>
+    <string name="entry_hide_key">Hide the key</string>
 
     <!-- ============================================================ -->
     <!-- About dialog. Keep the names of the app, people, projects and licences as they are -->

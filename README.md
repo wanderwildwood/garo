@@ -49,7 +49,8 @@ needs and kept on the phone, so a page turned once turns again without the netwo
 
 The address has to be `https://`. A server on a Tailscale network can be given one with
 `tailscale serve`. The key needs to read albums and assets and to view assets, and nothing
-more. When the server cannot be reached the albums last seen are still listed, and the screen
+more. The key dialog has an eye to show what was typed, in a face where l, I and 1 differ.
+When the server cannot be reached the albums last seen are still listed, and the screen
 says so.
 
 Album pictures cannot yet be shared, deleted, or chosen for another app.
