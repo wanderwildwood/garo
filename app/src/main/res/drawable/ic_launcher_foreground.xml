@@ -1,47 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A picture hung on a wall: a nail, the wire from it, and a frame hanging a little off true,
-     with a ridge line inside it. What a gallery is, before anything about what is in it.
+<!-- A few prints left on a table: one lying askew under another, the top one a ridge line.
+     Photographs, more than one, the way they sit after someone has been looking through them.
 
      The ridge rather than the stock mountain-and-sun: the sun is a small circle, the first
-     shape to smudge on sixteen greys, and the peaks are drawn uneven because a real skyline is.
-     The frame is turned two degrees, the way every hung picture ends up.
+     shape to smudge on sixteen greys, and the peaks are uneven because a real skyline is.
+     The top print is filled white so it lies over the one beneath instead of tangling with it.
 
-     Thin register, at the the weights of Tuning Fork and Mesh: 108 viewport, stroke 3.0, round caps, no fill
-     except the nail, which is a droplet. Every point sits within 33 units of the centre. -->
+     Thin register, at the weights of Tuning Fork and Mesh: 108 viewport, stroke 3.0, round
+     joins, no fill but white. Every point sits within 33 units of the centre, inside what the
+     launcher's mask is certain to keep. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- the nail stays put; only the frame and its wire are off true -->
-    <path android:fillColor="#000000" android:pathData="M51.5,25.0 A2.5,2.5 0 1 0 56.5,25.0 A2.5,2.5 0 1 0 51.5,25.0 Z" />
+    <!-- the print underneath, turned the other way -->
+    <group android:rotation="-8" android:pivotX="49" android:pivotY="46">
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="3.0"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M31.0,33.0 L67.0,33.0 L67.0,60.0 L31.0,60.0 Z" />
+    </group>
 
-    <group android:rotation="-2" android:pivotX="54" android:pivotY="25">
-        <!-- the wire, from the nail to either side of the frame -->
+    <!-- the print on top, with its ridge -->
+    <group android:rotation="5" android:pivotX="59" android:pivotY="60">
+        <path
+            android:strokeColor="#000000"
+            android:strokeWidth="3.0"
+            android:strokeLineJoin="round"
+            android:fillColor="#FFFFFF"
+            android:pathData="M40.0,46.0 L78.0,46.0 L78.0,74.0 L40.0,74.0 Z" />
         <path
             android:strokeColor="#000000"
             android:strokeWidth="3.0"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
             android:fillColor="#00000000"
-            android:pathData="M37.0,42.0 L54.0,25.0 L71.0,42.0" />
-
-        <!-- the frame -->
-        <path
-            android:strokeColor="#000000"
-            android:strokeWidth="3.0"
-            android:strokeLineJoin="round"
-            android:fillColor="#00000000"
-            android:pathData="M32.0,42.0 L76.0,42.0 L76.0,76.0 L32.0,76.0 Z" />
-
-        <!-- the ridge -->
-        <path
-            android:strokeColor="#000000"
-            android:strokeWidth="3.0"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:fillColor="#00000000"
-            android:pathData="M37.0,70.0 L45.5,57.0 L50.5,63.0 L59.0,50.5 L71.0,70.0" />
+            android:pathData="M45.5,67.5 L53.0,57.0 L57.5,62.0 L65.0,52.0 L72.5,67.5" />
     </group>
 </vector>
