@@ -28,6 +28,8 @@
     <!-- Button (verb): opens Android's page for this app -->
     <string name="folders_open_app_settings">Open app settings</string>
     <string name="folders_none">There are no pictures on this phone yet.</string>
+    <!-- The first row, above the folders: every picture on the phone in one list, by date -->
+    <string name="folders_all">All pictures</string>
     <!-- A folder row once held: a second tap hides it from the list -->
     <string name="folders_hide_armed">Hide this folder — tap again</string>
     <!-- Heading over the phone's own folders, shown only when an Immich server is set -->

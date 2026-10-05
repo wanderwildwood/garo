@@ -44,6 +44,17 @@ object Arrange {
         }
     }
 
+    /**
+     * Every picture in one pile, by date, for the row above the folders. Only when there are two
+     * folders or more: with one, the pile would be that folder again. By date even when folders
+     * are ordered by name — a pile of every camera's IMG_0001s side by side reads as nothing.
+     */
+    fun all(folders: List<Folder>, order: PictureOrder, label: String): Folder? {
+        if (folders.size < 2) return null
+        val pictures = folders.flatMap { it.pictures }
+        return Folder(key = ALL, label = label, pictures = sort(pictures, if (order == PictureOrder.OLDEST) PictureOrder.OLDEST else PictureOrder.NEWEST))
+    }
+
     fun sort(pictures: List<Picture>, order: PictureOrder): List<Picture> = when (order) {
         // Ties broken by id so two pictures from the same second keep one order between loads,
         // rather than swapping places under the reader's thumb when the list is read again.
@@ -115,4 +126,7 @@ object Arrange {
     }
 
     const val PRIMARY_VOLUME = "external_primary"
+
+    /** The key of the all-pictures row; no bucket id is a word. */
+    const val ALL = "all"
 }

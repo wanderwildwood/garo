@@ -42,6 +42,7 @@ import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
+import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.Decoder
 import com.wanderwildwood.garo.media.Folder
 
@@ -119,6 +120,15 @@ fun FoldersScreen(
 private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyListState, onOpen: (Folder) -> Unit, onHide: ((Folder) -> Unit)?) {
     val coverPx = with(LocalDensity.current) { COVER.roundToPx() }
     val withServer = state.server != Server.NONE
+    // The list holds on to the row at its top by key, so "All pictures" coming back above it —
+    // shown again from settings, or a second folder appearing — would land just out of sight.
+    // A list that was at its top stays at its top.
+    val first = state.folders.firstOrNull()?.key
+    LaunchedEffect(first) {
+        if (!withServer && first == Arrange.ALL && listState.firstVisibleItemIndex == 1 && listState.firstVisibleItemScrollOffset == 0) {
+            listState.scrollToItem(0)
+        }
+    }
     LazyColumnMMD(
         state = listState,
         scrollStep = rememberPageStep(listState),

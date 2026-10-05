@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mudita.mmd.ThemeMMD
+import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.MediaIndex
 import com.wanderwildwood.garo.media.Picture
 import com.wanderwildwood.garo.ui.Access
@@ -123,10 +124,12 @@ private fun Gallery(
     // Find the handed picture once the index has been read.
     LaunchedEffect(state.reading, state.folders, state.access) {
         if (found || state.reading || state.access != Access.GRANTED) return@LaunchedEffect
-        for (f in state.folders) {
+        // In its own folder, not the pile of everything, so "Show in Files" and the turns either
+        // side are about the folder it came from.
+        for (f in state.folders.filter { it.key != Arrange.ALL }) {
             val i = f.pictures.indexOfFirst { lookFor?.invoke(it) == true }
             if (i >= 0) {
-                        folderKey = f.key
+                folderKey = f.key
                 viewing = i
                 gridList.requestScrollToItem(i / state.choices.perRow)
                 found = true

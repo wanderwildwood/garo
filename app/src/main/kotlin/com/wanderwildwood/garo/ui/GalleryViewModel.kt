@@ -337,7 +337,11 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             choices.folderOrder,
             choices.pictureOrder,
             cardMark = getApplication<Application>().getString(R.string.folder_on_card),
-        )
+        ).let { folders ->
+            // Hidden like any folder, from the same hold, and brought back from the same list.
+            val all = if (Arrange.ALL in hidden) null else Arrange.all(folders, choices.pictureOrder, getApplication<Application>().getString(R.string.folders_all))
+            listOfNotNull(all) + folders
+        }
         val shown = if (decoder.immich == null) emptyList() else albums.map { album ->
             val key = Immich.folderKey(album.id)
             val pictures = albumPictures[key]?.let { Arrange.sort(it, choices.pictureOrder) } ?: emptyList()

@@ -19,6 +19,9 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
 - **Folders**, newest first, each with its newest picture beside it. A folder that also holds
   music or audiobooks is left out, since its pictures are covers; hold any other folder to
   hide it, and bring it back from settings.
+- **All pictures**, above the folders: every picture and video on the phone in one list, newest
+  first (or oldest, if that is the order chosen). Hidden folders and covers stay out of it, and
+  it can be hidden itself like any folder.
 - **A folder's pictures**, two, three or four across. A swipe moves a screenful and stops;
   the last row of one page is the first of the next.
 - **One picture** on the whole panel. A tap at either side turns the page, as an e-reader

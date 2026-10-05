@@ -95,4 +95,22 @@ class ArrangeTest {
         val labels = Arrange.folders(pictures, FolderOrder.NAME, PictureOrder.NEWEST, "card").map { it.label }.toSet()
         assertEquals(setOf("Camera · DCIM", "Camera · card", "Camera · Pictures", "Screenshots"), labels)
     }
+
+    @Test
+    fun `all pictures is every folder in one pile by date, and only when there are two folders`() {
+        val pictures = listOf(
+            pic(1, folder = "a", folderName = "Alpha", taken = 100L),
+            pic(2, folder = "a", folderName = "Alpha", taken = 900L),
+            pic(3, folder = "b", folderName = "Beta", taken = 500L),
+        )
+        val folders = Arrange.folders(pictures, FolderOrder.NAME, PictureOrder.NAME, "card")
+        val all = Arrange.all(folders, PictureOrder.NAME, "All")!!
+        assertEquals(Arrange.ALL, all.key)
+        // By date even when folders' pictures go by name.
+        assertEquals(listOf(2L, 3L, 1L), all.pictures.map { it.id })
+        assertEquals(listOf(1L, 3L, 2L), Arrange.all(folders, PictureOrder.OLDEST, "All")!!.pictures.map { it.id })
+
+        val one = Arrange.folders(pictures.take(2), FolderOrder.NAME, PictureOrder.NEWEST, "card")
+        assertEquals(null, Arrange.all(one, PictureOrder.NEWEST, "All"))
+    }
 }
