@@ -15,7 +15,20 @@ import android.content.Intent
 class NewPictureReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION) return
-        BackupWorker.runSoon(context)
+        // Android may end a process started only for a broadcast as soon as onReceive returns,
+        // and WorkManager writes the request down on a thread of its own — on the Kompakt the
+        // process was gone a tenth of a second later. So the broadcast is held open until the
+        // request is written.
+        val pending = goAsync()
+        Thread {
+            try {
+                BackupWorker.runSoon(context)?.result?.get(8, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (_: Exception) {
+                // Not written in time: the twelve-hourly run and Android's own signal still find the photo.
+            } finally {
+                pending.finish()
+            }
+        }.start()
     }
 
     companion object {

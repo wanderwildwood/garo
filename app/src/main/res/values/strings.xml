@@ -12,6 +12,13 @@
         <item quantity="one">%d picture</item>
         <item quantity="other">%d pictures</item>
     </plurals>
+    <!-- Under a folder's name when it holds videos -->
+    <plurals name="folders_videos">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d videos</item>
+    </plurals>
+    <!-- Both: %1$s is "3 pictures", %2$s is "2 videos" -->
+    <string name="folders_both">%1$s, %2$s</string>
     <!-- Before the permission has been asked for -->
     <string name="folders_need_permission">To show your pictures, this needs Android\'s permission to read photos and media. It reads only the pictures.</string>
     <!-- Button (verb) -->
@@ -57,6 +64,15 @@
     <string name="viewer_cd_info">Details</string>
     <string name="viewer_cd_share">Share</string>
     <string name="viewer_cd_delete">Delete</string>
+    <!-- Video player -->
+    <string name="video_close">Close</string>
+    <!-- Buttons that skip back and on by ten seconds -->
+    <string name="video_back_ten">−10 s</string>
+    <string name="video_on_ten">+10 s</string>
+    <!-- Read aloud by a screen reader -->
+    <string name="video_cd_play">Play</string>
+    <string name="video_cd_pause">Pause</string>
+    <string name="video_failed">This video cannot be played on this phone.</string>
     <string name="viewer_failed">This picture could not be opened. It may be in a format this phone cannot read, or no longer there.</string>
     <!-- Toast when nothing on the phone can receive a shared picture -->
     <string name="viewer_no_share">Nothing on this phone can take a picture.</string>
@@ -72,6 +88,8 @@
     <!-- Width by height in pixels. %1$d width, %2$d height -->
     <string name="info_dimensions">%1$d × %2$d</string>
     <string name="info_folder">Folder</string>
+    <!-- A video's running time -->
+    <string name="info_length">Length</string>
     <!-- For a picture on the Immich server: the album it was opened from -->
     <string name="info_album">Immich album</string>
     <string name="info_camera">Camera</string>

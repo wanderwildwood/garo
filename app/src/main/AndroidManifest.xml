@@ -50,13 +50,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- So a picture opened from Files, Email or Messaging can be shown here. -->
+            <!-- So a picture or a video opened from Files, Email or Messaging is shown here. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
             </intent-filter>
 
             <!-- A camera's "last photo" thumbnail. Open Camera sends the older spelling first. -->
@@ -67,6 +68,7 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
 

@@ -15,7 +15,8 @@ import android.provider.OpenableColumns
  * saves an image all report to it. What it leaves out is a folder holding a `.nomedia` file,
  * which is that folder asking not to be shown.
  *
- * Pictures only. Videos are left out on purpose: the panel cannot play them.
+ * Pictures and videos. A video plays in the viewer, smeared as the panel smears anything that
+ * moves, but there, rather than sent off to another app.
  */
 class MediaIndex(
     private val resolver: ContentResolver,
@@ -25,40 +26,45 @@ class MediaIndex(
     private val rootCard: String,
 ) {
 
-    fun pictures(): List<Picture> {
-        // Every volume, so a card's pictures are found beside the phone's own.
-        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+    /** Pictures and videos together, as one folder holds both. */
+    fun pictures(): List<Picture> =
+        read(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL), video = false) +
+            read(MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL), video = true)
+
+    private fun read(collection: Uri, video: Boolean): List<Picture> {
         val columns = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.BUCKET_ID,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Images.Media.RELATIVE_PATH,
-            MediaStore.Images.Media.VOLUME_NAME,
-            MediaStore.Images.Media.DATE_TAKEN,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.WIDTH,
-            MediaStore.Images.Media.HEIGHT,
-            MediaStore.Images.Media.ORIENTATION,
-            MediaStore.Images.Media.MIME_TYPE,
+            MediaStore.MediaColumns._ID,
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.BUCKET_ID,
+            MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.VOLUME_NAME,
+            MediaStore.MediaColumns.DATE_TAKEN,
+            MediaStore.MediaColumns.DATE_MODIFIED,
+            MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.WIDTH,
+            MediaStore.MediaColumns.HEIGHT,
+            MediaStore.MediaColumns.ORIENTATION,
+            MediaStore.MediaColumns.MIME_TYPE,
+            MediaStore.MediaColumns.DURATION,
         )
 
         val found = ArrayList<Picture>()
         resolver.query(collection, columns, null, null, null)?.use { c ->
-            val id = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val name = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val bucket = c.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_ID)
-            val bucketName = c.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-            val path = c.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
-            val volume = c.getColumnIndexOrThrow(MediaStore.Images.Media.VOLUME_NAME)
-            val taken = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-            val modified = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
-            val size = c.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-            val width = c.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
-            val height = c.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
-            val orientation = c.getColumnIndexOrThrow(MediaStore.Images.Media.ORIENTATION)
-            val mime = c.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+            val id = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            val name = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            val bucket = c.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
+            val bucketName = c.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+            val path = c.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
+            val volume = c.getColumnIndexOrThrow(MediaStore.MediaColumns.VOLUME_NAME)
+            val taken = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_TAKEN)
+            val modified = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+            val size = c.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+            val width = c.getColumnIndexOrThrow(MediaStore.MediaColumns.WIDTH)
+            val height = c.getColumnIndexOrThrow(MediaStore.MediaColumns.HEIGHT)
+            val orientation = c.getColumnIndexOrThrow(MediaStore.MediaColumns.ORIENTATION)
+            val mime = c.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+            val duration = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DURATION)
 
             while (c.moveToNext()) {
                 val rowId = c.getLong(id)
@@ -87,6 +93,8 @@ class MediaIndex(
                     width = if (turned) h else w,
                     height = if (turned) w else h,
                     mime = c.getStringOrNull(mime),
+                    video = video,
+                    duration = if (c.isNull(duration)) 0L else c.getLong(duration),
                 )
             }
         }
@@ -118,6 +126,7 @@ class MediaIndex(
      * rest is left unknown rather than guessed.
      */
     fun outside(uri: Uri): Picture {
+        val type = runCatching { resolver.getType(uri) }.getOrNull()
         var name: String? = null
         var size = 0L
         runCatching {
@@ -141,7 +150,8 @@ class MediaIndex(
             size = size,
             width = 0,
             height = 0,
-            mime = runCatching { resolver.getType(uri) }.getOrNull(),
+            mime = type,
+            video = type?.startsWith("video/") == true,
         )
     }
 

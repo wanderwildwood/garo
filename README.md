@@ -2,7 +2,7 @@
 
 画廊 *garō*
 
-The pictures on the phone, by folder, one at a time — on an E Ink phone, black on white,
+The pictures and videos on the phone, by folder, one at a time — on an E Ink phone, black on white,
 with nothing moving.
 
 Built for the [Mudita Kompakt](https://mudita.com/products/kompakt/), whose 4.3" panel has
@@ -24,6 +24,9 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
 - **One picture** on the whole panel. A tap at either side turns the page, as an e-reader
   does, and so does a swipe; a tap in the middle shows or hides the bar. Two fingers zoom,
   and one finger then moves about the enlarged picture.
+- **Videos** sit in their folders beside the pictures, each marked with its length. Opened,
+  a video shows its first frame with a play button; it plays here, with pause, ten seconds
+  back and on, and where it is. It smears, as anything moving does on this panel, but it plays.
 - **Details**: when it was taken — or, when the camera recorded no date, only when it was
   saved, and it says which — its size, its folder and the camera.
 - **Share** and **delete**. Deleting is asked by the phone itself, because on Android 11 and
@@ -66,7 +69,7 @@ are up and when it last checked, or what stopped it. The key needs permission to
 
 ## What it does not do
 
-No videos — the panel cannot play them. No editor, no slideshow, no wallpapers, no themes.
+No editor, no slideshow, no wallpapers, no themes.
 It reads Android's own index of pictures rather than searching the storage itself, so a
 folder holding a `.nomedia` file — a folder asking not to be shown — is not shown.
 

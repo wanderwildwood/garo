@@ -80,6 +80,9 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
             Fact(stringResource(R.string.info_size), it.joinToString("  ·  "))
         }
 
+        if (picture.video && picture.duration > 0) {
+            Fact(stringResource(R.string.info_length), com.wanderwildwood.garo.media.Clock.format(picture.duration))
+        }
         picture.path?.let { Fact(stringResource(R.string.info_folder), it.trimEnd('/')) }
         if (picture.remote != null) Fact(stringResource(R.string.info_album), picture.folderName)
         camera?.let { Fact(stringResource(R.string.info_camera), it) }

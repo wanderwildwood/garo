@@ -156,10 +156,10 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             .build()
 
         /** Back up now, within the same limits — for after settings change. */
-        fun runSoon(context: Context) {
+        fun runSoon(context: Context): androidx.work.Operation? {
             val settings = Settings(context)
-            if (settings.immich() == null || !settings.backupOn()) return
-            WorkManager.getInstance(context).enqueueUniqueWork(
+            if (settings.immich() == null || !settings.backupOn()) return null
+            return WorkManager.getInstance(context).enqueueUniqueWork(
                 "backup-now",
                 ExistingWorkPolicy.KEEP,
                 OneTimeWorkRequestBuilder<BackupWorker>().setConstraints(constraints(settings.backupWhen())).build(),

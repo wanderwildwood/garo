@@ -5,6 +5,14 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -119,10 +127,19 @@ fun ViewerScreen(
         if (next in pictures.indices) chosen = next
     }
 
+    // A video plays on its own screen; until then its first frame stands in the viewer like a
+    // picture, with a play button over it, and pages turn past it as past any other.
+    var playing by remember(picture.uri) { mutableStateOf(false) }
+    if (playing) {
+        VideoPlayer(picture.uri, onClose = { playing = false })
+        return
+    }
+
     Box(Modifier.fillMaxSize()) {
         when (val s = shown) {
             Shown.Decoding -> Unit
-            Shown.Failed -> Explain(text = stringResource(R.string.viewer_failed))
+            // A video another app handed over may have no still to show; its play button is enough.
+            Shown.Failed -> if (!picture.video) Explain(text = stringResource(R.string.viewer_failed))
             is Shown.Ready -> Zoomable(
                 bitmap = s.bitmap,
                 key = picture.uri,
@@ -136,6 +153,21 @@ fun ViewerScreen(
                 },
                 onSwipe = { turn(it) },
             )
+        }
+
+        if (picture.video && shown !is Shown.Decoding) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                    .clickable { playing = true },
+            ) {
+                Icon(Icons.Play, stringResource(R.string.video_cd_play), tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(36.dp))
+            }
         }
 
         if (barShown) {

@@ -191,11 +191,18 @@ private fun FolderRow(folder: Folder, decoder: Decoder, coverPx: Int, onOpen: (F
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            val videos = folder.pictures.count { it.video }
+            val stills = folder.count - videos
             TextMMD(
-                text = if (armed) {
-                    stringResource(R.string.folders_hide_armed)
-                } else {
-                    pluralStringResource(R.plurals.folders_count, folder.count, folder.count)
+                text = when {
+                    armed -> stringResource(R.string.folders_hide_armed)
+                    videos == 0 -> pluralStringResource(R.plurals.folders_count, folder.count, folder.count)
+                    stills == 0 -> pluralStringResource(R.plurals.folders_videos, videos, videos)
+                    else -> stringResource(
+                        R.string.folders_both,
+                        pluralStringResource(R.plurals.folders_count, stills, stills),
+                        pluralStringResource(R.plurals.folders_videos, videos, videos),
+                    )
                 },
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (armed) FontWeight.Bold else null,

@@ -87,10 +87,11 @@ object Backup {
     /**
      * The camera's pictures: anything under DCIM, which is where every camera app saves —
      * Open Camera in DCIM/OpenCamera, most others in DCIM/Camera. Screenshots, downloads and
-     * pictures saved from messages are elsewhere and stay on the phone.
+     * pictures saved from messages are elsewhere and stay on the phone. Photos only, for now:
+     * a video is many times a photo's size, and nobody has asked for those to go up.
      */
     fun isCamera(picture: Picture): Boolean =
-        picture.remote == null && picture.path?.startsWith("DCIM/", ignoreCase = true) == true
+        picture.remote == null && !picture.video && picture.path?.startsWith("DCIM/", ignoreCase = true) == true
 
     /** The camera's pictures not yet backed up, oldest first, so a backlog goes up in order. */
     fun pending(pictures: List<Picture>, isDone: (Picture) -> Boolean): List<Picture> =

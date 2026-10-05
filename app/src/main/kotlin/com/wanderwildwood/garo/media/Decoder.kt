@@ -54,10 +54,10 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         return withContext(io) {
             runCatching {
                 val remote = picture.remote
-                if (remote != null) {
-                    decode(fetch(remote, THUMBNAIL), px)
-                } else {
-                    resolver.loadThumbnail(uri, Size(px, px), null)
+                when {
+                    remote != null -> decode(fetch(remote, THUMBNAIL), px)
+                    picture.video -> videoFrame(uri, px)
+                    else -> resolver.loadThumbnail(uri, Size(px, px), null)
                 }
             }.getOrNull()?.also { thumbnails.put(key, it) }
         }
@@ -75,6 +75,11 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         full.get(uri)?.let { return it }
         return withContext(io) {
             runCatching {
+                // A video's still is the frame Android's own thumbnailer picks, asked for at the
+                // viewer's size; the video itself plays only when asked to.
+                if (picture.video) {
+                    return@runCatching videoFrame(uri, longSide)
+                }
                 val remote = picture.remote
                 val source = if (remote != null) {
                     // Immich's preview, 1440 on its long side: as much as twice this panel
@@ -136,6 +141,31 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
             total -= f.length()
             f.delete()
             if (total <= DISK_BYTES * 3 / 4) break
+        }
+    }
+
+    /**
+     * A still of a video: Android's own thumbnail when it has made one, and otherwise a frame
+     * read out of the file itself — the thumbnailer gives up on some videos, and a blank square
+     * says nothing about what is in one.
+     */
+    private fun videoFrame(uri: Uri, px: Int): Bitmap {
+        runCatching { return resolver.loadThumbnail(uri, Size(px, px), null) }
+        val retriever = android.media.MediaMetadataRetriever()
+        try {
+            resolver.openFileDescriptor(uri, "r")!!.use { fd ->
+                retriever.setDataSource(fd.fileDescriptor)
+                val frame = retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    ?: throw IllegalStateException("no frame")
+                val scale = minOf(1f, px.toFloat() / maxOf(frame.width, frame.height))
+                return if (scale < 1f) {
+                    Bitmap.createScaledBitmap(frame, (frame.width * scale).toInt().coerceAtLeast(1), (frame.height * scale).toInt().coerceAtLeast(1), true)
+                } else {
+                    frame
+                }
+            }
+        } finally {
+            retriever.release()
         }
     }
 

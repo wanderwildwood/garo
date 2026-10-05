@@ -34,13 +34,24 @@ data class Picture(
     val remote: String? = null,
     /** The camera, when it is already known; for the phone's own pictures it is read from the file. */
     val camera: String? = null,
+    /** A video rather than a still; it plays in the viewer. */
+    val video: Boolean = false,
+    /** A video's length in milliseconds; 0 for a picture, or when the index does not know. */
+    val duration: Long = 0L,
 ) {
     /**
      * Where to read it from. Worked out from the id rather than stored, so the ordering code
      * that never reads it can be tested without Android's own classes.
      */
     val uri: Uri by lazy {
-        remote?.let { Uri.parse("immich://asset/$it") } ?: handed ?: ContentUris.withAppendedId(MediaStore.Images.Media.getContentUri(volume ?: MediaStore.VOLUME_EXTERNAL), id)
+        remote?.let { Uri.parse("immich://asset/$it") } ?: handed ?: ContentUris.withAppendedId(
+            if (video) {
+                MediaStore.Video.Media.getContentUri(volume ?: MediaStore.VOLUME_EXTERNAL)
+            } else {
+                MediaStore.Images.Media.getContentUri(volume ?: MediaStore.VOLUME_EXTERNAL)
+            },
+            id,
+        )
     }
 
     /**
