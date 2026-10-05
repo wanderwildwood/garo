@@ -61,6 +61,8 @@ data class GalleryState(
     /** Albums whose pictures are being read just now. */
     val opening: Set<String> = emptySet(),
     val backup: BackupState = BackupState(),
+    /** Folders hidden by hand: key to name. */
+    val hidden: Map<String, String> = emptyMap(),
 )
 
 /** What the backup row says. */
@@ -87,6 +89,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(
         GalleryState(
             choices = settings.read(),
+            hidden = settings.hiddenFolders(),
             serverAddress = settings.immichServer(),
             hasKey = settings.hasImmichKey(),
         ),
@@ -94,6 +97,9 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<GalleryState> = _state
 
     private var everything: List<Picture> = emptyList()
+
+    /** Folders that hold sound, whose pictures are covers; read with the index. */
+    private var soundFolders: Set<String> = emptySet()
     private var reading: Job? = null
     private var asking: Job? = null
 
@@ -137,6 +143,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         reading?.cancel()
         reading = viewModelScope.launch {
             val pictures = withContext(Dispatchers.IO) { runCatching { index.pictures() }.getOrDefault(emptyList()) }
+            soundFolders = withContext(Dispatchers.IO) { index.soundFolders() }
             everything = pictures
             indexRead = true
             arrange()
@@ -157,6 +164,21 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     fun choose(choices: Choices) {
         settings.write(choices)
         _state.update { it.copy(choices = choices) }
+        arrange()
+    }
+
+    /** Takes a folder out of the list, until it is brought back in settings. */
+    fun hideFolder(key: String, label: String) {
+        val hidden = _state.value.hidden + (key to label)
+        settings.writeHiddenFolders(hidden)
+        _state.update { it.copy(hidden = hidden) }
+        arrange()
+    }
+
+    fun showFolder(key: String) {
+        val hidden = _state.value.hidden - key
+        settings.writeHiddenFolders(hidden)
+        _state.update { it.copy(hidden = hidden) }
         arrange()
     }
 
@@ -306,8 +328,12 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun arrange() {
         val choices = _state.value.choices
+        // Covers and hidden folders are left out of the list only: backing up looks at the
+        // camera's folder whatever is shown. A picture another app opens from a hidden folder
+        // is still shown, on its own, since its folder is not here to open it in.
+        val hidden = _state.value.hidden.keys
         val folders = Arrange.folders(
-            everything,
+            everything.filter { it.folderKey !in soundFolders && it.folderKey !in hidden },
             choices.folderOrder,
             choices.pictureOrder,
             cardMark = getApplication<Application>().getString(R.string.folder_on_card),

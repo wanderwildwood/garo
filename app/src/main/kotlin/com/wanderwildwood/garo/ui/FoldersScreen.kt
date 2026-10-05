@@ -1,7 +1,9 @@
 package com.wanderwildwood.garo.ui
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -61,6 +69,8 @@ fun FoldersScreen(
     /** What an empty list says, when it is not simply that the phone has no pictures. */
     none: String? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    /** Hiding a folder by hand; null where hiding is not offered, as while choosing. */
+    onHide: ((Folder) -> Unit)? = null,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -94,7 +104,7 @@ fun FoldersScreen(
                 )
                 state.folders.isEmpty() && state.server == Server.NONE ->
                     Explain(text = none ?: stringResource(R.string.folders_none))
-                else -> FolderList(state, decoder, listState, onOpen)
+                else -> FolderList(state, decoder, listState, onOpen, onHide)
             }
         }
     }
@@ -106,7 +116,7 @@ fun FoldersScreen(
  * a label on the obvious.
  */
 @Composable
-private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyListState, onOpen: (Folder) -> Unit) {
+private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyListState, onOpen: (Folder) -> Unit, onHide: ((Folder) -> Unit)?) {
     val coverPx = with(LocalDensity.current) { COVER.roundToPx() }
     val withServer = state.server != Server.NONE
     LazyColumnMMD(
@@ -118,7 +128,7 @@ private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyLis
         if (withServer && state.folders.isEmpty()) {
             item(key = "none-phone") { Note(stringResource(R.string.folders_none)) }
         }
-        items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
+        items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen, onHide) }
 
         if (withServer) {
             item(key = "h-immich") { Heading(stringResource(R.string.folders_immich)) }
@@ -136,13 +146,36 @@ private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyLis
     }
 }
 
+/**
+ * A folder: its newest picture, its name, how many. Held, it offers to hide itself, the way a
+ * row in this shop asks — it says what a second tap will do, and forgets the offer after four
+ * seconds, so a stray hold leaves nothing live.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderRow(folder: Folder, decoder: Decoder, coverPx: Int, onOpen: (Folder) -> Unit) {
+private fun FolderRow(folder: Folder, decoder: Decoder, coverPx: Int, onOpen: (Folder) -> Unit, onHide: ((Folder) -> Unit)? = null) {
+    var armed by remember(folder.key) { mutableStateOf(false) }
+    LaunchedEffect(armed) {
+        if (armed) {
+            delay(4_000)
+            armed = false
+        }
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onOpen(folder) }
+            .combinedClickable(
+                onClick = {
+                    if (armed) {
+                        armed = false
+                        onHide?.invoke(folder)
+                    } else {
+                        onOpen(folder)
+                    }
+                },
+                onLongClick = if (onHide != null && !folder.remote) ({ armed = true }) else null,
+            )
             .padding(vertical = 10.dp),
     ) {
         Box(Modifier.size(COVER).border(1.dp, MaterialTheme.colorScheme.onSurface)) {
@@ -159,8 +192,13 @@ private fun FolderRow(folder: Folder, decoder: Decoder, coverPx: Int, onOpen: (F
                 overflow = TextOverflow.Ellipsis,
             )
             TextMMD(
-                text = pluralStringResource(R.plurals.folders_count, folder.count, folder.count),
+                text = if (armed) {
+                    stringResource(R.string.folders_hide_armed)
+                } else {
+                    pluralStringResource(R.plurals.folders_count, folder.count, folder.count)
+                },
                 style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (armed) FontWeight.Bold else null,
             )
         }
     }

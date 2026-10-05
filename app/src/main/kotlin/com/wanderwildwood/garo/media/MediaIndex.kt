@@ -94,6 +94,25 @@ class MediaIndex(
     }
 
     /**
+     * The folders that hold sound: music, audiobooks, podcasts. A picture in one of those is a
+     * cover — an album's, a book's — not a photograph anybody took, and a gallery listing them
+     * buries the camera under a shelf of covers.
+     */
+    fun soundFolders(): Set<String> {
+        val found = HashSet<String>()
+        runCatching {
+            resolver.query(
+                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL),
+                arrayOf(MediaStore.Audio.Media.BUCKET_ID),
+                null, null, null,
+            )?.use { c ->
+                while (c.moveToNext()) if (!c.isNull(0)) found += c.getString(0)
+            }
+        }
+        return found
+    }
+
+    /**
      * A picture handed over by another app, which the index may not know at all — an
      * attachment, a file from a share. Whatever the provider will say about it is used, and the
      * rest is left unknown rather than guessed.

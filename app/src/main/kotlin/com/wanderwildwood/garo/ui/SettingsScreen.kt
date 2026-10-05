@@ -41,7 +41,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
@@ -73,8 +76,11 @@ fun SettingsScreen(
     backup: BackupState = BackupState(),
     onBackup: (Boolean) -> Unit = {},
     onBackupWhen: (BackupWhen) -> Unit = {},
+    hidden: Map<String, String> = emptyMap(),
+    onShowFolder: (String) -> Unit = {},
 ) {
     var aboutOpen by remember { mutableStateOf(false) }
+    var hiddenOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Entry?>(null) }
 
     Scaffold(
@@ -130,6 +136,17 @@ fun SettingsScreen(
                 )
             }
 
+            // Only once something is hidden: a row for an empty list would be furniture.
+            if (hidden.isNotEmpty()) {
+                item {
+                    Setting(
+                        title = stringResource(R.string.settings_hidden),
+                        value = pluralStringResource(R.plurals.settings_hidden_count, hidden.size, hidden.size),
+                        onClick = { hiddenOpen = true },
+                    )
+                }
+            }
+
             // Immich: the server and the key, then — only once there is something to forget —
             // the way to forget it, last, as the one row here that undoes anything.
             item {
@@ -177,6 +194,10 @@ fun SettingsScreen(
 
     if (aboutOpen) AboutDialog(onDismiss = { aboutOpen = false })
 
+    if (hiddenOpen && hidden.isNotEmpty()) {
+        HiddenDialog(hidden, onShow = onShowFolder, onDismiss = { hiddenOpen = false })
+    }
+
     when (editing) {
         Entry.SERVER -> EntryDialog(
             title = stringResource(R.string.settings_immich_server),
@@ -200,6 +221,33 @@ fun SettingsScreen(
 }
 
 private enum class Entry { SERVER, KEY }
+
+/** The hidden folders, each a press away from coming back. Holding a folder hides it again. */
+@Composable
+private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, onDismiss: () -> Unit) {
+    EInkDialog(onDismiss = onDismiss) {
+        TextMMD(text = stringResource(R.string.settings_hidden), style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(4.dp))
+        TextMMD(text = stringResource(R.string.hidden_note), style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(8.dp))
+        LazyColumnMMD(modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp)) {
+            items(hidden.entries.sortedBy { it.value.lowercase() }.toList(), key = { it.key }) { (key, label) ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onShow(key) }
+                        .padding(vertical = 12.dp),
+                ) {
+                    TextMMD(text = label, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        OutlinedButtonMMD(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+            TextMMD(text = stringResource(R.string.info_close), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
 
 /**
  * The switch, and under it the one line worth reading: how far the backup has got, or what

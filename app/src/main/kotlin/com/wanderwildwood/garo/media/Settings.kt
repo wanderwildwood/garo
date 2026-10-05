@@ -56,6 +56,16 @@ class Settings(context: Context) {
     fun writeBackupOn(on: Boolean) = prefs.edit().putBoolean(BACKUP_ON, on).apply()
     fun writeBackupWhen(w: BackupWhen) = prefs.edit().putString(BACKUP_WHEN, w.name).apply()
 
+    /** Folders hidden by hand, each kept with its name so settings can list it to bring back. */
+    fun hiddenFolders(): Map<String, String> =
+        prefs.getStringSet(HIDDEN, emptySet()).orEmpty().mapNotNull { entry ->
+            val cut = entry.indexOf('|')
+            if (cut <= 0) null else entry.substring(0, cut) to entry.substring(cut + 1)
+        }.toMap()
+
+    fun writeHiddenFolders(hidden: Map<String, String>) =
+        prefs.edit().putStringSet(HIDDEN, hidden.map { (key, label) -> "$key|$label" }.toSet()).apply()
+
     private inline fun <reified E : Enum<E>> enumOr(name: String?, fallback: E): E =
         enumValues<E>().firstOrNull { it.name == name } ?: fallback
 
@@ -67,5 +77,6 @@ class Settings(context: Context) {
         const val IMMICH_KEY = "immich_key"
         const val BACKUP_ON = "backup_on"
         const val BACKUP_WHEN = "backup_when"
+        const val HIDDEN = "hidden_folders"
     }
 }

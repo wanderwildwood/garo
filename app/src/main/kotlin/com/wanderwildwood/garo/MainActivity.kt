@@ -193,6 +193,8 @@ private fun Gallery(
                 backup = state.backup,
                 onBackup = viewModel::setBackup,
                 onBackupWhen = viewModel::setBackupWhen,
+                hidden = state.hidden,
+                onShowFolder = viewModel::showFolder,
             )
         }
 
@@ -261,6 +263,7 @@ private fun Gallery(
             onSettings = { settingsOpen = true },
             onAllow = ask,
             onAppSettings = { openAppSettings(context) },
+            onHide = { viewModel.hideFolder(it.key, it.label) },
         )
     }
 }

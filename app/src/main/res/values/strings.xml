@@ -13,7 +13,7 @@
         <item quantity="other">%d pictures</item>
     </plurals>
     <!-- Before the permission has been asked for -->
-    <string name="folders_need_permission">To show your pictures, this needs Android\'s permission to read photos and media. It reads only the pictures, and sends nothing anywhere.</string>
+    <string name="folders_need_permission">To show your pictures, this needs Android\'s permission to read photos and media. It reads only the pictures.</string>
     <!-- Button (verb) -->
     <string name="folders_allow">Allow pictures</string>
     <!-- After the permission was refused and Android will not ask again -->
@@ -21,6 +21,8 @@
     <!-- Button (verb): opens Android's page for this app -->
     <string name="folders_open_app_settings">Open app settings</string>
     <string name="folders_none">There are no pictures on this phone yet.</string>
+    <!-- A folder row once held: a second tap hides it from the list -->
+    <string name="folders_hide_armed">Hide this folder — tap again</string>
     <!-- Heading over the phone's own folders, shown only when an Immich server is set -->
     <string name="folders_on_phone">On the phone</string>
     <!-- Heading over the albums from the Immich server. Immich is a product name -->
@@ -106,6 +108,13 @@
     <string name="order_newest_first">Newest first</string>
     <string name="order_oldest_first">Oldest first</string>
     <string name="order_name">By name</string>
+    <!-- Folders hidden by hand, and the dialog that brings them back -->
+    <string name="settings_hidden">Hidden folders</string>
+    <plurals name="settings_hidden_count">
+        <item quantity="one">%d folder</item>
+        <item quantity="other">%d folders</item>
+    </plurals>
+    <string name="hidden_note">Press one to show it again. Hold a folder in the list to hide it.</string>
     <!-- Immich rows. Immich is a product name; API key is its own term -->
     <string name="settings_immich_server">Immich server</string>
     <string name="settings_immich_key">Immich API key</string>
