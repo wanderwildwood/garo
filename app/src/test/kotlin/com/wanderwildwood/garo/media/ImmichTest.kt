@@ -35,7 +35,7 @@ class ImmichTest {
         val json = JSONArray(
             """[{"id":"c0ffee00-0000-4000-8000-000000000001","type":"IMAGE","originalFileName":"IMG_1.jpg",
                  "fileModifiedAt":"2026-08-01T00:00:00.000Z","width":3000,"height":4000,"originalMimeType":"image/jpeg",
-                 "exifInfo":{"dateTimeOriginal":"2026-07-04T12:00:00.000Z","fileSizeInByte":123456,
+                 "exifInfo":{"dateTimeOriginal":"2026-07-04T12:00:00.000+00:00","fileSizeInByte":123456,
                              "exifImageWidth":4000,"exifImageHeight":3000,"make":"Canon","model":"Canon EOS R6"}},
                {"id":"c0ffee00-0000-4000-8000-000000000002","type":"IMAGE","originalFileName":"shot.png",
                  "fileModifiedAt":"2026-08-02T00:00:00.000Z","exifInfo":{"dateTimeOriginal":null,"make":null,"model":null}},
@@ -58,6 +58,15 @@ class ImmichTest {
         assertNull(shot.taken)
         assertNull(shot.camera)
         assertEquals(1_785_628_800_000L, shot.`when`)
+    }
+
+    @Test
+    fun `dates read with an offset or a Z, and the offset is applied`() {
+        assertEquals(1_783_166_400_000L, Immich.time("2026-07-04T12:00:00.000+00:00"))
+        assertEquals(1_783_166_400_000L, Immich.time("2026-07-04T12:00:00.000Z"))
+        assertEquals(1_783_166_400_000L, Immich.time("2026-07-04T08:00:00-04:00"))
+        assertNull(Immich.time("null"))
+        assertNull(Immich.time("not a date"))
     }
 
     @Test

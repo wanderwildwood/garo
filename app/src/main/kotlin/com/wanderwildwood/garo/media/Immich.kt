@@ -6,6 +6,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
@@ -192,9 +193,16 @@ class Immich(server: String, private val key: String) {
             camera = camera,
         )
 
+        /**
+         * Immich writes the camera's date with an offset ("+00:00") and its own dates with a "Z".
+         * Android 12's Instant.parse refuses the first — newer Java takes both, which is why a
+         * test on a desktop JVM cannot catch it — so both go through OffsetDateTime.
+         */
         internal fun time(text: String?): Long? {
             if (text.isNullOrBlank() || text == "null") return null
-            return runCatching { Instant.parse(text).toEpochMilli() }.getOrNull()
+            return runCatching { OffsetDateTime.parse(text).toInstant().toEpochMilli() }
+                .recoverCatching { Instant.parse(text).toEpochMilli() }
+                .getOrNull()
         }
     }
 }

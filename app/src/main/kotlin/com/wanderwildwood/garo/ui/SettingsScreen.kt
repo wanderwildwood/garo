@@ -207,8 +207,11 @@ private fun EntryDialog(
     var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(initial.length))) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
+    // Save with nothing typed changes nothing: an empty field is not a request to remove the key,
+    // which only "Forget the Immich server" does, and asks first.
+    val filled = value.text.isNotBlank() && value.text.trim() != "https://"
     val save = {
-        onDone(value.text)
+        if (filled) onDone(value.text)
         onDismiss()
     }
     EInkDialog(onDismiss = onDismiss) {
@@ -235,7 +238,7 @@ private fun EntryDialog(
                 TextMMD(text = stringResource(R.string.entry_cancel), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.width(10.dp))
-            OutlinedButtonMMD(onClick = save, modifier = Modifier.weight(1f).height(48.dp)) {
+            OutlinedButtonMMD(onClick = save, enabled = filled, modifier = Modifier.weight(1f).height(48.dp)) {
                 TextMMD(text = stringResource(R.string.entry_save), style = MaterialTheme.typography.bodySmall)
             }
         }

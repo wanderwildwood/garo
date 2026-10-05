@@ -88,6 +88,9 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     /** The album list from the last answer, kept so the albums still show when the server cannot be reached. */
     private val albumsFile = File(app.filesDir, "immich-albums.json")
 
+    /** Each album's pictures as last read, one file an album, for the same reason. */
+    private val picturesDir = File(app.filesDir, "immich-albums")
+
     /** Whether Android has been asked once already, so a second "no" can be told from a first. */
     private var asked = false
 
@@ -184,8 +187,18 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         if (key in _state.value.opening) return
         _state.update { it.copy(opening = it.opening + key) }
         viewModelScope.launch {
+            // What was read last time, at once, so an album opened off the network still opens.
+            if (albumPictures[key] == null) {
+                withContext(Dispatchers.IO) { readPictures(album) }?.let {
+                    albumPictures[key] = it
+                    arrange()
+                }
+            }
             val read = withContext(Dispatchers.IO) { runCatching { server.pictures(album) } }
-            read.onSuccess { albumPictures[key] = it }
+            read.onSuccess { list ->
+                albumPictures[key] = list
+                withContext(Dispatchers.IO) { writePictures(album, list) }
+            }
             read.onFailure { problem ->
                 _state.update { it.copy(server = if (problem is Immich.Trouble.Refused) Server.REFUSED else Server.UNREACHABLE) }
             }
@@ -223,6 +236,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         albums = emptyList()
         albumPictures.clear()
         albumsFile.delete()
+        picturesDir.deleteRecursively()
         decoder.forgetRemote()
     }
 
@@ -283,4 +297,47 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
     }.getOrDefault(emptyList())
+
+    private fun picturesFile(album: Immich.Album) = File(picturesDir, album.id.filter { it.isLetterOrDigit() || it == '-' } + ".json")
+
+    private fun writePictures(album: Immich.Album, list: List<Picture>) {
+        val array = JSONArray()
+        list.forEach { p ->
+            array.put(
+                JSONObject()
+                    .put("asset", p.remote)
+                    .put("name", p.name)
+                    .put("taken", p.taken ?: JSONObject.NULL)
+                    .put("modified", p.modified)
+                    .put("size", p.size)
+                    .put("width", p.width)
+                    .put("height", p.height)
+                    .put("mime", p.mime ?: JSONObject.NULL)
+                    .put("camera", p.camera ?: JSONObject.NULL),
+            )
+        }
+        runCatching {
+            picturesDir.mkdirs()
+            picturesFile(album).writeText(array.toString())
+        }
+    }
+
+    private fun readPictures(album: Immich.Album): List<Picture>? = runCatching {
+        val array = JSONArray(picturesFile(album).readText())
+        (0 until array.length()).map { i ->
+            val o = array.getJSONObject(i)
+            Immich.remote(
+                assetId = o.getString("asset"),
+                name = o.optString("name"),
+                album = album,
+                taken = if (o.isNull("taken")) null else o.getLong("taken"),
+                modified = o.optLong("modified"),
+                size = o.optLong("size"),
+                width = o.optInt("width"),
+                height = o.optInt("height"),
+                mime = if (o.isNull("mime")) null else o.getString("mime"),
+                camera = if (o.isNull("camera")) null else o.getString("camera"),
+            )
+        }
+    }.getOrNull()
 }

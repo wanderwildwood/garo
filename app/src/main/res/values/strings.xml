@@ -64,6 +64,8 @@
     <string name="info_taken">Taken</string>
     <!-- When no camera date is known: the date the file was written, which may be much later -->
     <string name="info_saved">Saved to the phone</string>
+    <!-- For a picture on the Immich server with no camera date: only when its file was made, which may be when it was copied -->
+    <string name="info_file_date">File date, not when it was taken</string>
     <string name="info_size">Size</string>
     <!-- Width by height in pixels. %1$d width, %2$d height -->
     <string name="info_dimensions">%1$d × %2$d</string>

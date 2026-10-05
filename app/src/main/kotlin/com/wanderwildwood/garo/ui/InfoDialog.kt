@@ -65,6 +65,8 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
 
         when {
             picture.taken != null -> Fact(stringResource(R.string.info_taken), date(picture.taken))
+            // A picture on the server was never "saved to the phone": its file date is only that.
+            picture.modified > 0 && picture.remote != null -> Fact(stringResource(R.string.info_file_date), date(picture.modified))
             picture.modified > 0 -> Fact(stringResource(R.string.info_saved), date(picture.modified))
         }
 
