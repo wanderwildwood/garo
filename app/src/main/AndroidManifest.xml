@@ -21,6 +21,16 @@
     <!-- Android 11 and later hide other apps unless asked for by what they do: Files, to show a
          folder in, and whatever takes a shared picture. -->
     <queries>
+        <!-- Which app opens a picture or a video, for the "Opens pictures and videos" row.
+             Without these Android 11 and later would only ever answer "this one". -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="image/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="vnd.android.document/directory" />

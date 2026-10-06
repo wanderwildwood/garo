@@ -136,6 +136,8 @@ fun SettingsScreen(
                 )
             }
 
+            item { OpensRow() }
+
             // Only once something is hidden: a row for an empty list would be furniture.
             if (hidden.isNotEmpty()) {
                 item {

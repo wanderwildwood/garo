@@ -129,6 +129,13 @@
     <string name="order_oldest_first">Oldest first</string>
     <string name="order_name">By name</string>
     <!-- Folders hidden by hand, and the dialog that brings them back -->
+    <string name="settings_opens">Opens pictures and videos</string>
+    <string name="opens_us">Gallery</string>
+    <string name="opens_asks">Android asks which app. Tap, then choose Gallery and Always</string>
+    <string name="opens_other">%1$s, another app. Tap for how to change it</string>
+    <string name="opens_other_note">Android opens them in another app, %1$s, without asking, because it was once chosen with Always. On the next page, tap Clear default preferences, then come back and tap this row again.</string>
+    <string name="opens_other_open">Open that page</string>
+    <string name="opens_nothing_note">Gallery cannot see a picture on the phone yet to ask with. The first time one is opened from Files, an email or a message, Android asks which app: choose Gallery and Always.</string>
     <string name="settings_hidden">Hidden folders</string>
     <plurals name="settings_hidden_count">
         <item quantity="one">%d folder</item>
