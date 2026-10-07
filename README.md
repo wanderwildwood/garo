@@ -47,6 +47,8 @@ It is made to be the phone's picture app, not a room of its own.
 - **Attaching a picture** in Email, or anywhere that asks Android for one, offers this. Where
   the app takes several, a tap marks a picture with a bold edge and "Choose" sends them all.
 - **Show in Files** opens the picture's folder in the file manager.
+- **Share** reaches Wallet (札入 satsuire), which keeps a barcode in the picture as a card, and
+  Translate (通訳 tsūyaku), which reads its words, when they are on the phone.
 - **Settings → Opens pictures and videos** says which app opens them. Where Android still asks,
   a tap puts the question with one of the phone's own pictures: choose Gallery and *Always*.
   Where another app was chosen with *Always*, it opens that app's "Open by default" page, which
