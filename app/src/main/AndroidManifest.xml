@@ -60,6 +60,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- "The gallery app", for whatever asks for it by kind. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_GALLERY" />
+            </intent-filter>
+
             <!-- So a picture or a video opened from Files, Email or Messaging is shown here. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
