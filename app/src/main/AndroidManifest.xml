@@ -45,9 +45,9 @@
          a phone backup is a copy of the key to every picture on the server. -->
     <application
         android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher_mudita"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/ic_launcher_mudita"
         android:supportsRtl="true"
         android:theme="@style/Theme.App">
         <activity
