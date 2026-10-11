@@ -37,7 +37,7 @@ import com.wanderwildwood.garo.media.Folder
  * One folder's pictures, a few to a row.
  *
  * Each row is one item of MMD's list rather than a cell of a lazy grid, which is what gets it
- * the list's own way of moving — a screenful to a swipe, the chevron rail at the side — instead
+ * the list's own way of moving — a screenful to a swipe, no scrollbar at the side — instead
  * of a grid that coasts. A row's height is known before any picture decodes, because every
  * cell is square, so stepping by rows is stepping by screens.
  */
@@ -80,6 +80,7 @@ fun GridScreen(
                 scrollStep = rememberPageStep(listState),
                 verticalArrangement = Arrangement.spacedBy(GAP),
                 modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
+                isScrollbarVisible = false,
             ) {
                 items(rows.size, key = { rows[it].first().id }) { r ->
                     Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {

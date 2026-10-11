@@ -98,6 +98,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 20.dp),
+            isScrollbarVisible = false,
         ) {
             item { Spacer(Modifier.height(12.dp)) }
             item {
@@ -252,7 +253,7 @@ private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, 
         if (rows.size <= FITS) {
             rows.forEach { row(it) }
         } else {
-            LazyColumnMMD(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+            LazyColumnMMD(modifier = Modifier.fillMaxWidth().height(260.dp), isScrollbarVisible = false) {
                 items(rows, key = { it.key }) { row(it) }
             }
         }

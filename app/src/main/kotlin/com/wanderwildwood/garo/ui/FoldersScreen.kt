@@ -133,6 +133,7 @@ private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyLis
         state = listState,
         scrollStep = rememberPageStep(listState),
         modifier = Modifier.fillMaxSize().padding(start = 20.dp),
+        isScrollbarVisible = false,
     ) {
         if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
         if (withServer && state.folders.isEmpty()) {
