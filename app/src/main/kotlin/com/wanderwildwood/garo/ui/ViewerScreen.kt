@@ -188,6 +188,14 @@ fun ViewerScreen(
                     BarButton(Icons.Info, stringResource(R.string.viewer_cd_info)) { infoOpen = true }
                     // A picture on the server is not a file here to hand over or to delete; sharing
                     // one would mean fetching the original first, which is for a later version.
+                    // Pictures only, and only those on the phone: the saved copy goes beside the original.
+                    if (picture.remote == null && !picture.video) BarButton(Icons.Edit, stringResource(R.string.viewer_cd_edit)) {
+                        context.startActivity(
+                            Intent(context, com.wanderwildwood.garo.EditActivity::class.java)
+                                .setData(picture.uri)
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                        )
+                    }
                     if (picture.remote == null) BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
                         val send = Intent(Intent.ACTION_SEND)
                             .setType(context.contentResolver.getType(picture.uri) ?: "image/*")

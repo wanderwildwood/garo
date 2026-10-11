@@ -196,4 +196,42 @@
     <string name="about_no_browser">There is no browser on this phone to open that with.</string>
     <!-- Button that closes the About dialog -->
     <string name="about_close">Close</string>
+
+    <!-- Editing a picture -->
+    <string name="edit_label">Edit picture</string>
+    <string name="viewer_cd_edit">Edit</string>
+    <string name="edit_title">Edit</string>
+    <string name="edit_saving">Saving…</string>
+    <string name="edit_saved">Saved beside the original</string>
+    <string name="edit_failed">This picture could not be opened or saved.</string>
+    <string name="edit_cd_close">Close</string>
+    <string name="edit_save">Save</string>
+    <string name="edit_crop">Crop</string>
+    <string name="edit_draw">Draw</string>
+    <string name="edit_size">Size</string>
+    <string name="edit_shape_free">Free</string>
+    <string name="edit_shape_square">Square</string>
+    <string name="edit_shape_4_3">4:3</string>
+    <string name="edit_shape_16_9">16:9</string>
+    <string name="edit_turn">Turn</string>
+    <string name="edit_mirror">Mirror</string>
+    <string name="edit_straighten">%1$d°</string>
+    <string name="edit_pen">Pen</string>
+    <string name="edit_words">Words</string>
+    <string name="edit_undo">Undo</string>
+    <string name="edit_black">Black</string>
+    <string name="edit_white">White</string>
+    <string name="edit_thin">Thin</string>
+    <string name="edit_thick">Thick</string>
+    <string name="edit_pen_note">Draw with a finger on the picture.</string>
+    <string name="edit_words_note">Tap where the words should start.</string>
+    <string name="edit_words_title">Words to put on the picture</string>
+    <string name="edit_place">Place</string>
+    <string name="edit_cancel">Cancel</string>
+    <string name="edit_size_as_is">As it is</string>
+    <string name="edit_size_long">%1$d on the long side</string>
+    <string name="edit_size_note">For a message or an email, 1600 is plenty.</string>
+    <string name="edit_leave_title">Leave without saving?</string>
+    <string name="edit_keep_editing">Keep editing</string>
+    <string name="edit_discard">Leave</string>
 </resources>

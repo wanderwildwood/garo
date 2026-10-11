@@ -113,6 +113,26 @@
             </intent-filter>
         </activity>
 
+        <!--
+          Editing a picture: this app's viewer, and every other app's Edit. Until this, the only
+          editor on a Kompakt was the old built-in Gallery's, which Files' share sheet led to.
+          Standard launch mode, so the saved picture goes back to the app that asked.
+        -->
+        <activity
+            android:name=".EditActivity"
+            android:exported="true"
+            android:label="@string/edit_label"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.App">
+            <intent-filter>
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
         <!-- Camera (shashinki) saying it has just saved a photo; see NewPictureReceiver. -->
         <receiver
             android:name=".backup.NewPictureReceiver"
