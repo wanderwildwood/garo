@@ -1,6 +1,7 @@
 package com.wanderwildwood.garo.ui
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,7 +42,7 @@ import com.wanderwildwood.garo.media.Folder
  * of a grid that coasts. A row's height is known before any picture decodes, because every
  * cell is square, so stepping by rows is stepping by screens.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GridScreen(
     folder: Folder,
@@ -50,7 +51,9 @@ fun GridScreen(
     listState: LazyListState,
     onBack: () -> Unit,
     onOpen: (index: Int) -> Unit,
-    /** Pictures marked while choosing for another app; drawn with a bold edge. */
+    /** A picture held; null where holding means nothing. */
+    onHold: ((index: Int) -> Unit)? = null,
+    /** Pictures marked — to choose for another app, or to delete together; drawn with a bold edge. */
     chosen: Set<Long> = emptySet(),
     actions: @Composable RowScope.() -> Unit = {},
     /** Said in place of the grid while it has nothing to show: an album still being read. */
@@ -92,7 +95,10 @@ fun GridScreen(
                                 px = cellPx,
                                 modifier = Modifier
                                     .matchParentSize()
-                                    .clickable { onOpen(r * perRow + c) }
+                                    .combinedClickable(
+                                        onClick = { onOpen(r * perRow + c) },
+                                        onLongClick = onHold?.let { hold -> { hold(r * perRow + c) } },
+                                    )
                                     .then(
                                         // State by the edge, not by a tick or a tint: a tick is
                                         // a smudge at this size, and a tint is lost in a photo.

@@ -24,6 +24,9 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
   it can be hidden itself like any folder.
 - **A folder's pictures**, two, three or four across. A swipe moves a screenful and stops;
   the last row of one page is the first of the next.
+- **Several deleted at once**: hold a picture in a folder to mark it with a bold edge, tap
+  others to mark them too, and "Delete" in the bar takes them all, with one question from the
+  phone. Back lets go of the marks.
 - **One picture** on the whole panel. A tap at either side turns the page, as an e-reader
   does, and so does a swipe; a tap in the middle shows or hides the bar. Two fingers zoom,
   and one finger then moves about the enlarged picture.
@@ -41,7 +44,8 @@ It is made to be the phone's picture app, not a room of its own.
 
 - **Opened from Files, Email or Messaging**, a picture is shown here. One that Files or the
   camera hands over opens inside its own folder, so the pictures either side are a page-turn
-  away; back returns to the app that sent it.
+  away; back returns to the app that sent it. Tap "3 of 80" at the top to go on into that
+  folder, and from there the rest of the gallery.
 - **The camera's "last photo"** opens here, from any camera that sends Android's review
   request — Open Camera does.
 - **Attaching a picture** in Email, or anywhere that asks Android for one, offers this. Where

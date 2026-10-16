@@ -183,9 +183,10 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** A picture the phone has just deleted at our request. */
-    fun deleted(uri: Uri) {
-        decoder.forget(uri)
-        everything = everything.filterNot { it.uri == uri }
+    fun deleted(uris: Collection<Uri>) {
+        uris.forEach(decoder::forget)
+        val gone = uris.toSet()
+        everything = everything.filterNot { it.uri in gone }
         arrange()
     }
 

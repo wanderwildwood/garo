@@ -11,7 +11,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,11 +22,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mudita.mmd.ThemeMMD
+import com.mudita.mmd.components.text.TextMMD
 import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.MediaIndex
 import com.wanderwildwood.garo.media.Picture
@@ -117,6 +124,13 @@ private fun Gallery(
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var found by rememberSaveable { mutableStateOf(lookFor == null) }
     var notFound by rememberSaveable { mutableStateOf(false) }
+    // Opened on one picture, then gone on from it to its folder: from here it is the whole
+    // gallery, and back walks up through it rather than straight out to the app that asked.
+    var browsing by rememberSaveable { mutableStateOf(false) }
+    // Pictures marked in a folder to be deleted together. A hold starts it; it lasts while
+    // the folder is open, and leaving the folder lets them go.
+    var marked by rememberSaveable { mutableStateOf(LongArray(0)) }
+    val markedSet = remember(marked) { marked.toSet() }
 
     val foldersList = rememberLazyListState()
     val gridList = rememberLazyListState()
@@ -152,11 +166,20 @@ private fun Gallery(
     // The phone, not this app, asks whether to delete: on Android 11 and later a picture the
     // camera made belongs to the camera, and only the system's own question can give it up.
     // That makes it a dialog, which the house style otherwise avoids, but it is the phone's.
-    var deleting by remember { mutableStateOf<Picture?>(null) }
+    var deleting by remember { mutableStateOf<List<Uri>>(emptyList()) }
     val delete = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         val gone = deleting
-        deleting = null
-        if (result.resultCode == Activity.RESULT_OK && gone != null) viewModel.deleted(gone.uri)
+        deleting = emptyList()
+        if (result.resultCode == Activity.RESULT_OK && gone.isNotEmpty()) {
+            viewModel.deleted(gone)
+            marked = LongArray(0)
+        }
+    }
+    // One question from the phone for all of them, however many.
+    val askToDelete: (List<Uri>) -> Unit = { uris ->
+        deleting = uris
+        val request = MediaStore.createDeleteRequest(context.contentResolver, uris)
+        delete.launch(IntentSenderRequest.Builder(request.intentSender).build())
     }
 
     val folder = state.folders.firstOrNull { it.key == folderKey } ?: state.albums.firstOrNull { it.key == folderKey }
@@ -202,19 +225,16 @@ private fun Gallery(
         }
 
         folder != null && viewing != null -> {
-            val closeViewer: () -> Unit = {
-                if (lookFor != null) {
-                    onLeave()
-                } else {
-                    // Back in the grid with the row holding that picture in view.
-                    viewing?.let { i ->
-                        val row = i / state.choices.perRow
-                        val shown = gridList.layoutInfo.visibleItemsInfo.map { it.index }
-                        if (row !in shown) gridList.requestScrollToItem(row)
-                    }
-                    viewing = null
+            // Back in the grid with the row holding that picture in view.
+            val toGrid: () -> Unit = {
+                viewing?.let { i ->
+                    val row = i / state.choices.perRow
+                    val shown = gridList.layoutInfo.visibleItemsInfo.map { it.index }
+                    if (row !in shown) gridList.requestScrollToItem(row)
                 }
+                viewing = null
             }
+            val closeViewer: () -> Unit = { if (lookFor != null && !browsing) onLeave() else toGrid() }
             BackHandler(onBack = closeViewer)
             ViewerScreen(
                 pictures = folder.pictures,
@@ -223,23 +243,47 @@ private fun Gallery(
                 canDelete = !folder.remote,
                 onIndex = { viewing = it },
                 onBack = closeViewer,
-                onDelete = { picture ->
-                    deleting = picture
-                    val request = MediaStore.createDeleteRequest(context.contentResolver, listOf(picture.uri))
-                    delete.launch(IntentSenderRequest.Builder(request.intentSender).build())
+                onDelete = { picture -> askToDelete(listOf(picture.uri)) },
+                onTitle = {
+                    browsing = true
+                    toGrid()
                 },
             )
         }
 
         folder != null -> {
-            BackHandler { folderKey = null }
+            fun toggle(picture: Picture) {
+                marked = if (picture.id in markedSet) marked.filter { it != picture.id }.toLongArray() else marked + picture.id
+            }
+            // Back lets go of the marks first, then leaves the folder.
+            val up: () -> Unit = {
+                if (markedSet.isNotEmpty()) marked = LongArray(0) else folderKey = null
+            }
+            BackHandler(onBack = up)
             GridScreen(
                 folder = folder,
                 perRow = state.choices.perRow,
                 decoder = viewModel.decoder,
                 listState = gridList,
-                onBack = { folderKey = null },
-                onOpen = { viewing = it },
+                onBack = up,
+                // While anything is marked a tap marks or unmarks; otherwise it opens the picture.
+                onOpen = { i -> if (markedSet.isNotEmpty()) toggle(folder.pictures[i]) else viewing = i },
+                // An album's pictures are on the server, not the phone's to delete.
+                onHold = if (folder.remote) null else ({ i -> toggle(folder.pictures[i]) }),
+                chosen = markedSet,
+                // "Delete 3" in the bar once anything is marked: words, saying how many will go.
+                actions = {
+                    if (markedSet.isNotEmpty()) {
+                        TextMMD(
+                            text = stringResource(R.string.grid_delete, markedSet.size),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable { askToDelete(folder.pictures.filter { it.id in markedSet }.map { it.uri }) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+                },
                 // Only an answer that went wrong says so; until then it is being read, including
                 // the frame before the reading has started, which would otherwise flash an error.
                 note = when {
@@ -262,6 +306,7 @@ private fun Gallery(
             onOpen = {
                 if (it.key != folderKey) gridList.requestScrollToItem(0)
                 folderKey = it.key
+                marked = LongArray(0)
             },
             onSettings = { settingsOpen = true },
             onAllow = ask,

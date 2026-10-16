@@ -55,6 +55,7 @@
 
     <!-- Back arrow in the top bar, read aloud by a screen reader -->
     <string name="grid_cd_back">Back to folders</string>
+    <string name="grid_delete">Delete %d</string>
 
     <!-- ============================================================ -->
     <!-- Viewer: one picture on the whole screen -->

@@ -85,6 +85,8 @@ fun ViewerScreen(
     onIndex: (Int) -> Unit,
     onBack: () -> Unit,
     onDelete: (Picture) -> Unit,
+    /** The title tapped: "3 of 80" leads to the folder those 80 are in. */
+    onTitle: (() -> Unit)? = null,
 ) {
     if (pictures.isEmpty()) {
         LaunchedEffect(Unit) { onBack() }
@@ -181,6 +183,7 @@ fun ViewerScreen(
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = if (onTitle != null) Modifier.clickable(onClick = onTitle) else Modifier,
                     )
                 },
                 navigationIcon = { BarButton(Icons.Back, stringResource(R.string.viewer_cd_back), onBack) },
