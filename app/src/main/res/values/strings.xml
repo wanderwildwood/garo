@@ -170,6 +170,8 @@
     <string name="backup_when_wifi_charging">On Wi-Fi, while charging</string>
     <string name="backup_when_wifi">On Wi-Fi</string>
     <string name="backup_when_any">On any network, mobile data too</string>
+    <string name="settings_backup_now">Back up now</string>
+    <string name="settings_backup_now_note">Straight away, on whatever network the phone has</string>
     <string name="settings_forget_server">Forget the Immich server</string>
     <!-- The same row once pressed: the action, a dash, and "tap again" -->
     <string name="settings_forget_server_armed">Forget the Immich server — tap again</string>

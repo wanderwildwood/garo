@@ -214,19 +214,25 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         connect()
         askServer()
         BackupWorker.schedule(getApplication())
-        BackupWorker.runSoon(getApplication())
+        BackupWorker.runSoon(getApplication(), replace = true)
     }
 
     fun setBackup(on: Boolean) {
         settings.writeBackupOn(on)
         BackupWorker.schedule(getApplication())
-        BackupWorker.runSoon(getApplication())
+        BackupWorker.runSoon(getApplication(), replace = true)
         readBackup()
     }
 
     fun setBackupWhen(whenTo: BackupWhen) {
         settings.writeBackupWhen(whenTo)
         BackupWorker.schedule(getApplication())
+        BackupWorker.runSoon(getApplication(), replace = true)
+        readBackup()
+    }
+
+    fun backUpNow() {
+        BackupWorker.backUpNow(getApplication())
         readBackup()
     }
 

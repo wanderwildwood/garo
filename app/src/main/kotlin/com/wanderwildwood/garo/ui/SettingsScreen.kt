@@ -76,6 +76,7 @@ fun SettingsScreen(
     backup: BackupState = BackupState(),
     onBackup: (Boolean) -> Unit = {},
     onBackupWhen: (BackupWhen) -> Unit = {},
+    onBackUpNow: () -> Unit = {},
     hidden: Map<String, String> = emptyMap(),
     onShowFolder: (String) -> Unit = {},
 ) {
@@ -184,6 +185,13 @@ fun SettingsScreen(
                                 },
                             ),
                             onClick = { onBackupWhen(backup.whenTo.next()) },
+                        )
+                    }
+                    item {
+                        Setting(
+                            title = stringResource(R.string.settings_backup_now),
+                            value = stringResource(R.string.settings_backup_now_note),
+                            onClick = onBackUpNow,
                         )
                     }
                 }

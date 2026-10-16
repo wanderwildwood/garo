@@ -106,6 +106,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         private const val BATCH = 20
         private const val PERIODIC = "backup-periodic"
         private const val ON_NEW = "backup-new-picture"
+        private const val NOW = "backup-now"
 
         fun record(context: Context) = BackupRecord(File(context.filesDir, "backup.json"))
 
@@ -155,14 +156,32 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             .setRequiresCharging(whenTo == BackupWhen.WIFI_CHARGING)
             .build()
 
-        /** Back up now, within the same limits — for after settings change. */
-        fun runSoon(context: Context): androidx.work.Operation? {
+        /**
+         * Back up soon, within the same limits. [replace] is for after the settings change: a
+         * run already waiting was made under the old limits (waiting for a charger the reader
+         * has since said not to wait for) and is put back under the new ones. A new picture
+         * keeps a waiting run as it is, so a run of shots does not keep restarting it.
+         */
+        fun runSoon(context: Context, replace: Boolean = false): androidx.work.Operation? {
             val settings = Settings(context)
             if (settings.immich() == null || !settings.backupOn()) return null
             return WorkManager.getInstance(context).enqueueUniqueWork(
-                "backup-now",
-                ExistingWorkPolicy.KEEP,
+                NOW,
+                if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
                 OneTimeWorkRequestBuilder<BackupWorker>().setConstraints(constraints(settings.backupWhen())).build(),
+            )
+        }
+
+        /** Back up straight away on whatever network there is, whatever Upload says. */
+        fun backUpNow(context: Context): androidx.work.Operation? {
+            val settings = Settings(context)
+            if (settings.immich() == null || !settings.backupOn()) return null
+            return WorkManager.getInstance(context).enqueueUniqueWork(
+                NOW,
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<BackupWorker>()
+                    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                    .build(),
             )
         }
     }

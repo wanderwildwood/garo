@@ -219,6 +219,7 @@ private fun Gallery(
                 backup = state.backup,
                 onBackup = viewModel::setBackup,
                 onBackupWhen = viewModel::setBackupWhen,
+                onBackUpNow = viewModel::backUpNow,
                 hidden = state.hidden,
                 onShowFolder = viewModel::showFolder,
             )
