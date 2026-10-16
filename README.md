@@ -62,7 +62,8 @@ It is made to be the phone's picture app, not a room of its own.
 
 With an [Immich](https://immich.app) server set in settings — its address and an API key —
 its albums appear below the phone's own folders, under their own heading, and open the same
-way. Showing albums changes nothing on the server. Pictures are fetched at the size the screen
+way. **Timeline**, first under that heading, holds every picture on the account, in an album or
+not, newest first, as Immich's own timeline does. Showing albums changes nothing on the server. Pictures are fetched at the size the screen
 needs and kept on the phone, so a page turned once turns again without the network.
 
 The address has to be `https://`. A server on a Tailscale network can be given one with
