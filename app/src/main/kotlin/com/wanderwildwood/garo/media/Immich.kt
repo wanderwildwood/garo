@@ -11,7 +11,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
- * Albums and pictures from an Immich server, read-only.
+ * Albums, the whole timeline and pictures from an Immich server, read-only.
  *
  * Reading takes three calls: the albums (owned and shared), one album's pictures a page at a time,
  * and a picture at the size asked for — album.read, asset.read and asset.view. Backing up takes
@@ -36,13 +36,36 @@ class Immich(server: String, private val key: String) {
         return (parseAlbums(own) + parseAlbums(shared)).distinctBy { it.id }
     }
 
+    /**
+     * Everything on the account, as Immich's own timeline has it (archived pictures left out),
+     * as one more album named [name]: the pictures that are in no album are only here. Null when
+     * there is nothing. The count is the timeline's, videos included, until it is opened and read.
+     */
+    fun timeline(name: String): Album? {
+        val buckets = JSONArray(get("/api/timeline/buckets?visibility=timeline"))
+        val count = (0 until buckets.length()).sumOf { buckets.getJSONObject(it).optInt("count") }
+        if (count == 0) return null
+        val body = JSONObject().put("type", "IMAGE").put("visibility", "timeline")
+            .put("order", "desc").put("size", 1).put("page", 1)
+        val newest = JSONObject(post("/api/search/metadata", body.toString()))
+            .getJSONObject("assets").getJSONArray("items").optJSONObject(0)
+        return Album(
+            id = TIMELINE,
+            name = name,
+            count = count,
+            cover = newest?.getString("id"),
+            newest = newest?.let { time(it.optString("fileCreatedAt")) } ?: 0L,
+        )
+    }
+
     /** Every picture in the album, newest first. Videos are left out on the server's side. */
     fun pictures(album: Album): List<Picture> {
         val found = ArrayList<Picture>()
         var page: Int? = 1
         while (page != null) {
             val body = JSONObject()
-                .put("albumIds", JSONArray().put(album.id))
+            if (album.id == TIMELINE) body.put("visibility", "timeline") else body.put("albumIds", JSONArray().put(album.id))
+            body
                 .put("type", "IMAGE")
                 .put("withExif", true)
                 .put("order", "desc")
@@ -170,6 +193,8 @@ class Immich(server: String, private val key: String) {
 
     companion object {
         private const val PAGE = 250
+        /** The id the whole timeline goes by among the albums; Immich's own ids are UUIDs. */
+        const val TIMELINE = "timeline"
         private const val TIMEOUT = 15_000
         /** A photo going up over a slow link can take a while; the answer comes only after. */
         private const val UPLOAD_TIMEOUT = 120_000

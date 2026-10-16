@@ -312,7 +312,10 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         if (asking?.isActive == true) return
         _state.update { it.copy(server = if (it.server == Server.OK) Server.OK else Server.ASKING) }
         asking = viewModelScope.launch {
-            val answer = withContext(Dispatchers.IO) { runCatching { server.albums() } }
+            val timelineName = getApplication<Application>().getString(R.string.immich_timeline)
+            val answer = withContext(Dispatchers.IO) {
+                runCatching { listOfNotNull(server.timeline(timelineName)) + server.albums() }
+            }
             answer.onSuccess { list ->
                 albums = list
                 withContext(Dispatchers.IO) { writeAlbums(list) }
@@ -362,9 +365,11 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
                 albumNewest = album.newest,
             )
         }.filter { it.count > 0 }.let { list ->
-            when (choices.folderOrder) {
-                FolderOrder.NEWEST -> list.sortedByDescending { it.newest }
-                FolderOrder.NAME -> list.sortedWith { a, b -> Arrange.natural(a.label, b.label) }
+            // The whole timeline first, whatever the order: the albums are parts of it.
+            val (timeline, rest) = list.partition { it.key == Immich.folderKey(Immich.TIMELINE) }
+            timeline + when (choices.folderOrder) {
+                FolderOrder.NEWEST -> rest.sortedByDescending { it.newest }
+                FolderOrder.NAME -> rest.sortedWith { a, b -> Arrange.natural(a.label, b.label) }
             }
         }
         _state.update { it.copy(folders = folders, albums = shown, reading = !indexRead) }

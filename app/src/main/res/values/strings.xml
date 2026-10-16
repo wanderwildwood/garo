@@ -36,6 +36,8 @@
     <string name="folders_on_phone">On the phone</string>
     <!-- Heading over the albums from the Immich server. Immich is a product name -->
     <string name="folders_immich">Immich</string>
+    <!-- Every picture on the Immich account, in or out of albums, as Immich's own timeline -->
+    <string name="immich_timeline">Timeline</string>
     <string name="immich_asking">Asking Immich for its albums.</string>
     <string name="immich_unreachable">Immich could not be reached. It may be off, or the phone off the network it is on.</string>
     <string name="immich_unreachable_last_seen">Immich could not be reached; these are the albums as they were last seen.</string>
