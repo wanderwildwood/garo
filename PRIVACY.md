@@ -36,7 +36,11 @@ There is **no all-files permission** (`MANAGE_EXTERNAL_STORAGE`), which the gall
 started from asks for so it can search the storage itself.
 
 **Deleting needs no permission of its own.** Every delete goes through Android's own
-question, "Allow Gallery to delete this photo?", and only a yes deletes anything.
+question — "Allow Gallery to delete this photo?", or "…these 3 photos?" when several are
+marked — and only a yes deletes anything.
+
+**Editing never changes a picture.** An edited picture is saved as a new picture beside the
+original, through Android's own index; the original is left as it was.
 
 ## Pictures another app hands over
 
