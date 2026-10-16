@@ -1,7 +1,7 @@
 # Privacy
 
 Gallery reads the pictures on the phone to show them to you. If you give it an Immich server,
-it reads your albums from that server; if you also turn backing up on, it sends the camera's
+it reads your albums and your timeline (every picture on your account) from that server; if you also turn backing up on, it sends the camera's
 pictures there. It talks to that server and nothing else.
 
 That is the whole policy. The rest of this page is the evidence for it, because a privacy
@@ -22,12 +22,13 @@ them, and never lists or opens any other kind of file.
 
 **`INTERNET` is there for Immich alone.** Until a server is set in settings the app opens no
 connection at all. Once one is, it asks that server — and only that server — for the list of
-albums, an album's pictures, and each picture's image. Every request carries the API key you
+albums, how many pictures the timeline holds, an album's or the timeline's pictures, and each
+picture's image. Every request carries the API key you
 gave it. Every call it makes is in `media/Immich.kt`.
 
 **Backing up is off until you turn it on.** Turned on, it sends the camera's pictures —
 those under `DCIM` and nothing else — to the same server, and only when the network and the
-charger allow as set. Before sending, it asks the server which it already has, by each file's
+charger allow as set, or straight away on any network when you press **Back up now**. Before sending, it asks the server which it already has, by each file's
 SHA-1; the checksums go to your server and nowhere else. It never deletes anything, on the
 phone or the server. Plain `http://` is refused: Android blocks unencrypted
 traffic for this app, so the address has to be `https://`.
