@@ -43,6 +43,7 @@ import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
 import com.wanderwildwood.garo.media.Arrange
+import com.wanderwildwood.garo.media.FolderOrder
 import com.wanderwildwood.garo.media.Decoder
 import com.wanderwildwood.garo.media.Folder
 
@@ -129,30 +130,43 @@ private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyLis
             listState.scrollToItem(0)
         }
     }
-    LazyColumnMMD(
-        state = listState,
-        scrollStep = rememberPageStep(listState),
-        modifier = Modifier.fillMaxSize().padding(start = 20.dp),
-        isScrollbarVisible = false,
-    ) {
-        if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
-        if (withServer && state.folders.isEmpty()) {
-            item(key = "none-phone") { Note(stringResource(R.string.folders_none)) }
+    // Letters only where the rows really run A to Z: the phone's folders by name, with no
+    // server's albums starting the alphabet again below them. "All pictures" stays on top.
+    val byName = !withServer && state.choices.folderOrder == FolderOrder.NAME
+    val jump = remember(state.folders, byName) {
+        if (byName) {
+            val skip = if (first == Arrange.ALL) 1 else 0
+            ListJump.Letters(state.folders.drop(skip).map { it.label }, firstIndex = skip)
+        } else {
+            ListJump.Pages
         }
-        items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen, onHide) }
-
-        if (withServer) {
-            item(key = "h-immich") { Heading(stringResource(R.string.folders_immich)) }
-            // Said, not hidden: the albums below may be what was last seen rather than what is
-            // there now, and the reader should know which.
-            val note = when (state.server) {
-                Server.ASKING -> if (state.albums.isEmpty()) R.string.immich_asking else null
-                Server.UNREACHABLE -> if (state.albums.isEmpty()) R.string.immich_unreachable else R.string.immich_unreachable_last_seen
-                Server.REFUSED -> R.string.immich_refused
-                else -> if (state.albums.isEmpty()) R.string.immich_no_albums else null
+    }
+    ListJumpBox(listState, jump) {
+        LazyColumnMMD(
+            state = listState,
+            scrollStep = rememberPageStep(listState),
+            modifier = Modifier.fillMaxSize().padding(start = 20.dp),
+            isScrollbarVisible = false,
+        ) {
+            if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
+            if (withServer && state.folders.isEmpty()) {
+                item(key = "none-phone") { Note(stringResource(R.string.folders_none)) }
             }
-            if (note != null) item(key = "immich-note") { Note(stringResource(note)) }
-            items(state.albums, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
+            items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen, onHide) }
+
+            if (withServer) {
+                item(key = "h-immich") { Heading(stringResource(R.string.folders_immich)) }
+                // Said, not hidden: the albums below may be what was last seen rather than what is
+                // there now, and the reader should know which.
+                val note = when (state.server) {
+                    Server.ASKING -> if (state.albums.isEmpty()) R.string.immich_asking else null
+                    Server.UNREACHABLE -> if (state.albums.isEmpty()) R.string.immich_unreachable else R.string.immich_unreachable_last_seen
+                    Server.REFUSED -> R.string.immich_refused
+                    else -> if (state.albums.isEmpty()) R.string.immich_no_albums else null
+                }
+                if (note != null) item(key = "immich-note") { Note(stringResource(note)) }
+                items(state.albums, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
+            }
         }
     }
 }

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -590,32 +589,11 @@ private fun Choice(text: String, chosen: Boolean, modifier: Modifier = Modifier,
     }
 }
 
-/** Crop, Draw, Size: words, the chosen one bold with a bar under it, as the other apps' tabs are. */
+/** Crop, Draw, Size: the shop's tabs, the chosen one a black stone. */
 @Composable
 private fun Tabs(chosen: Int, labels: List<String>, onTab: (Int) -> Unit) {
-    val ink = MaterialTheme.colorScheme.onSurface
-    HorizontalDividerMMD(thickness = 2.dp)
-    Row(Modifier.fillMaxWidth().height(52.dp)) {
-        labels.forEachIndexed { i, label ->
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .selectable(selected = i == chosen, role = Role.Tab, onClick = { onTab(i) }),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp).height(3.dp).background(if (i == chosen) ink else MaterialTheme.colorScheme.surface))
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    TextMMD(
-                        text = label,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (i == chosen) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1,
-                    )
-                }
-            }
-        }
-    }
+    HorizontalDividerMMD(thickness = 1.dp)
+    StoneTabs(labels, chosen, onTab)
 }
 
 /** Words to put on the picture, typed; Place puts them where the finger came down. */
