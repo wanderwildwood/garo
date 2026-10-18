@@ -239,4 +239,7 @@
     <string name="edit_leave_title">Leave without saving?</string>
     <string name="edit_keep_editing">Keep editing</string>
     <string name="edit_discard">Leave</string>
+    <string name="list_jump_setting">Letters and page dots</string>
+    <string name="list_jump_shown">Shown</string>
+    <string name="list_jump_hidden">Hidden</string>
 </resources>

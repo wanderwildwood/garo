@@ -136,6 +136,16 @@ fun SettingsScreen(
                 )
             }
 
+            item {
+                val context = LocalContext.current
+                val jumpShown by rememberListJumpShown()
+                Setting(
+                    title = stringResource(R.string.list_jump_setting),
+                    value = stringResource(if (jumpShown) R.string.list_jump_shown else R.string.list_jump_hidden),
+                    onClick = { ListJumpPrefs.setShown(context, !jumpShown) },
+                )
+            }
+
             item { OpensRow() }
 
             // Only once something is hidden: a row for an empty list would be furniture.
