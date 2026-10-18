@@ -46,7 +46,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.unit.dp
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
@@ -94,12 +93,11 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        LazyColumnMMD(
+        PagedColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 20.dp),
-            isScrollbarVisible = false,
         ) {
             item { Spacer(Modifier.height(12.dp)) }
             item {
@@ -199,7 +197,6 @@ fun SettingsScreen(
             if (serverAddress != null || hasKey) {
                 item { ForgetRow(onForgetServer) }
             }
-            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 
@@ -261,7 +258,7 @@ private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, 
         if (rows.size <= FITS) {
             rows.forEach { row(it) }
         } else {
-            LazyColumnMMD(modifier = Modifier.fillMaxWidth().height(260.dp), isScrollbarVisible = false) {
+            PagedColumn(modifier = Modifier.fillMaxWidth().height(260.dp)) {
                 items(rows, key = { it.key }) { row(it) }
             }
         }

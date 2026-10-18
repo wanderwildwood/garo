@@ -87,7 +87,7 @@ sealed interface ListJump {
  * ```
  * val state = rememberLazyListState()
  * ListJumpBox(state, ListJump.Letters(artists.map { it.name })) {
- *     LazyColumnMMD(state = state, isScrollbarVisible = false) { … }
+ *     PagedColumn(state = state) { … }
  * }
  * ```
  */
@@ -99,11 +99,14 @@ fun ListJumpBox(
     clearBelow: Dp = 0.dp,
     content: @Composable () -> Unit,
 ) {
+    // Rows to a screen as the page dots count them, held for each length of list: counted
+    // afresh on every page, the short last page made a three-screen list look long and the
+    // dots came and went as it was paged.
+    val held = remember(state) { intArrayOf(-1, 0) }
     val isLong by remember(state) {
         derivedStateOf {
-            val info = state.layoutInfo
-            val onScreen = info.visibleItemsInfo.size
-            onScreen > 0 && info.totalItemsCount > onScreen * MIN_SCREENS
+            val (total, onScreen) = state.rowsToAScreen(held)
+            onScreen > 0 && total > onScreen * MIN_SCREENS
         }
     }
     Row(modifier = modifier.fillMaxSize()) {
@@ -208,34 +211,40 @@ private fun PageDots(state: LazyListState) {
     val slotPx = (dotPx + gapPx).toFloat()
     var heightPx by remember { mutableIntStateOf(0) }
 
-    // A page is a screenful less a row, the step a swipe takes, so a dot lands where swiping
-    // would have. The rows to a screen are measured once for each length of list and then held:
+    // A page is what a swipe turns, so a dot lands where swiping would have. In a PagedColumn
+    // that is the rows that fit whole, and its last item is blank room after them, not a row;
+    // it says so with one pixel of padding after that room. In MMD's list it is a screenful
+    // less a row. The rows to a screen are measured once for each length of list and then held:
     // where rows differ in height a fresh count on every screen would add and drop dots under the
     // reader's thumb as the list moved. A list that changes length is measured again.
     val held = remember(state) { intArrayOf(-1, 0) } // the length measured at, rows to a screen
     val pages by remember(state) {
         derivedStateOf {
             val info = state.layoutInfo
-            val total = info.totalItemsCount
-            val viewport = info.viewportEndOffset - info.viewportStartOffset
-            val row = info.visibleItemsInfo.firstOrNull()?.size ?: 0
-            if (held[0] != total && viewport > 0 && row > 0) {
-                held[0] = total
-                held[1] = viewport / row
+            val paged = info.afterContentPadding == PAGED_MARK_PX
+            val (total, rows) = state.rowsToAScreen(held)
+            val onScreen = rows.coerceAtLeast(1)
+            val step = if (paged) onScreen else (onScreen - 1).coerceAtLeast(1)
+            val count = when {
+                total <= onScreen -> 1
+                paged -> (total + step - 1) / step
+                else -> (total - onScreen + step - 1) / step + 1
             }
-            val onScreen = held[1].coerceAtLeast(1)
-            val step = (onScreen - 1).coerceAtLeast(1)
-            val count = if (total <= onScreen) 1 else (total - onScreen + step - 1) / step + 1
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-            val current = if (lastVisible >= total - 1) count - 1 else (state.firstVisibleItemIndex + step / 2) / step
-            Triple(count, current.coerceIn(0, count - 1), step)
+            val atEnd = if (paged) {
+                info.visibleItemsInfo.any { it.index == total - 1 && it.offset + it.size <= info.viewportSize.height }
+            } else {
+                (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= total - 1
+            }
+            val current = if (atEnd) count - 1 else (state.firstVisibleItemIndex + step / 2) / step
+            JumpPage(count, current.coerceIn(0, count - 1), step, paged)
         }
     }
-    val (pageCount, currentPage, step) = pages
+    val pageCount = pages.count
+    val currentPage = pages.current
     // Inset from the list's ends as the letters are, so no dot sits on a rule.
     val fits = ((heightPx + gapPx - insetPx * 2) / slotPx).toInt().coerceAtLeast(1)
     val dots = pageCount.coerceAtMost(fits)
-    val latest by rememberUpdatedState(Triple(pageCount, dots, step))
+    val latest by rememberUpdatedState(pages to dots)
     var touched by remember { mutableStateOf<Int?>(null) }
     val active = touched ?: (currentPage * dots / pageCount)
 
@@ -253,13 +262,15 @@ private fun PageDots(state: LazyListState) {
                     slotPx = { slotPx },
                     onSlot = { dot ->
                         touched = dot
-                        val (count, shown, pageStep) = latest
+                        val (at, shown) = latest
+                        val count = at.count
                         // The first page of the dot's run, rounded up so the dot pressed is
-                        // the dot that stays filled; the last dot is the foot of the list.
+                        // the dot that stays filled; the last dot is the foot of the list. A
+                        // PagedColumn's last page starts where a swipe would have turned to it.
                         val page = if (dot >= shown - 1) count - 1 else (dot * count + shown - 1) / shown
                         scope.launch {
-                            if (page >= count - 1) state.scrollToItem(state.layoutInfo.totalItemsCount - 1)
-                            else state.scrollToItem(page * pageStep)
+                            if (page >= count - 1 && !at.paged) state.scrollToItem(state.layoutInfo.totalItemsCount - 1)
+                            else state.scrollToItem(page * at.step)
                         }
                     },
                     onEnd = { touched = null },
@@ -283,6 +294,12 @@ private fun PageDots(state: LazyListState) {
         }
     }
 }
+
+/** The pages of a list: how many, the one on screen, the items a page turns, and whether it is a PagedColumn. */
+private data class JumpPage(val count: Int, val current: Int, val step: Int, val paged: Boolean)
+
+/** The padding PagedColumn leaves after its blank tail, in pixels: the same number there. */
+private const val PAGED_MARK_PX = 1
 
 /**
  * inkOS's touch handling: the slot under the finger is chosen on the press, and again each
@@ -344,4 +361,29 @@ private val DOT_BORDER = 2.dp
 private val EDGE_INSET = 8.dp
 
 /** A list shorter than this many screens is quicker swiped than jumped. */
+/**
+ * How many rows the list holds, and how many fit on a screen, as a pair. The rows to a screen
+ * are measured once for each length of list and kept in [held] (the length measured at, the
+ * rows), so they cannot change from one page to the next. In a PagedColumn they are the rows
+ * that fit whole, and the blank room after the last row is not counted as one; in MMD's list,
+ * a screenful.
+ */
+private fun LazyListState.rowsToAScreen(held: IntArray): Pair<Int, Int> {
+    val info = layoutInfo
+    val paged = info.afterContentPadding == PAGED_MARK_PX
+    val total = info.totalItemsCount - if (paged) 1 else 0
+    val viewport = info.viewportEndOffset - info.viewportStartOffset
+    val row = info.visibleItemsInfo.firstOrNull()?.size ?: 0
+    if (held[0] != total && viewport > 0 && row > 0) {
+        held[0] = total
+        held[1] = if (paged) {
+            val gap = info.mainAxisItemSpacing
+            (viewport + gap) / (row + gap)
+        } else {
+            viewport / row
+        }
+    }
+    return total to held[1]
+}
+
 private const val MIN_SCREENS = 3

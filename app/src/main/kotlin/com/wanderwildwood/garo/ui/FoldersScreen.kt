@@ -38,7 +38,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
@@ -142,11 +141,9 @@ private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyLis
         }
     }
     ListJumpBox(listState, jump) {
-        LazyColumnMMD(
+        PagedColumn(
             state = listState,
-            scrollStep = rememberPageStep(listState),
             modifier = Modifier.fillMaxSize().padding(start = 20.dp),
-            isScrollbarVisible = false,
         ) {
             if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
             if (withServer && state.folders.isEmpty()) {

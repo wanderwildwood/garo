@@ -6,11 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -66,24 +64,4 @@ internal fun Thumbnail(decoder: Decoder, picture: Picture, px: Int, modifier: Mo
             )
         }
     }
-}
-
-/**
- * How many rows a swipe should move this list: a screenful less one.
- *
- * MMD's list steps four rows to a swipe, which is right for its own rows and wrong for these —
- * three folders or two rows of pictures fill the panel, so four would skip what was never
- * seen. A screenful less one also keeps the house rule that the last row of the old page is
- * the first of the new.
- */
-@Composable
-internal fun rememberPageStep(state: LazyListState): Int {
-    val step by remember(state) {
-        derivedStateOf {
-            val info = state.layoutInfo
-            val whole = info.visibleItemsInfo.count { it.offset >= 0 && it.offset + it.size <= info.viewportEndOffset }
-            (whole - 1).coerceAtLeast(1)
-        }
-    }
-    return step
 }

@@ -16,8 +16,8 @@ android {
         // permission that reads pictures; READ_MEDIA_IMAGES only exists from 33.
         minSdk = 31
         targetSdk = 31
-        versionCode = 15
-        versionName = "0.5.4"
+        versionCode = 16
+        versionName = "0.5.5"
     }
 
     // A real keystore in signing/ signs every build type when it is present, so the

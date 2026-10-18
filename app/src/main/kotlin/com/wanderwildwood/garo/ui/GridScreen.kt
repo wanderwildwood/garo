@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
@@ -79,12 +78,10 @@ fun GridScreen(
             // fills the square without being stretched up from a smaller one.
             val cellPx = with(LocalDensity.current) { (maxWidth / perRow).roundToPx() }
             ListJumpBox(listState, ListJump.Pages) {
-                LazyColumnMMD(
+                PagedColumn(
                     state = listState,
-                    scrollStep = rememberPageStep(listState),
                     verticalArrangement = Arrangement.spacedBy(GAP),
                     modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
-                    isScrollbarVisible = false,
                 ) {
                     items(rows.size, key = { rows[it].first().id }) { r ->
                         Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {
