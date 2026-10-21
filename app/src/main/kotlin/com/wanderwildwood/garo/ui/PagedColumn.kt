@@ -101,6 +101,11 @@ fun PagedColumn(
         // Room after the last row for it to come to the top, so the list never has to line
         // its end up with the bottom of the screen.
         val tail = maxHeight
+        // Read once here, in composition, not inside the LazyColumn's content below: there it ran
+        // under the list's own item-provider state and so read the last layout, and every layout
+        // rebuilt the items and asked for another — about 60 redraws a second while idle, and with
+        // an accessibility service on (inkOS has one) a core kept busy in the background.
+        val paged = pages
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -133,7 +138,7 @@ fun PagedColumn(
             contentPadding = PaddingValues(
                 start = contentPadding.calculateStartPadding(direction),
                 end = contentPadding.calculateEndPadding(direction),
-                bottom = if (pages) mark else 0.dp,
+                bottom = if (paged) mark else 0.dp,
             ),
             verticalArrangement = verticalArrangement,
             horizontalAlignment = horizontalAlignment,
@@ -141,7 +146,7 @@ fun PagedColumn(
             userScrollEnabled = false,
         ) {
             content()
-            if (pages) item(key = TAIL, contentType = TAIL) { Spacer(Modifier.height(tail)) }
+            if (paged) item(key = TAIL, contentType = TAIL) { Spacer(Modifier.height(tail)) }
         }
     }
 }

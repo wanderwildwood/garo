@@ -22,6 +22,8 @@ import com.wanderwildwood.garo.media.Picture
 import com.wanderwildwood.garo.media.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -275,11 +277,38 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
      * was one, and read again behind it, so an album changed on the server catches up.
      */
     fun openAlbum(key: String) {
-        val album = albums.firstOrNull { Immich.folderKey(it.id) == key } ?: return
-        val server = decoder.immich ?: return
-        if (key in _state.value.opening) return
+        viewModelScope.launch { readAlbum(key) }
+    }
+
+    /**
+     * A pull at the top of an album's grid: its pictures read from the server again, returning
+     * once they are, with how the server answered. Run in the model's own scope, so leaving the
+     * grid halfway never leaves the album marked as being read.
+     */
+    suspend fun pullAlbum(key: String): Server = viewModelScope.async { readAlbum(key) }.await()
+
+    /**
+     * A pull at the top of the folders list: the phone's pictures and the server's albums read
+     * again, as on coming back to the app, returning once both are done with how the server answered.
+     */
+    suspend fun pullFolders(): Server {
+        refresh()
+        asking?.join()
+        reading?.join()
+        return _state.value.server
+    }
+
+    /** Read one album's pictures; how the server answered, as [GalleryState.server] keeps it. */
+    private suspend fun readAlbum(key: String): Server {
+        val album = albums.firstOrNull { Immich.folderKey(it.id) == key } ?: return _state.value.server
+        val server = decoder.immich ?: return _state.value.server
+        if (key in _state.value.opening) {
+            // Already being read: that reading is this one.
+            _state.first { key !in it.opening }
+            return _state.value.server
+        }
         _state.update { it.copy(opening = it.opening + key) }
-        viewModelScope.launch {
+        try {
             // What was read last time, at once, so an album opened off the network still opens.
             if (albumPictures[key] == null) {
                 withContext(Dispatchers.IO) { readPictures(album) }?.let {
@@ -291,13 +320,17 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             read.onSuccess { list ->
                 albumPictures[key] = list
                 withContext(Dispatchers.IO) { writePictures(album, list) }
+                // It answered: whatever it said last time, it can be reached now.
+                _state.update { it.copy(server = Server.OK) }
             }
             read.onFailure { problem ->
                 _state.update { it.copy(server = if (problem is Immich.Trouble.Refused) Server.REFUSED else Server.UNREACHABLE) }
             }
+        } finally {
             _state.update { it.copy(opening = it.opening - key) }
             arrange()
         }
+        return _state.value.server
     }
 
     private fun connect() {

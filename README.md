@@ -65,6 +65,8 @@ its albums appear below the phone's own folders, under their own heading, and op
 way. **Timeline**, first under that heading, holds every picture on the account, in an album or
 not, newest first, as Immich's own timeline does. Showing albums changes nothing on the server. Pictures are fetched at the size the screen
 needs and kept on the phone, so a page turned once turns again without the network.
+A swipe down at the top of the folders list, or of an album, asks Immich again, and a line
+above it says "Asking Immich…" and then "Up to date".
 
 The address has to be `https://`. A server on a Tailscale network can be given one with
 `tailscale serve`. The key needs to read albums and assets and to view assets, and nothing

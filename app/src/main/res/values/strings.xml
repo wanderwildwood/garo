@@ -45,6 +45,9 @@
     <string name="immich_no_albums">There are no albums on Immich with pictures in them.</string>
     <!-- In place of a grid while an album's pictures are being fetched -->
     <string name="immich_reading_album">Reading the album from Immich.</string>
+    <string name="pull_asking">Asking Immich…</string>
+    <string name="pull_up_to_date">Up to date</string>
+    <string name="pull_unreachable">Couldn’t reach Immich; these are the pictures as last seen.</string>
     <!-- Folder name for pictures at the very top of the phone's own storage, which have no folder -->
     <string name="folder_root_phone">Phone</string>
     <!-- Folder name for pictures at the very top of a memory card -->

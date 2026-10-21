@@ -39,6 +39,7 @@ import com.wanderwildwood.garo.ui.FoldersScreen
 import com.wanderwildwood.garo.ui.GalleryViewModel
 import com.wanderwildwood.garo.ui.GridScreen
 import com.wanderwildwood.garo.ui.RefreshOnResume
+import com.wanderwildwood.garo.ui.rememberPull
 import com.wanderwildwood.garo.ui.Server
 import com.wanderwildwood.garo.ui.SettingsScreen
 import com.wanderwildwood.garo.ui.ViewerScreen
@@ -184,6 +185,12 @@ private fun Gallery(
 
     val folder = state.folders.firstOrNull { it.key == folderKey } ?: state.albums.firstOrNull { it.key == folderKey }
 
+    // A swipe down at the top of a list fed from Immich asks it again, and says so in a line.
+    // The phone's own folders are read again on every return to the app, so with no server set
+    // the folders list has nothing a pull would add.
+    val albumPull = rememberPull { folderKey?.let { viewModel.pullAlbum(it) } ?: state.server }
+    val foldersPull = rememberPull { viewModel.pullFolders() }
+
     // An album's pictures are read from the server when it is opened, and again each time.
     LaunchedEffect(folderKey) {
         folderKey?.let { key -> if (state.albums.any { it.key == key }) viewModel.openAlbum(key) }
@@ -293,6 +300,8 @@ private fun Gallery(
                     folder.key !in state.opening && state.server == Server.UNREACHABLE -> stringResource(R.string.immich_unreachable)
                     else -> stringResource(R.string.immich_reading_album)
                 },
+                onPullAtTop = if (folder.remote) albumPull::pull else null,
+                pulled = albumPull.pulled.takeIf { folder.remote },
             )
         }
 
@@ -313,6 +322,8 @@ private fun Gallery(
             onAllow = ask,
             onAppSettings = { openAppSettings(context) },
             onHide = { viewModel.hideFolder(it.key, it.label) },
+            onPullAtTop = if (state.server != Server.NONE) foldersPull::pull else null,
+            pulled = foldersPull.pulled,
         )
     }
 }

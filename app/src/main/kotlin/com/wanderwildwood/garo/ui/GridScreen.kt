@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,6 +58,10 @@ fun GridScreen(
     actions: @Composable RowScope.() -> Unit = {},
     /** Said in place of the grid while it has nothing to show: an album still being read. */
     note: String? = null,
+    /** A swipe down at the top of the first page; null where there is nothing to ask again. */
+    onPullAtTop: (() -> Unit)? = null,
+    /** What a pull set going, said above the pictures while there is something to say. */
+    pulled: Pulled? = null,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -73,7 +78,9 @@ fun GridScreen(
             Box(Modifier.fillMaxSize().padding(padding)) { Explain(text = note) }
             return@Scaffold
         }
-        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
+        PulledLine(pulled)
+        BoxWithConstraints(Modifier.fillMaxSize()) {
             // Asked for at the size it is drawn, so the phone hands back a thumbnail that
             // fills the square without being stretched up from a smaller one.
             val cellPx = with(LocalDensity.current) { (maxWidth / perRow).roundToPx() }
@@ -82,6 +89,7 @@ fun GridScreen(
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(GAP),
                     modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
+                    onPullAtTop = onPullAtTop,
                 ) {
                     items(rows.size, key = { rows[it].first().id }) { r ->
                         Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {
@@ -129,6 +137,7 @@ fun GridScreen(
                     }
                 }
             }
+        }
         }
     }
 }

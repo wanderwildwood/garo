@@ -72,6 +72,10 @@ fun FoldersScreen(
     actions: @Composable RowScope.() -> Unit = {},
     /** Hiding a folder by hand; null where hiding is not offered, as while choosing. */
     onHide: ((Folder) -> Unit)? = null,
+    /** A swipe down at the top of the first page; null where there is nothing to ask again. */
+    onPullAtTop: (() -> Unit)? = null,
+    /** What a pull set going, said above the list while there is something to say. */
+    pulled: Pulled? = null,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -105,7 +109,10 @@ fun FoldersScreen(
                 )
                 state.folders.isEmpty() && state.server == Server.NONE ->
                     Explain(text = none ?: stringResource(R.string.folders_none))
-                else -> FolderList(state, decoder, listState, onOpen, onHide)
+                else -> Column(Modifier.fillMaxSize()) {
+                    PulledLine(pulled)
+                    FolderList(state, decoder, listState, onOpen, onHide, onPullAtTop)
+                }
             }
         }
     }
@@ -117,7 +124,14 @@ fun FoldersScreen(
  * a label on the obvious.
  */
 @Composable
-private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyListState, onOpen: (Folder) -> Unit, onHide: ((Folder) -> Unit)?) {
+private fun FolderList(
+    state: GalleryState,
+    decoder: Decoder,
+    listState: LazyListState,
+    onOpen: (Folder) -> Unit,
+    onHide: ((Folder) -> Unit)?,
+    onPullAtTop: (() -> Unit)?,
+) {
     val coverPx = with(LocalDensity.current) { COVER.roundToPx() }
     val withServer = state.server != Server.NONE
     // The list holds on to the row at its top by key, so "All pictures" coming back above it —
@@ -144,6 +158,7 @@ private fun FolderList(state: GalleryState, decoder: Decoder, listState: LazyLis
         PagedColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().padding(start = 20.dp),
+            onPullAtTop = onPullAtTop,
         ) {
             if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
             if (withServer && state.folders.isEmpty()) {
