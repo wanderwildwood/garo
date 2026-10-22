@@ -45,6 +45,12 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
     // either direction finds the next picture already decoded.
     private val full = object : LruCache<Uri, Bitmap>(3) {}
 
+    // The pixel size of the original behind each screen-sized bitmap, the right way up, so the
+    // viewer knows what "one picture pixel per screen pixel" means for it.
+    private val originals = object : LruCache<Uri, Size>(16) {}
+
+    fun originalSize(picture: Picture): Size? = originals.get(picture.uri)
+
     fun cachedThumbnail(picture: Picture, px: Int): Bitmap? = thumbnails.get("$px:${picture.uri}")
 
     suspend fun thumbnail(picture: Picture, px: Int): Bitmap? {
@@ -91,6 +97,7 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
                 ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                     val w = info.size.width
                     val h = info.size.height
+                    if (remote == null) originals.put(uri, Size(w, h))
                     val longest = max(w, h)
                     if (longest > longSide) {
                         val scale = longSide.toFloat() / longest
@@ -101,6 +108,36 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 }
             }.getOrNull()?.also { full.put(uri, it) }
+        }
+    }
+
+    /**
+     * Part of the original at full detail, for a picture enlarged beyond what the screen-sized
+     * bitmap holds. [area] is in the original's pixels; [scale] is 1 for every pixel, less to
+     * thin them out. Only the window is decoded, so a fifty-megapixel photo costs the window's
+     * memory, not its own. Pictures on a server have no original here: null.
+     */
+    suspend fun region(picture: Picture, area: android.graphics.Rect, scale: Float): Bitmap? {
+        if (picture.remote != null || picture.video) return null
+        return withContext(io) {
+            runCatching {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, picture.uri)) { decoder, info, _ ->
+                    val crop = android.graphics.Rect(area)
+                    if (scale < 1f) {
+                        val w = (info.size.width * scale).toInt().coerceAtLeast(1)
+                        val h = (info.size.height * scale).toInt().coerceAtLeast(1)
+                        decoder.setTargetSize(w, h)
+                        crop.set(
+                            (area.left * scale).toInt().coerceIn(0, w - 1),
+                            (area.top * scale).toInt().coerceIn(0, h - 1),
+                            (area.right * scale).toInt().coerceIn(1, w),
+                            (area.bottom * scale).toInt().coerceIn(1, h),
+                        )
+                    }
+                    decoder.setCrop(crop)
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+            }.getOrNull()
         }
     }
 

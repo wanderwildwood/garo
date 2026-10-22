@@ -3,7 +3,9 @@ package com.wanderwildwood.garo.ui
 import android.content.ClipData
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +33,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.roundToInt
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
@@ -145,6 +156,9 @@ fun ViewerScreen(
             is Shown.Ready -> Zoomable(
                 bitmap = s.bitmap,
                 key = picture.uri,
+                original = decoder.originalSize(picture)?.let { IntSize(it.width, it.height) },
+                detail = if (picture.video || picture.remote != null) null else { area, sc -> decoder.region(picture, area, sc) },
+                doubleTap = !picture.video,
                 onTap = { fraction, zoomed ->
                     when {
                         zoomed -> barShown = !barShown
@@ -231,11 +245,21 @@ fun ViewerScreen(
  * drag as a pan and leaves nothing for the swipe that turns the page. Here one finger is a pan
  * only while the picture is enlarged; otherwise it is a tap or a swipe, decided when it lifts.
  * The pan follows the finger and stops when the finger does — no fling, nothing coasting.
+ *
+ * A double tap jumps to one picture pixel per screen pixel, or back to fitted. The bitmap is only
+ * screen-sized, so past that the part of the original in view is decoded at full detail
+ * ([detail]) and drawn over it, a moment after the finger settles.
  */
 @Composable
 private fun Zoomable(
     bitmap: Bitmap,
     key: Any,
+    /** The original's size in pixels, when it is more than [bitmap] holds; null when [bitmap] is all there is. */
+    original: IntSize?,
+    /** The part of the original at [Rect] (its pixels) at the given scale, or null. */
+    detail: (suspend (Rect, Float) -> Bitmap?)?,
+    /** False for a video's still, where a tap is only a tap. */
+    doubleTap: Boolean,
     /** Where across the panel the tap landed, 0 to 1, and whether the picture is enlarged. */
     onTap: (fraction: Float, zoomed: Boolean) -> Unit,
     /** +1 for on, -1 for back. */
@@ -243,9 +267,14 @@ private fun Zoomable(
 ) {
     var scale by remember(key) { mutableFloatStateOf(1f) }
     var offset by remember(key) { mutableStateOf(Offset.Zero) }
+    var sharp by remember(key) { mutableStateOf<Sharp?>(null) }
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     val slop = LocalViewConfiguration.current.touchSlop
+    val doubleTapMs = LocalViewConfiguration.current.doubleTapTimeoutMillis
     val swipe = with(LocalDensity.current) { 48.dp.toPx() }
+    val near = with(LocalDensity.current) { 96.dp.toPx() }
+    val fullW = original?.width ?: bitmap.width
+    val fullH = original?.height ?: bitmap.height
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val boxW = constraints.maxWidth.toFloat()
@@ -254,11 +283,43 @@ private fun Zoomable(
         val fit = min(boxW / bitmap.width, boxH / bitmap.height)
         val fitW = bitmap.width * fit
         val fitH = bitmap.height * fit
+        // Screen pixels per original pixel when fitted.
+        val fitFull = min(boxW / fullW, boxH / fullH)
+        val maxZoom = max(MAX_ZOOM, oneToOneScale(boxW, boxH, fullW, fullH))
 
-        fun clamp(o: Offset, s: Float): Offset {
-            val maxX = max(0f, (fitW * s - boxW) / 2)
-            val maxY = max(0f, (fitH * s - boxH) / 2)
-            return Offset(o.x.coerceIn(-maxX, maxX), o.y.coerceIn(-maxY, maxY))
+        fun clamp(o: Offset, s: Float): Offset = clampOffset(o, s, fitW, fitH, boxW, boxH)
+
+        // Full detail for what is in view, once the picture has been enlarged past what the
+        // screen-sized bitmap holds. Waits for the picture to hold still, and takes a window
+        // half a screen bigger on every side so a small pan stays covered.
+        LaunchedEffect(key, boxW, boxH, fullW, fullH) {
+            if (detail == null) return@LaunchedEffect
+            snapshotFlow { ZoomState(scale, offset) }.collectLatest { z ->
+                val perPixel = z.scale * fitFull
+                if (z.scale <= 1.02f || perPixel <= bitmap.width.toFloat() / fullW) {
+                    sharp = null
+                    return@collectLatest
+                }
+                val visW = boxW / perPixel
+                val visH = boxH / perPixel
+                val left = fullW / 2f + (-boxW / 2 - z.offset.x) / perPixel
+                val top = fullH / 2f + (-boxH / 2 - z.offset.y) / perPixel
+                val want = min(1f, perPixel)
+                val have = sharp
+                if (have != null && have.scale >= want * 0.99f &&
+                    have.area.left <= left && have.area.top <= top &&
+                    have.area.right >= left + visW && have.area.bottom >= top + visH
+                ) return@collectLatest
+                delay(150)
+                val area = Rect(
+                    (left - visW / 2).toInt().coerceAtLeast(0),
+                    (top - visH / 2).toInt().coerceAtLeast(0),
+                    (left + visW * 1.5f).toInt().coerceAtMost(fullW),
+                    (top + visH * 1.5f).toInt().coerceAtMost(fullH),
+                )
+                if (area.width() < 1 || area.height() < 1) return@collectLatest
+                detail(area, want)?.let { sharp = Sharp(it.asImageBitmap(), area, want) }
+            }
         }
 
         // The touches are read on this unscaled box, not on the picture: a layer that has been
@@ -267,7 +328,7 @@ private fun Zoomable(
         Box(
             Modifier
                 .fillMaxSize()
-                .pointerInput(key, boxW, boxH) {
+                .pointerInput(key, boxW, boxH, fullW, fullH, doubleTap) {
                     val centre = Offset(boxW / 2, boxH / 2)
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -282,7 +343,7 @@ private fun Zoomable(
                                 val zoom = event.calculateZoom()
                                 val pan = event.calculatePan()
                                 val focus = event.calculateCentroid(useCurrent = true) - centre
-                                val newScale = (scale * zoom).coerceIn(1f, MAX_ZOOM)
+                                val newScale = (scale * zoom).coerceIn(1f, maxZoom)
                                 // Keep the point between the fingers where it is while the scale changes.
                                 val moved = (offset - focus) * (newScale / scale) + focus + pan
                                 scale = newScale
@@ -307,6 +368,51 @@ private fun Zoomable(
                         if (pinched) return@awaitEachGesture
 
                         val still = travelled.getDistance() < slop
+                        if (still && doubleTap) {
+                            // Whether this was one tap or the first of two is known only when
+                            // the time for a second has gone by; the single-tap action waits for it.
+                            val second = withTimeoutOrNull(doubleTapMs) {
+                                awaitFirstDown(requireUnconsumed = false)
+                            }
+                            if (second == null || (second.position - down.position).getDistance() > near) {
+                                onTap(down.position.x / boxW, scale > 1f)
+                                // A far-off second touch is a gesture of its own; its pointer
+                                // is simply let go of here.
+                                return@awaitEachGesture
+                            }
+                            var travelled2 = Offset.Zero
+                            var fingersSeen = 1
+                            var pressed2 = true
+                            while (pressed2) {
+                                val event = awaitPointerEvent()
+                                fingersSeen = max(fingersSeen, event.changes.count { it.pressed })
+                                val change = event.changes.firstOrNull { it.pressed }
+                                if (change != null && fingersSeen == 1) {
+                                    val delta = change.positionChange()
+                                    travelled2 += delta
+                                    if (scale > 1f) {
+                                        offset = clamp(offset + delta, scale)
+                                        change.consume()
+                                    }
+                                }
+                                pressed2 = event.changes.any { it.pressed }
+                            }
+                            if (fingersSeen == 1 && travelled2.getDistance() < slop) {
+                                val z = doubleTapZoom(
+                                    ZoomState(scale, offset),
+                                    second.position - centre,
+                                    boxW, boxH, fullW, fullH,
+                                )
+                                scale = z.scale
+                                offset = z.offset
+                            } else {
+                                onTap(down.position.x / boxW, scale > 1f)
+                                if (scale <= 1f && abs(travelled2.x) > swipe && abs(travelled2.x) > abs(travelled2.y)) {
+                                    onSwipe(if (travelled2.x < 0) +1 else -1)
+                                }
+                            }
+                            return@awaitEachGesture
+                        }
                         when {
                             still -> onTap(down.position.x / boxW, scale > 1f)
                             scale > 1f -> Unit
@@ -329,9 +435,30 @@ private fun Zoomable(
                         translationY = offset.y
                     },
             )
+            // The sharp window, placed on the panel by the same arithmetic, in whole pixels so
+            // that at 1:1 each picture pixel lands on one screen pixel.
+            val s = sharp
+            if (s != null && scale > 1f) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val per = scale * fitFull
+                    val x = boxW / 2 + offset.x + (s.area.left - fullW / 2f) * per
+                    val y = boxH / 2 + offset.y + (s.area.top - fullH / 2f) * per
+                    val x2 = boxW / 2 + offset.x + (s.area.right - fullW / 2f) * per
+                    val y2 = boxH / 2 + offset.y + (s.area.bottom - fullH / 2f) * per
+                    drawImage(
+                        s.image,
+                        dstOffset = IntOffset(x.roundToInt(), y.roundToInt()),
+                        dstSize = IntSize((x2.roundToInt() - x.roundToInt()).coerceAtLeast(1), (y2.roundToInt() - y.roundToInt()).coerceAtLeast(1)),
+                        filterQuality = FilterQuality.Low,
+                    )
+                }
+            }
         }
     }
 }
 
-/** Twice the panel's own resolution is decoded, so beyond about four times there is nothing more to see. */
+/** A window of the original at full detail: [area] in its pixels, decoded at [scale] of them. */
+private class Sharp(val image: ImageBitmap, val area: Rect, val scale: Float)
+
+/** Pinching goes to four times fitted at least; a double tap may go further, to 1:1. */
 private const val MAX_ZOOM = 4f

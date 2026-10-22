@@ -29,7 +29,8 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
   phone. Back lets go of the marks.
 - **One picture** on the whole panel. A tap at either side turns the page, as an e-reader
   does, and so does a swipe; a tap in the middle shows or hides the bar. Two fingers zoom,
-  and one finger then moves about the enlarged picture.
+  and one finger then moves about the enlarged picture. A double tap jumps to 100% (one picture
+  pixel to one screen pixel, at full detail, centred on the tap) and a second one returns to fitted.
 - **Videos** sit in their folders beside the pictures, each marked with its length. Opened,
   a video shows its first frame with a play button; it plays here, with pause, ten seconds
   back and on, and where it is. It smears, as anything moving does on this panel, but it plays.
