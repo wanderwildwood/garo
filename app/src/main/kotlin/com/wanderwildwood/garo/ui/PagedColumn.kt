@@ -1,22 +1,25 @@
 package com.wanderwildwood.garo.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -25,14 +28,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
@@ -46,8 +48,10 @@ import kotlinx.coroutines.launch
  * lines up with the bottom and the row at the top sits half under the bar; four tall rows can
  * also step past one that was never fully seen. Here a swipe up brings the first row that did
  * not fit to the top, a swipe down is the same backwards, and a row that does not fit at the
- * foot is not drawn until it is the next page's first. The last page keeps its rows whole and
- * leaves the space under them blank. A row taller than the screen is read a screen at a time.
+ * foot is not drawn until it is the next page's first. The room it leaves is shared out between
+ * the rows above it, so a full page runs from the top to the foot with no blank band under its
+ * last row; the last page keeps its rows as they come and leaves the space under them blank. A
+ * row taller than the screen is read a screen at a time.
  *
  * [contentPadding]'s top and bottom are a margin on every page, not only at the ends of the
  * list: no row is drawn in them. [isScrollbarVisible] is taken so a call written for MMD's
@@ -76,12 +80,12 @@ fun PagedColumn(
     // The gesture below is set up once for the list; read the caller's latest action, not the
     // one it was handed first.
     val pull by rememberUpdatedState(onPullAtTop)
-    val surface = MaterialTheme.colorScheme.surface
     val direction = LocalLayoutDirection.current
     val mark = with(LocalDensity.current) { TAIL_MARK_PX.toDp() }
     // Only a list longer than its screen pages, and only that one gets the blank tail: a list
     // that fits keeps its arrangement, centred or at the foot as it was asked.
     val pages by remember(state) { derivedStateOf { state.overflows() } }
+    val spread by remember(state) { derivedStateOf(structuralEqualityPolicy()) { state.spread() } }
 
     LaunchedEffect(state) {
         // The tail at the top is a blank page: the rows under it were taken away, or something
@@ -126,12 +130,6 @@ fun PagedColumn(
                             SwipeTurn.None -> Unit
                         }
                     }
-                }
-                .drawWithContent {
-                    drawContent()
-                    state.cutAt()?.let { y ->
-                        drawRect(surface, topLeft = Offset(0f, y), size = Size(size.width, size.height - y))
-                    }
                 },
             state = state,
             // One pixel after the tail tells ListJump the last item is room, not a row.
@@ -145,7 +143,9 @@ fun PagedColumn(
             // The list turns its own pages.
             userScrollEnabled = false,
         ) {
-            content()
+            // Read where the rows are placed, not when they are composed: a page turn moves them
+            // without composing anything again.
+            SpreadScope(this, horizontalAlignment) { index -> spread?.shift(index) ?: 0 }.content()
             if (paged) item(key = TAIL, contentType = TAIL) { Spacer(Modifier.height(tail)) }
         }
     }
@@ -190,11 +190,86 @@ private fun LazyListState.overflows(): Boolean {
         last.offset + last.size > layoutInfo.viewportSize.height
 }
 
-/** Where the first row that runs off the foot starts, while a whole row sits above it. */
-private fun LazyListState.cutAt(): Float? {
+/**
+ * A full page: whole rows from [from] to [to], [room] pixels under the last of them, and from
+ * [cut] on rows that do not fit. Each whole row moves down its share of the room, the first not
+ * at all and the last all of it, so the last sits on the foot; the rows that do not fit move off
+ * the screen, out of sight and out of reach of a press, until a page turn brings them to the top.
+ *
+ * A data class, so a layout that leaves the page as it was is no change: the rows read it where
+ * they are placed, and a new one on every pass would lay them out again for ever.
+ */
+private data class Spread(val from: Int, val to: Int, val room: Int, val cut: Int, val away: Int) {
+    fun shift(index: Int): Int = when {
+        index >= cut -> away
+        index < from || to == from -> 0
+        else -> room * (index - from) / (to - from)
+    }
+}
+
+/** How the rows on screen share out the room under them, while one runs off the foot. */
+private fun LazyListState.spread(): Spread? {
     val bottom = layoutInfo.viewportSize.height
-    val cut = rows().firstOrNull { it.offset + it.size > bottom } ?: return null
-    return if (cut.offset > 0) cut.offset.toFloat() else null
+    val rows = rows()
+    val cut = rows.firstOrNull { it.offset + it.size > bottom } ?: return null
+    // A row taller than the screen, read a screen at a time, has nothing whole above it.
+    if (cut.offset <= 0) return null
+    val whole = rows.filter { it.index < cut.index && it.offset >= 0 }
+    if (whole.isEmpty()) return null
+    val last = whole.last()
+    val room = (bottom - (last.offset + last.size)).coerceAtLeast(0)
+    // Room wider than any row on the page is not what a row that did not fit left behind, but
+    // the start of one far taller than the rest: shared out, it would scatter a few rows over
+    // the screen. They stay as they come, and only the tall row waits for the next page.
+    val share = if (room > whole.maxOf { it.size }) 0 else room
+    return Spread(whole.first().index, last.index, share, cut.index, bottom)
+}
+
+/**
+ * The list's own scope, with every row put in a column that [shift] moves down by its index. The
+ * move is made where the row is placed, so the list still measures and pages on the rows as they
+ * are, and a press lands on the row where it is drawn. [shift] and [alignment] are taken into
+ * locals before each row, since the list's scope keeps its own members out of reach inside one.
+ */
+private class SpreadScope(
+    private val list: LazyListScope,
+    private val alignment: Alignment.Horizontal,
+    private val shift: (Int) -> Int,
+) : LazyListScope {
+    private var next = 0
+
+    override fun item(key: Any?, contentType: Any?, content: @Composable LazyItemScope.() -> Unit) {
+        val index = next++
+        val shift = shift
+        val alignment = alignment
+        list.item(key, contentType) {
+            val row = this
+            Column(Modifier.offset { IntOffset(0, shift(index)) }, horizontalAlignment = alignment) { row.content() }
+        }
+    }
+
+    override fun items(
+        count: Int,
+        key: ((index: Int) -> Any)?,
+        contentType: (index: Int) -> Any?,
+        itemContent: @Composable LazyItemScope.(index: Int) -> Unit,
+    ) {
+        val first = next
+        next += count
+        val shift = shift
+        val alignment = alignment
+        list.items(count, key, contentType) { i ->
+            val row = this
+            Column(Modifier.offset { IntOffset(0, shift(first + i)) }, horizontalAlignment = alignment) { row.itemContent(i) }
+        }
+    }
+
+    // A header that sticks to the top stays where the list puts it.
+    @ExperimentalFoundationApi
+    override fun stickyHeader(key: Any?, contentType: Any?, content: @Composable LazyItemScope.(Int) -> Unit) {
+        next++
+        list.stickyHeader(key, contentType, content)
+    }
 }
 
 /** The first row that did not fit, brought to the top. */
