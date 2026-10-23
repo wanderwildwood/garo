@@ -114,6 +114,17 @@ Icons are [Material Symbols](https://fonts.google.com/icons), Apache License 2.0
 The pictures in the screenshots are Ansel Adams' photographs for the National Park Service,
 1941–1942, from the U.S. National Archives, in the public domain.
 
+## Getting it, and keeping it
+
+Download <https://github.com/wanderwildwood/garo/releases/latest/download/garo.apk>
+and sideload it. That address always points at the newest release, and every release
+publishes a `.sha256` beside the APK if you would rather check than trust.
+
+For updates without doing this by hand, add this repository to
+[Obtainium](https://github.com/ImranR98/Obtainium):
+
+    https://github.com/wanderwildwood/garo
+
 ## Licence
 
 GNU General Public License v3.0 only. See [LICENSE](LICENSE).
