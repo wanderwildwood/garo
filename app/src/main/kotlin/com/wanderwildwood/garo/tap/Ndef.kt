@@ -57,4 +57,44 @@ object Ndef {
     /** The NDEF file of a Type 4 tag: NLEN, then the message. */
     fun file(message: ByteArray): ByteArray =
         byteArrayOf((message.size ushr 8).toByte(), message.size.toByte()) + message
+
+    /**
+     * The URI of the first record of [message] when that is a Well Known URI record, else null.
+     * Only the prefixes a web address can have are understood; a record with any other prefix
+     * code, a truncated record or a chunked one gives null rather than a guess.
+     */
+    fun firstUri(message: ByteArray): String? {
+        if (message.size < 3) return null
+        val header = message[0].toInt() and 0xFF
+        val tnf = header and 0x07
+        val shortRecord = header and 0x10 != 0
+        val hasId = header and 0x08 != 0
+        val chunked = header and 0x20 != 0
+        if (tnf != 0x01 || chunked || header and 0x80 == 0) return null
+        var at = 1
+        val typeLength = message[at++].toInt() and 0xFF
+        val payloadLength: Long
+        if (shortRecord) {
+            if (at >= message.size) return null
+            payloadLength = (message[at++].toLong() and 0xFF)
+        } else {
+            if (at + 4 > message.size) return null
+            payloadLength = ((message[at].toLong() and 0xFF) shl 24) or ((message[at + 1].toLong() and 0xFF) shl 16) or
+                ((message[at + 2].toLong() and 0xFF) shl 8) or (message[at + 3].toLong() and 0xFF)
+            at += 4
+        }
+        val idLength = if (hasId) { if (at >= message.size) return null; message[at++].toInt() and 0xFF } else 0
+        if (typeLength != 1 || at + typeLength + idLength + payloadLength > message.size || payloadLength < 1) return null
+        if (message[at].toInt() != 'U'.code) return null
+        at += typeLength + idLength
+        val prefix = when (message[at].toInt() and 0xFF) {
+            0x00 -> ""
+            0x01 -> "http://www."
+            0x02 -> "https://www."
+            0x03 -> "http://"
+            0x04 -> "https://"
+            else -> return null
+        }
+        return prefix + String(message, at + 1, (payloadLength - 1).toInt(), Charsets.UTF_8)
+    }
 }

@@ -124,21 +124,19 @@ fun ShareByTapScreen(picture: Picture, onClose: () -> Unit) {
             title = { TextMMD(text = stringResource(R.string.tap_title)) },
             navigationIcon = { BarButton(Icons.Back, stringResource(R.string.viewer_cd_back), onClose) },
         )
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
+        Column(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 20.dp, vertical = 16.dp)) {
             when (val s = status) {
                 null -> Line(stringResource(R.string.tap_preparing))
                 is TapShare.Status.Ready -> {
                     Line(stringResource(R.string.tap_ready), big = true)
-                    Line(stringResource(R.string.tap_ready_wifi))
-                    Line(stringResource(R.string.tap_ready_screen))
+                    Line(stringResource(R.string.tap_ready_wifi), small = true)
+                    Line(stringResource(R.string.tap_ready_screen), small = true)
+                    // The same link as a picture, for a phone whose tap does not work: any camera reads it.
                     s.link?.let {
-                        Spacer(Modifier.height(14.dp))
-                        TextMMD(text = stringResource(R.string.tap_link_label), style = MaterialTheme.typography.labelSmall)
-                        TextMMD(text = it, style = MaterialTheme.typography.bodyMedium)
+                        Line(stringResource(R.string.tap_qr_label), small = true)
+                        QrCode(it, Modifier.fillMaxWidth().weight(1f))
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Line(stringResource(R.string.tap_limits))
-                    Spacer(Modifier.height(14.dp))
+                    Line(stringResource(R.string.tap_limits), small = true)
                     Press(R.string.tap_stop) { share.stop() }
                 }
                 TapShare.Status.Sent -> {
@@ -173,16 +171,20 @@ fun ShareByTapScreen(picture: Picture, onClose: () -> Unit) {
 }
 
 @Composable
-private fun Line(text: String, big: Boolean = false) {
+internal fun Line(text: String, big: Boolean = false, small: Boolean = false) {
     TextMMD(
         text = text,
-        style = if (big) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(bottom = 8.dp),
+        style = when {
+            big -> MaterialTheme.typography.bodyLarge
+            small -> MaterialTheme.typography.bodySmall
+            else -> MaterialTheme.typography.bodyMedium
+        },
+        modifier = Modifier.padding(bottom = if (small) 4.dp else 8.dp),
     )
 }
 
 @Composable
-private fun Press(label: Int, onClick: () -> Unit) {
+internal fun Press(label: Int, onClick: () -> Unit) {
     OutlinedButtonMMD(onClick = onClick, modifier = Modifier.fillMaxWidth().height(48.dp)) {
         TextMMD(text = stringResource(label), style = MaterialTheme.typography.bodySmall)
     }

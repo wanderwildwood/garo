@@ -14,6 +14,7 @@ androidx-material3 = "1.4.0"
 junit = "4.13.2"
 work = "2.11.2"
 json = "20240303"
+zxing = "3.5.3"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -33,6 +34,9 @@ mmd = { module = "com.mudita:MMD", version.ref = "mmd" }
 work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
+# The QR code on the Share by tap screen (Apache-2.0); core only, no scanner and no camera.
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+
 # Android's org.json is a stub in local unit tests; this is the real one, for tests only.
 json = { module = "org.json:json", version.ref = "json" }
 

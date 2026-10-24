@@ -193,7 +193,7 @@
 
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
     <string name="about_title">Gallery %1$s</string>
-    <string name="about_privacy">It reads the pictures on this phone to show them. With an Immich server set, it also reads your albums from it and, if you turn backing up on, sends the camera\'s pictures to it — to that server only, using the key you gave it.</string>
+    <string name="about_privacy">It reads the pictures on this phone to show them. With an Immich server set, it also reads your albums from it and, if you turn backing up on, sends the camera\'s pictures to it — to that server only, using the key you gave it. Share by tap and Receive by tap talk only to another phone on the same Wi-Fi.</string>
     <string name="about_after">After Fossify Gallery, GPL 3.0, whose ways of ordering folders and pictures this keeps.</string>
     <!-- The name of the app's licence -->
     <string name="about_licence">GNU General Public License v3</string>
@@ -252,9 +252,9 @@
     <string name="tap_preparing">Getting the picture ready.</string>
     <string name="tap_ready">Hold the back of the other phone to the back of this one.</string>
     <string name="tap_ready_wifi">Both phones must be on the same Wi-Fi.</string>
-    <string name="tap_ready_screen">This phone\'s screen must stay on and unlocked, or the tap does nothing.</string>
-    <string name="tap_link_label">Or type this link on the other phone</string>
-    <string name="tap_limits">It works for one download or two minutes, then stops.</string>
+    <string name="tap_ready_screen">Keep this screen on and unlocked.</string>
+    <string name="tap_qr_label">Or scan this code with the other phone\'s camera.</string>
+    <string name="tap_limits">One download, or two minutes, then it stops.</string>
     <string name="tap_sent">Sent</string>
     <string name="tap_sent_detail">The other phone has the picture.</string>
     <string name="tap_stopped">Stopped</string>
@@ -269,4 +269,25 @@
     <string name="tap_again">Share again</string>
     <string name="tap_done">Done</string>
     <string name="tap_cancel">Cancel</string>
+
+    <string name="receive_title">Receive by tap</string>
+    <string name="receive_setting_note">Take a picture from another phone</string>
+    <string name="receive_ready">Hold the back of this phone to the back of the other phone, which must be showing Share by tap.</string>
+    <string name="receive_wifi">Both phones must be on the same Wi-Fi. This screen must stay on.</string>
+    <string name="receive_getting">Receiving the picture.</string>
+    <string name="receive_saved">Saved</string>
+    <string name="receive_saved_detail">The picture is in the Received folder.</string>
+    <string name="receive_open">Open it</string>
+    <string name="receive_again">Receive another</string>
+    <string name="receive_nothing">Nothing was received.</string>
+    <string name="receive_nothing_detail">Hold the phones back to back again, and keep both screens on.</string>
+    <string name="receive_not_wifi">Not on this Wi-Fi. Both phones must be on the same network.</string>
+    <string name="receive_sender_stopped">The sender stopped.</string>
+    <string name="receive_sender_stopped_detail">Ask for Share by tap again on the other phone, then try again.</string>
+    <string name="receive_too_big">That picture is too big to receive.</string>
+    <string name="receive_not_picture">That was not a picture, so it was not kept.</string>
+    <string name="receive_save_failed">The picture could not be saved.</string>
+    <string name="receive_try_again">Try again</string>
+    <string name="receive_nfc_off">NFC is off. Turn NFC on in the NFC settings, then come back.</string>
+    <string name="receive_no_nfc">This phone cannot receive by tap.</string>
 </resources>

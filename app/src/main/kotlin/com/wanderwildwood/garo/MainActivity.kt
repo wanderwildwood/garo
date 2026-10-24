@@ -41,6 +41,7 @@ import com.wanderwildwood.garo.ui.GridScreen
 import com.wanderwildwood.garo.ui.RefreshOnResume
 import com.wanderwildwood.garo.ui.rememberPull
 import com.wanderwildwood.garo.ui.Server
+import com.wanderwildwood.garo.ui.ReceiveByTapScreen
 import com.wanderwildwood.garo.ui.SettingsScreen
 import com.wanderwildwood.garo.ui.ViewerScreen
 import com.wanderwildwood.garo.ui.monochrome
@@ -123,6 +124,7 @@ private fun Gallery(
     var folderKey by rememberSaveable { mutableStateOf<String?>(null) }
     var viewing by rememberSaveable { mutableStateOf<Int?>(null) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var receiving by rememberSaveable { mutableStateOf(false) }
     var found by rememberSaveable { mutableStateOf(lookFor == null) }
     var notFound by rememberSaveable { mutableStateOf(false) }
     // Opened on one picture, then gone on from it to its folder: from here it is the whole
@@ -209,6 +211,8 @@ private fun Gallery(
     }
 
     when {
+        receiving -> ReceiveByTapScreen(onClose = { receiving = false })
+
         settingsOpen -> {
             BackHandler { settingsOpen = false }
             // The worker writes its record from outside; read it fresh whenever settings show.
@@ -229,6 +233,7 @@ private fun Gallery(
                 onBackUpNow = viewModel::backUpNow,
                 hidden = state.hidden,
                 onShowFolder = viewModel::showFolder,
+                onReceive = if (android.nfc.NfcAdapter.getDefaultAdapter(context) != null) ({ receiving = true }) else null,
             )
         }
 

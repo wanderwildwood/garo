@@ -78,6 +78,7 @@ fun SettingsScreen(
     onBackUpNow: () -> Unit = {},
     hidden: Map<String, String> = emptyMap(),
     onShowFolder: (String) -> Unit = {},
+    onReceive: (() -> Unit)? = null,
 ) {
     var aboutOpen by remember { mutableStateOf(false) }
     var hiddenOpen by remember { mutableStateOf(false) }
@@ -147,6 +148,17 @@ fun SettingsScreen(
             }
 
             item { OpensRow() }
+
+            // Only on a phone that has NFC; elsewhere the row could do nothing.
+            if (onReceive != null) {
+                item {
+                    Setting(
+                        title = stringResource(R.string.receive_title),
+                        value = stringResource(R.string.receive_setting_note),
+                        onClick = onReceive,
+                    )
+                }
+            }
 
             // Only once something is hidden: a row for an empty list would be furniture.
             if (hidden.isNotEmpty()) {

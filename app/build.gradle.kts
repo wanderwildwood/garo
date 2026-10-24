@@ -16,8 +16,8 @@ android {
         // permission that reads pictures; READ_MEDIA_IMAGES only exists from 33.
         minSdk = 31
         targetSdk = 31
-        versionCode = 21
-        versionName = "0.6.0"
+        versionCode = 22
+        versionName = "0.6.1"
     }
 
     // A real keystore in signing/ signs every build type when it is present, so the
@@ -107,6 +107,7 @@ dependencies {
 
     implementation(libs.mmd)
     implementation(libs.work.runtime)
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.json)

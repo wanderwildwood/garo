@@ -53,8 +53,9 @@ phones are on.
   phone's browser opens it. Only that picture is served; any other address is a 404.
 - **How long.** It stops after one finished download, after two minutes, or when you leave
   the screen. A download that breaks off does not use it up. The screen says **Sent** or
-  **Stopped**, and shows the link as text under the instructions, so it can be typed on a
-  phone that cannot tap.
+  **Stopped**, and shows the link as a large QR code under the instructions, so a phone that
+  cannot tap, or whose tap does nothing, can point its camera at it and open the link in its
+  browser.
 - **What it needs.** NFC switched on, a Wi-Fi connection, and this phone's screen on and
   unlocked: Android answers an NFC reader only then. If NFC is off or there is no Wi-Fi, the
   screen says so, with a button to the right settings, and nothing is started.
@@ -64,12 +65,26 @@ phones are on.
   sent as that app gave it, location included. There is no setting for stripping more.
 - **Nothing leaves the network.** No server, no account, no internet: see PRIVACY.md.
 
+### Receive by tap
+
+A Kompakt has no browser, and nothing on it that handles a tag, so it receives with
+**Settings → Receive by tap**. Open it on the receiving phone, hold it back to back with the phone
+that is showing Share by tap, and the picture is saved into Pictures/Received, with **Open it**
+to see it at once. Both phones must be on the same Wi-Fi, and this screen must stay on.
+
+The receiving phone reads the sender's tag itself (NFC reader mode) and takes the link from it,
+but follows it only if it is `http://`, a private IPv4 address (`10.x`, `172.16`–`172.31`,
+`192.168.x`, `169.254.x`), a port and a 32-digit token; anything else is ignored. It takes at most
+64 MB, checks that it is a picture, and keeps nothing otherwise. The errors are plain:
+**Nothing was received**, **Not on this Wi-Fi**, **The sender stopped**.
+
 The code is in `app/src/main/kotlin/com/wanderwildwood/garo/tap/` and knows nothing of the
 gallery around it, so it can be lifted into another app: `Ndef` builds the tag's record,
 `TypeFourTag` answers an NFC reader's commands as an NFC Forum Type 4 tag, `OneShotServer`
 serves one `Shareable` (a name, a type, a size and a stream) once, and `TapShare` ties them to
 the phone's NFC and Wi-Fi. A short text or web address can instead be carried on the tag
-itself (`Offer.Text`, under 800 bytes), with no server at all.
+itself (`Offer.Text`, under 800 bytes), with no server at all. `TypeFourReader` is the reading
+side of the same tag, `ReceiveUrl` the check on the link and `PhotoFetch` the download.
 
 ## With the other apps
 

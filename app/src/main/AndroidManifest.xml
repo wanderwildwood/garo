@@ -19,9 +19,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
-      Share by tap: the other phone reads a short link from this one over NFC. A normal
-      permission, granted at install; nothing is asked. INTERNET above is not used for this,
-      which goes over the local Wi-Fi only.
+      Share by tap: the other phone reads a short link from this one over NFC; Receive by tap
+      reads it the other way round. A normal permission, granted at install; nothing is asked.
+      Both go over the local Wi-Fi only, to a private address (see tap/Receive.kt).
     -->
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />

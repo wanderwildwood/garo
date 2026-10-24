@@ -56,7 +56,8 @@ the local network.
   other: never on mobile data, a VPN or every address. It serves that one picture at a link
   with a random 128-bit part, and nothing else; every other address is a 404.
 - The link is handed over by NFC: this phone acts as a tag holding it, and the other phone
-  opens it in its browser. The link is also shown on screen as text.
+  opens it in its browser. The same link is also drawn on screen as a QR code, for a phone
+  whose camera can read it (the link is not shown as text).
 - **Anyone on the same network who can read the link can download the picture**, once. It
   stops after one finished download, after two minutes, or when you leave the screen,
   whichever comes first.
@@ -72,6 +73,26 @@ the local network.
   sent as that app gave it. There is no extra stripping setting.
 - The phone answers NFC readers as a tag only while the Share by tap screen is showing; the
   component is switched off the rest of the time.
+
+## Receive by tap
+
+**Settings → Receive by tap** turns this phone into the reader for the other side of a tap:
+while that screen is showing, and only then, it reads the link off a phone held to it that is
+showing Share by tap, and fetches the picture.
+
+- The link must be exactly the shape Share by tap writes: `http://`, a numeric IPv4 address
+  in a private range (`10.x`, `172.16`–`172.31`, `192.168.x`, or the link-local `169.254.x`),
+  a port, and a 32-digit token. Any other address, a host name, `https`, a public address, is
+  ignored. So the only place this phone will ever connect to on a tap is a machine on its own
+  local network, and nothing leaves that network.
+- It makes one plain `http` request to that address, over a socket opened by the app itself;
+  the cleartext setting for the rest of the app is not changed, so Immich still has to be
+  `https://`. At most 64 MB is taken.
+- The download goes to the app's cache and is checked to be a picture Android can read before
+  anything is kept. Then it is saved into Pictures/Received through Android's media index,
+  which needs no permission; a file that is not a picture is deleted.
+- No account, no server of mine or anyone's, no internet; `INTERNET` and `NFC` are the two
+  permissions it uses, both already above.
 
 ## Pictures another app hands over
 
@@ -98,8 +119,9 @@ along with the address and key. The phone's own pictures are not copied anywhere
 ## No analytics
 
 No crash reporting, no telemetry, no advertising identifier, no third-party SDK of any kind.
-The dependency list in `app/build.gradle.kts` is AndroidX, Jetpack Compose and Mudita's MMD
-component library, and nothing else.
+The dependency list in `app/build.gradle.kts` is AndroidX, Jetpack Compose, Mudita's MMD
+component library and ZXing's `core` (Apache-2.0, which only turns a link into the dots of a QR
+code: no scanner, no camera), and nothing else.
 
 ## Checking any of this for yourself
 
