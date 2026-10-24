@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The NFC Forum NDEF Tag Application, so that another phone reading this one finds a tag. -->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/tap_service_description"
+    android:requireDeviceUnlock="false">
+    <aid-group
+        android:category="other"
+        android:description="@string/tap_service_description">
+        <aid-filter android:name="D2760000850101" />
+    </aid-group>
+</host-apdu-service>

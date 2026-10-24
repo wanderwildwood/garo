@@ -39,6 +39,38 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
 - **Share** and **delete**. Deleting is asked by the phone itself, because on Android 11 and
   later a photo belongs to the app that took it.
 
+## Share by tap
+
+On a phone with NFC, **Share** on a picture asks how: **Share by tap**, or **Send with an app**
+(the usual list of apps). Choose Share by tap, then hold the back of the other phone to the
+back of this one. The other phone opens a link and the picture comes over the Wi-Fi both
+phones are on.
+
+- **How it works.** The picture is served by a small web server inside the app, on this
+  phone's Wi-Fi (or hotspot) address only, never on mobile data, at a link with a random
+  128-bit part that nothing else can guess. The tap is only how the link gets across: this
+  phone presents itself to the other as an NFC tag holding that one link, and the other
+  phone's browser opens it. Only that picture is served; any other address is a 404.
+- **How long.** It stops after one finished download, after two minutes, or when you leave
+  the screen. A download that breaks off does not use it up. The screen says **Sent** or
+  **Stopped**, and shows the link as text under the instructions, so it can be typed on a
+  phone that cannot tap.
+- **What it needs.** NFC switched on, a Wi-Fi connection, and this phone's screen on and
+  unlocked: Android answers an NFC reader only then. If NFC is off or there is no Wi-Fi, the
+  screen says so, with a button to the right settings, and nothing is started.
+- **What goes with the picture.** The file as the phone's library holds it. For a picture in
+  the phone's own library Android takes the location out before this app reads it, as it does
+  for Share; the camera, the date and the rest stay. A picture another app handed over is
+  sent as that app gave it, location included. There is no setting for stripping more.
+- **Nothing leaves the network.** No server, no account, no internet: see PRIVACY.md.
+
+The code is in `app/src/main/kotlin/com/wanderwildwood/garo/tap/` and knows nothing of the
+gallery around it, so it can be lifted into another app: `Ndef` builds the tag's record,
+`TypeFourTag` answers an NFC reader's commands as an NFC Forum Type 4 tag, `OneShotServer`
+serves one `Shareable` (a name, a type, a size and a stream) once, and `TapShare` ties them to
+the phone's NFC and Wi-Fi. A short text or web address can instead be carried on the tag
+itself (`Offer.Text`, under 800 bytes), with no server at all.
+
 ## With the other apps
 
 It is made to be the phone's picture app, not a room of its own.

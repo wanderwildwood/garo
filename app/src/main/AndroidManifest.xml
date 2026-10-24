@@ -18,6 +18,14 @@
     -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+      Share by tap: the other phone reads a short link from this one over NFC. A normal
+      permission, granted at install; nothing is asked. INTERNET above is not used for this,
+      which goes over the local Wi-Fi only.
+    -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
+
     <!-- Android 11 and later hide other apps unless asked for by what they do: Files, to show a
          folder in, and whatever takes a shared picture. -->
     <queries>
@@ -132,6 +140,23 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
+
+        <!--
+          The tag the other phone reads. Disabled here; the Share by tap screen switches it on
+          while it is showing and off again when it is left (see tap/TapShare.kt).
+        -->
+        <service
+            android:name=".tap.TapTagService"
+            android:enabled="false"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/tap_apdu_service" />
+        </service>
 
         <!-- Camera (shashinki) saying it has just saved a photo; see NewPictureReceiver. -->
         <receiver

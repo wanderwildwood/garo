@@ -140,6 +140,31 @@ fun ViewerScreen(
         if (next in pictures.indices) chosen = next
     }
 
+    var choosing by remember { mutableStateOf(false) }
+    var tapping by remember(picture.uri) { mutableStateOf(false) }
+    val canTap = remember(context) {
+        android.nfc.NfcAdapter.getDefaultAdapter(context) != null &&
+            context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)
+    }
+    fun shareWithApp() {
+        val send = Intent(Intent.ACTION_SEND)
+            .setType(context.contentResolver.getType(picture.uri) ?: "image/*")
+            .putExtra(Intent.EXTRA_STREAM, picture.uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // The grant travels on the clip as well as the stream: Android hands the
+        // read permission on through a chooser only from the clip.
+        send.clipData = ClipData.newRawUri(null, picture.uri)
+        runCatching {
+            context.startActivity(Intent.createChooser(send, null))
+        }.onFailure {
+            Toast.makeText(context, R.string.viewer_no_share, Toast.LENGTH_SHORT).show()
+        }
+    }
+    if (tapping) {
+        ShareByTapScreen(picture, onClose = { tapping = false })
+        return
+    }
+
     // A video plays on its own screen; until then its first frame stands in the viewer like a
     // picture, with a play button over it, and pages turn past it as past any other.
     var playing by remember(picture.uri) { mutableStateOf(false) }
@@ -214,18 +239,8 @@ fun ViewerScreen(
                         )
                     }
                     if (picture.remote == null) BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
-                        val send = Intent(Intent.ACTION_SEND)
-                            .setType(context.contentResolver.getType(picture.uri) ?: "image/*")
-                            .putExtra(Intent.EXTRA_STREAM, picture.uri)
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        // The grant travels on the clip as well as the stream: Android hands the
-                        // read permission on through a chooser only from the clip.
-                        send.clipData = ClipData.newRawUri(null, picture.uri)
-                        runCatching {
-                            context.startActivity(Intent.createChooser(send, null))
-                        }.onFailure {
-                            Toast.makeText(context, R.string.viewer_no_share, Toast.LENGTH_SHORT).show()
-                        }
+                        // A phone that can tap offers both ways; any other goes straight to the apps.
+                        if (canTap && !picture.video) choosing = true else shareWithApp()
                     }
                     if (canDelete && picture.remote == null) {
                         BarButton(Icons.Delete, stringResource(R.string.viewer_cd_delete)) { onDelete(picture) }
@@ -236,6 +251,11 @@ fun ViewerScreen(
     }
 
     if (infoOpen) InfoDialog(picture = picture, onDismiss = { infoOpen = false })
+    if (choosing) ShareChoiceDialog(
+        onApp = { choosing = false; shareWithApp() },
+        onTap = { choosing = false; tapping = true },
+        onDismiss = { choosing = false },
+    )
 }
 
 /**

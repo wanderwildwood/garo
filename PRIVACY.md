@@ -7,13 +7,14 @@ pictures there. It talks to that server and nothing else.
 That is the whole policy. The rest of this page is the evidence for it, because a privacy
 policy that cannot be checked is just a promise.
 
-## Two permissions
+## Three permissions
 
-`app/src/main/AndroidManifest.xml` declares exactly two:
+`app/src/main/AndroidManifest.xml` declares exactly three:
 
 ```
 android.permission.READ_EXTERNAL_STORAGE
 android.permission.INTERNET
+android.permission.NFC
 ```
 
 On Android 12, which the Kompakt runs, the first is the permission that reads photos. Android
@@ -40,8 +41,37 @@ started from asks for so it can search the storage itself.
 question — "Allow Gallery to delete this photo?", or "…delete 3 photos?" when several are
 marked — and only a yes deletes anything.
 
+**`NFC` is for Share by tap, and nothing else.** It is a normal permission, granted at install,
+so nothing is asked. See the next section.
+
 **Editing never changes a picture.** An edited picture is saved as a new picture beside the
 original, through Android's own index; the original is left as it was.
+
+## Share by tap
+
+Choosing **Share by tap** on a picture serves that one picture to the other phone, and only on
+the local network.
+
+- A small web server starts inside the app, on the phone's Wi-Fi or hotspot address and no
+  other: never on mobile data, a VPN or every address. It serves that one picture at a link
+  with a random 128-bit part, and nothing else; every other address is a 404.
+- The link is handed over by NFC: this phone acts as a tag holding it, and the other phone
+  opens it in its browser. The link is also shown on screen as text.
+- **Anyone on the same network who can read the link can download the picture**, once. It
+  stops after one finished download, after two minutes, or when you leave the screen,
+  whichever comes first.
+- Nothing goes to the internet or to any server of mine or anyone's. `INTERNET` is not used
+  for this; the picture crosses the local network only, in the clear (plain `http`, which is
+  why the link works on any phone and why it only lasts two minutes).
+- The picture is copied into the app's cache for the time it is served and deleted when the
+  screen is left.
+- **What is sent.** The file as the phone's library gives it. Android removes the location
+  from a picture in the phone's own library before this app can read it (the app does not
+  hold the permission that would allow the location through), the same as for Share; the
+  camera, the date and other details stay in the file. A picture another app handed over is
+  sent as that app gave it. There is no extra stripping setting.
+- The phone answers NFC readers as a tag only while the Share by tap screen is showing; the
+  component is switched off the rest of the time.
 
 ## Pictures another app hands over
 
@@ -79,11 +109,12 @@ The source is here in full. If you would rather not read it:
 aapt2 dump badging app-release.apk | grep uses-permission
 ```
 
-That prints every permission the built app actually carries. It prints seven lines:
+That prints every permission the built app actually carries. It prints eight lines:
 
 ```
 uses-permission: name='android.permission.READ_EXTERNAL_STORAGE'
 uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.NFC'
 uses-permission: name='android.permission.WAKE_LOCK'
 uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
 uses-permission: name='android.permission.RECEIVE_BOOT_COMPLETED'
@@ -91,7 +122,7 @@ uses-permission: name='android.permission.FOREGROUND_SERVICE'
 uses-permission: name='com.wanderwildwood.garo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
-The first two are the ones described above. The next four come with WorkManager, Android's
+The first three are the ones described above. The next four come with WorkManager, Android's
 own library for work that waits on conditions, which is what runs the backup: it needs to
 know whether the phone is on Wi-Fi, to keep the phone awake for an upload already started, to
 put the schedule back after a restart, and to run a long job. None of them reads anything, and
