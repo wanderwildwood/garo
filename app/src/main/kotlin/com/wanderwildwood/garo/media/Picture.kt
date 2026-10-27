@@ -3,6 +3,8 @@ package com.wanderwildwood.garo.media
 import android.content.ContentUris
 import android.net.Uri
 import android.provider.MediaStore
+import com.wanderwildwood.garo.cloud.Cloud
+import com.wanderwildwood.garo.cloud.CloudItem
 
 /**
  * One picture as the phone's media index knows it.
@@ -38,13 +40,20 @@ data class Picture(
     val video: Boolean = false,
     /** A video's length in milliseconds; 0 for a picture, or when the index does not know. */
     val duration: Long = 0L,
+    /** A file in the signed-in Nextcloud, read from there rather than the phone. */
+    val cloud: CloudItem? = null,
 ) {
+    /** On a server, not the phone: nothing here to edit, delete or show in Files. */
+    val onServer: Boolean get() = remote != null || cloud != null
+
     /**
      * Where to read it from. Worked out from the id rather than stored, so the ordering code
      * that never reads it can be tested without Android's own classes.
      */
     val uri: Uri by lazy {
-        remote?.let { Uri.parse("immich://asset/$it") } ?: handed ?: ContentUris.withAppendedId(
+        remote?.let { Uri.parse("immich://asset/$it") }
+            ?: cloud?.let { Uri.parse("nextcloud://file/" + Cloud.originalKey(it)) }
+            ?: handed ?: ContentUris.withAppendedId(
             if (video) {
                 MediaStore.Video.Media.getContentUri(volume ?: MediaStore.VOLUME_EXTERNAL)
             } else {
