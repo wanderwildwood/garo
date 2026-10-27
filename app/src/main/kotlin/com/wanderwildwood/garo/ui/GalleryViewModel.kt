@@ -14,6 +14,14 @@ import com.wanderwildwood.garo.media.BackupRecord
 import com.wanderwildwood.garo.media.BackupStatus
 import com.wanderwildwood.garo.media.BackupWhen
 import com.wanderwildwood.garo.media.Conditions
+import com.wanderwildwood.garo.media.DEFAULT_NEXTCLOUD_FOLDER
+import com.wanderwildwood.garo.media.Destination
+import com.wanderwildwood.garo.backup.Account
+import com.wanderwildwood.garo.backup.LoginFlow
+import com.wanderwildwood.garo.backup.PhotoFolder
+import com.wanderwildwood.garo.backup.Refused
+import com.wanderwildwood.garo.backup.Remote
+import kotlinx.coroutines.delay
 import com.wanderwildwood.garo.media.Reach
 import android.content.Intent
 import android.content.IntentFilter
@@ -73,7 +81,32 @@ data class GalleryState(
     val backup: BackupState = BackupState(),
     /** Folders hidden by hand: key to name. */
     val hidden: Map<String, String> = emptyMap(),
+    val nextcloud: NextcloudState = NextcloudState(),
 )
+
+/** The Nextcloud page: who is signed in, or how signing in is going. */
+data class NextcloudState(
+    /** Signed in as this login name, or null. */
+    val user: String? = null,
+    val server: String? = null,
+    val folder: String = DEFAULT_NEXTCLOUD_FOLDER,
+    /** The address as typed, before signing in. */
+    val typed: String = "",
+    val signIn: SignIn = SignIn.IDLE,
+    val problem: NextcloudProblem? = null,
+    /** No browser to open the sign-in page in: an app password is typed instead. */
+    val byHand: Boolean = false,
+)
+
+enum class SignIn {
+    IDLE,
+    /** The browser has the sign-in page; the app is asking the server whether it is done. */
+    WAITING,
+    /** An app password in hand, being tried before it is kept. */
+    CHECKING,
+}
+
+enum class NextcloudProblem { PLAIN_HTTP, UNREACHABLE, REFUSED, NO_BROWSER, NOT_KEPT, TIMED_OUT }
 
 /** What the backup rows say. */
 data class BackupState(
@@ -85,9 +118,13 @@ data class BackupState(
     val folders: Set<String> = Backup.DEFAULT_FOLDERS,
     /** The folders there are to choose from, DCIM first. */
     val choosable: List<String> = listOf("DCIM/"),
+    /** Where it goes, or null when neither server is set up. */
+    val to: Destination? = null,
+    /** Every place set up that it could go. */
+    val places: List<Destination> = emptyList(),
 )
 
-class GalleryViewModel(app: Application) : AndroidViewModel(app) {
+class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActions {
 
     private val settings = Settings(app)
     private val index = MediaIndex(
@@ -103,6 +140,9 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
             hidden = settings.hiddenFolders(),
             serverAddress = settings.immichServer(),
             hasKey = settings.hasImmichKey(),
+            nextcloud = settings.nextcloud().let { a ->
+                NextcloudState(user = a?.user, server = a?.server, folder = settings.nextcloudFolder())
+            },
         ),
     )
     val state: StateFlow<GalleryState> = _state
@@ -255,16 +295,33 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         readBackup()
     }
 
+    /** Where backing up goes, when both servers are set up. */
+    fun setBackupTo(to: Destination) {
+        settings.writeBackupTo(to)
+        BackupWorker.schedule(getApplication())
+        BackupWorker.runSoon(getApplication(), replace = true)
+        readBackup()
+    }
+
     /** Read the record again: the worker writes it from outside this screen. */
     fun readBackup() {
-        val record = BackupWorker.record(getApplication())
+        val to = settings.destination()
+        val record = BackupWorker.record(getApplication(), to ?: Destination.IMMICH)
         val folders = settings.backupFolders()
-        val chosen = everything.filter { Backup.isChosen(it, folders) }
+        val videos = to != null && Backup.videosTo(to)
+        val chosen = everything.filter { Backup.isChosen(it, folders, videos) }
         val whenTo = settings.backupWhen()
-        val reach = when (_state.value.server) {
-            Server.OK -> Reach.OK
-            Server.UNREACHABLE -> Reach.UNREACHABLE
+        // Immich is asked whenever the app opens, so its answer is known; Nextcloud is asked
+        // only by a backup, whose record says how that went.
+        val reach = when {
+            to != Destination.IMMICH -> Reach.UNKNOWN
+            _state.value.server == Server.OK -> Reach.OK
+            _state.value.server == Server.UNREACHABLE -> Reach.UNREACHABLE
             else -> Reach.UNKNOWN
+        }
+        val places = buildList {
+            if (settings.immich() != null) add(Destination.IMMICH)
+            if (settings.nextcloud() != null) add(Destination.NEXTCLOUD)
         }
         _state.update {
             it.copy(
@@ -283,6 +340,8 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
                     ),
                     folders = folders,
                     choosable = (Backup.choosable(everything) + folders).distinct(),
+                    to = to,
+                    places = places,
                 ),
             )
         }
@@ -307,13 +366,142 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
     fun forgetServer() {
         settings.writeImmichServer(null)
         settings.writeImmichKey(null)
-        settings.writeBackupOn(false)
+        // Backing up stops only when there is nowhere left for it to go.
+        if (settings.destination() == null) settings.writeBackupOn(false)
         BackupWorker.schedule(getApplication())
         BackupWorker.record(getApplication()).forget()
         readBackup()
         forgetAlbums()
         _state.update { it.copy(serverAddress = null, hasKey = false) }
         connect()
+    }
+
+    // Nextcloud ---------------------------------------------------------------------------------
+
+    private var signingIn: Job? = null
+
+    override fun setNextcloudAddress(typed: String) {
+        _state.update { it.copy(nextcloud = it.nextcloud.copy(typed = typed.trim(), problem = null)) }
+    }
+
+    /**
+     * Nextcloud's own sign-in: its login page opens in the browser, and this asks the server every
+     * two seconds whether the reader has finished there, for the twenty minutes the server allows.
+     * The app password it then hands over is checked against the files and kept, sealed.
+     */
+    override fun startNextcloudSignIn() {
+        val typed = _state.value.nextcloud.typed
+        if (typed.isBlank() || signingIn?.isActive == true) return
+        if (LoginFlow.isPlain(typed)) {
+            nextcloud { it.copy(problem = NextcloudProblem.PLAIN_HTTP) }
+            return
+        }
+        nextcloud { it.copy(signIn = SignIn.WAITING, problem = null) }
+        signingIn = viewModelScope.launch {
+            val started = withContext(Dispatchers.IO) { runCatching { LoginFlow.start(typed) } }.getOrElse { e ->
+                nextcloud { it.copy(signIn = SignIn.IDLE, problem = if (e is Refused) NextcloudProblem.REFUSED else NextcloudProblem.UNREACHABLE) }
+                return@launch
+            }
+            val app = getApplication<Application>()
+            val opened = runCatching {
+                app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(started.loginUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }.isSuccess
+            if (!opened) {
+                nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.NO_BROWSER, byHand = true) }
+                return@launch
+            }
+            repeat(600) {
+                delay(2_000)
+                val got = withContext(Dispatchers.IO) { runCatching { LoginFlow.poll(started) } }.getOrElse { e ->
+                    if (e is Refused) {
+                        nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.REFUSED) }
+                        return@launch
+                    }
+                    null
+                }
+                if (got != null) {
+                    keepNextcloud(got)
+                    return@launch
+                }
+            }
+            nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.TIMED_OUT) }
+        }
+    }
+
+    /** Stop waiting for the browser. */
+    override fun cancelNextcloudSignIn() {
+        signingIn?.cancel()
+        nextcloud { it.copy(signIn = SignIn.IDLE) }
+    }
+
+    /** For a phone with no browser: a login name and an app password made on the server by hand. */
+    override fun signInNextcloudByHand(user: String, appPassword: String) {
+        val typed = _state.value.nextcloud.typed
+        if (typed.isBlank() || user.isBlank() || appPassword.isBlank()) return
+        if (LoginFlow.isPlain(typed)) {
+            nextcloud { it.copy(problem = NextcloudProblem.PLAIN_HTTP) }
+            return
+        }
+        signingIn = viewModelScope.launch {
+            keepNextcloud(Account(LoginFlow.normalise(typed), user.trim(), appPassword.trim()))
+        }
+    }
+
+    override fun nextcloudByHand(on: Boolean) = nextcloud { it.copy(byHand = on, problem = null) }
+
+    private suspend fun keepNextcloud(account: Account) {
+        nextcloud { it.copy(signIn = SignIn.CHECKING, problem = null) }
+        val checked = withContext(Dispatchers.IO) {
+            runCatching { PhotoFolder(account, settings.nextcloudFolder()).probe() }
+        }
+        checked.exceptionOrNull()?.let { e ->
+            nextcloud { it.copy(signIn = SignIn.IDLE, problem = if (e is Refused) NextcloudProblem.REFUSED else NextcloudProblem.UNREACHABLE) }
+            return
+        }
+        if (!settings.writeNextcloud(account)) {
+            nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.NOT_KEPT) }
+            return
+        }
+        // A new account: nothing recorded as up belongs to it.
+        BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
+        // The first place set up is where backing up goes; with Immich already there, it stays
+        // the choice until changed on the backup page.
+        if (settings.immich() == null) settings.writeBackupTo(Destination.NEXTCLOUD)
+        nextcloud { it.copy(user = account.user, server = account.server, signIn = SignIn.IDLE, byHand = false, typed = "") }
+        BackupWorker.schedule(getApplication())
+        BackupWorker.runSoon(getApplication(), replace = true)
+        readBackup()
+    }
+
+    /**
+     * Signed out here and on the server: the app password is deleted there first (best effort,
+     * off the network it stays until revoked in Nextcloud's own settings), then forgotten here.
+     * Nothing already backed up is touched.
+     */
+    override fun signOutNextcloud() {
+        val account = settings.nextcloud()
+        settings.forgetNextcloud()
+        BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
+        if (settings.destination() == null) settings.writeBackupOn(false)
+        BackupWorker.schedule(getApplication())
+        nextcloud { NextcloudState(folder = settings.nextcloudFolder()) }
+        readBackup()
+        if (account != null) viewModelScope.launch(Dispatchers.IO) { LoginFlow.revoke(account) }
+    }
+
+    /** Another folder in the same account: the next run looks there, and sends what is missing. */
+    override fun setNextcloudFolder(typed: String) {
+        val clean = Remote.join(typed.trim(), "").ifEmpty { DEFAULT_NEXTCLOUD_FOLDER }
+        if (clean == settings.nextcloudFolder()) return
+        settings.writeNextcloudFolder(clean)
+        BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
+        nextcloud { it.copy(folder = clean) }
+        BackupWorker.runSoon(getApplication(), replace = true)
+        readBackup()
+    }
+
+    private fun nextcloud(change: (NextcloudState) -> NextcloudState) {
+        _state.update { it.copy(nextcloud = change(it.nextcloud)) }
     }
 
     /**

@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import com.mudita.mmd.components.switcher.SwitchMMD
 import com.wanderwildwood.garo.media.BackupStatus
+import com.wanderwildwood.garo.media.Destination
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
@@ -60,7 +61,18 @@ import com.wanderwildwood.garo.media.PictureOrder
  * The settings pages: the main one, and under "Servers and backup" the pages the server rows
  * moved to, so that the main one fits on one page of the panel.
  */
-private enum class Page { MAIN, SERVERS, IMMICH, BACKUP }
+private enum class Page { MAIN, SERVERS, IMMICH, NEXTCLOUD, BACKUP }
+
+/** What the Nextcloud page can ask for. The model does it. */
+interface NextcloudActions {
+    fun setNextcloudAddress(typed: String)
+    fun startNextcloudSignIn()
+    fun cancelNextcloudSignIn()
+    fun signInNextcloudByHand(user: String, appPassword: String)
+    fun nextcloudByHand(on: Boolean)
+    fun signOutNextcloud()
+    fun setNextcloudFolder(typed: String)
+}
 
 /**
  * Three rows that cycle through their few values in place, then a row each for the Immich
@@ -92,12 +104,19 @@ fun SettingsScreen(
     onReceive: (() -> Unit)? = null,
     /** Each time a page opens: the backup line is read again, as the network may have changed. */
     onPage: () -> Unit = {},
+    nextcloud: NextcloudState = NextcloudState(),
+    nextcloudActions: NextcloudActions? = null,
+    onBackupTo: (Destination) -> Unit = {},
 ) {
     var page by rememberSaveable { mutableStateOf(Page.MAIN) }
     LaunchedEffect(page) { onPage() }
     val immichSet = serverAddress != null && hasKey
-    // Backing up has nothing to go to once the server is forgotten; the page above it then.
-    when (if (page == Page.BACKUP && !immichSet) Page.SERVERS else page) {
+    val anySet = immichSet || nextcloud.user != null
+    val immich = stringResource(R.string.immich_name)
+    val nextcloudName = stringResource(R.string.nextcloud_name)
+    fun name(to: Destination) = if (to == Destination.IMMICH) immich else nextcloudName
+    // Backing up has nothing to go to once both servers are gone; the page above it then.
+    when (if (page == Page.BACKUP && !anySet) Page.SERVERS else page) {
         Page.SERVERS -> {
             BackHandler { page = Page.MAIN }
             SubPage(stringResource(R.string.settings_servers), onBack = { page = Page.MAIN }) {
@@ -108,20 +127,38 @@ fun SettingsScreen(
                         onClick = { page = Page.IMMICH },
                     )
                 }
+                if (nextcloudActions != null) {
+                    item {
+                        Setting(
+                            title = nextcloudName,
+                            value = nextcloud.user?.let { stringResource(R.string.nextcloud_signed_in_short, it, host(nextcloud.server)) }
+                                ?: stringResource(R.string.nextcloud_signed_out),
+                            onClick = { page = Page.NEXTCLOUD },
+                        )
+                    }
+                }
                 item {
                     // Backing up needs somewhere to go first; until then the row says so and leads there.
+                    val to = backup.to
                     Setting(
                         title = stringResource(R.string.settings_backup_page),
                         value = when {
-                            !immichSet -> stringResource(R.string.settings_backup_needs_server)
-                            backup.on -> stringResource(R.string.settings_backup_on_to, stringResource(R.string.immich_name))
+                            !anySet -> stringResource(R.string.settings_backup_needs_server)
+                            backup.on && to != null -> stringResource(R.string.settings_backup_on_to, name(to))
                             else -> stringResource(R.string.settings_backup_off_short)
                         },
-                        onClick = { page = if (immichSet) Page.BACKUP else Page.IMMICH },
+                        onClick = { page = if (anySet) Page.BACKUP else Page.IMMICH },
                     )
                 }
             }
             return
+        }
+        Page.NEXTCLOUD -> {
+            BackHandler { page = Page.SERVERS }
+            if (nextcloudActions != null) {
+                NextcloudPage(nextcloud, nextcloudActions, onBack = { page = Page.SERVERS })
+                return
+            }
         }
         Page.IMMICH -> {
             BackHandler { page = Page.SERVERS }
@@ -140,7 +177,9 @@ fun SettingsScreen(
             BackHandler { page = Page.SERVERS }
             BackupPage(
                 backup = backup,
-                destination = stringResource(R.string.immich_name),
+                destination = backup.to?.let { name(it) } ?: immich,
+                name = ::name,
+                onBackupTo = onBackupTo,
                 onBackup = onBackup,
                 onBackupWhen = onBackupWhen,
                 onBackUpNow = onBackUpNow,
@@ -236,9 +275,11 @@ fun SettingsScreen(
                 Setting(
                     title = stringResource(R.string.settings_servers),
                     value = when {
-                        !immichSet -> stringResource(R.string.settings_servers_none)
-                        backup.on -> stringResource(R.string.settings_servers_backing_up, stringResource(R.string.immich_name))
-                        else -> stringResource(R.string.immich_name)
+                        !anySet -> stringResource(R.string.settings_servers_none)
+                        backup.on && backup.to != null -> stringResource(R.string.settings_servers_backing_up, name(backup.to))
+                        immichSet && nextcloud.user != null -> stringResource(R.string.settings_servers_both, immich, nextcloudName)
+                        immichSet -> immich
+                        else -> nextcloudName
                     },
                     onClick = { page = Page.SERVERS },
                 )
@@ -339,6 +380,8 @@ private fun ImmichPage(
 private fun BackupPage(
     backup: BackupState,
     destination: String,
+    name: (Destination) -> String,
+    onBackupTo: (Destination) -> Unit,
     onBackup: (Boolean) -> Unit,
     onBackupWhen: (BackupWhen) -> Unit,
     onBackUpNow: () -> Unit,
@@ -348,10 +391,23 @@ private fun BackupPage(
     var choosing by remember { mutableStateOf(false) }
     SubPage(stringResource(R.string.settings_backup_page), onBack) {
         item { BackupRow(backup, destination, onBackup) }
+        // A choice only once there are two places to choose between; a tap moves to the other.
+        if (backup.places.size > 1 && backup.to != null) {
+            item {
+                Setting(
+                    title = stringResource(R.string.settings_backup_to),
+                    value = name(backup.to),
+                    onClick = { onBackupTo(backup.places[(backup.places.indexOf(backup.to) + 1) % backup.places.size]) },
+                )
+            }
+        }
         item {
             Setting(
                 title = stringResource(R.string.settings_backup_folders),
-                value = folderNames(backup.folders),
+                value = stringResource(
+                    if (backup.to == Destination.NEXTCLOUD) R.string.backup_folders_photos_videos else R.string.backup_folders_photos,
+                    folderNames(backup.folders),
+                ),
                 onClick = { choosing = true },
             )
         }
@@ -517,7 +573,7 @@ private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, 
  */
 @Composable
 private fun BackupRow(backup: BackupState, destination: String, onBackup: (Boolean) -> Unit) {
-    val status = backupLine(backup.line, destination)
+    val status = backupLine(backup.line, destination, backup.to)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -537,11 +593,13 @@ private fun BackupRow(backup: BackupState, destination: String, onBackup: (Boole
 
 /** The status line in words. */
 @Composable
-private fun backupLine(line: BackupStatus.Line, destination: String): String {
+private fun backupLine(line: BackupStatus.Line, destination: String, to: Destination?): String {
     val context = LocalContext.current
     return when (line) {
         BackupStatus.Line.Off -> stringResource(R.string.backup_off)
-        BackupStatus.Line.Refused -> stringResource(R.string.backup_refused)
+        BackupStatus.Line.Refused -> stringResource(
+            if (to == Destination.NEXTCLOUD) R.string.backup_refused_nextcloud else R.string.backup_refused,
+        )
         BackupStatus.Line.Nothing -> stringResource(R.string.backup_nothing)
         is BackupStatus.Line.Progress -> {
             val count = if (line.done >= line.total) {
@@ -551,6 +609,7 @@ private fun backupLine(line: BackupStatus.Line, destination: String): String {
             }
             val then = when (val t = line.then) {
                 BackupStatus.Then.Unreachable -> stringResource(R.string.backup_unreachable, destination)
+                BackupStatus.Then.Failed -> stringResource(R.string.backup_failed, destination)
                 BackupStatus.Then.Soon -> stringResource(R.string.backup_soon)
                 is BackupStatus.Then.LastRun -> stringResource(
                     R.string.backup_last_run,
@@ -607,6 +666,8 @@ private fun EntryDialog(
     secret: Boolean,
     onDone: (String) -> Unit,
     onDismiss: () -> Unit,
+    /** Plain words (a name, a folder) rather than an address. */
+    words: Boolean = false,
 ) {
     var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(initial.length))) }
     // Hidden to begin with, and shown only while the eye says so: keys are typed by hand on
@@ -648,7 +709,11 @@ private fun EntryDialog(
             },
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Done,
-                keyboardType = if (secret) KeyboardType.Password else KeyboardType.Uri,
+                keyboardType = when {
+                    secret -> KeyboardType.Password
+                    words -> KeyboardType.Text
+                    else -> KeyboardType.Uri
+                },
                 autoCorrectEnabled = false,
             ),
             keyboardActions = KeyboardActions(onDone = { save() }),
@@ -687,4 +752,183 @@ private fun Setting(title: String, value: String, onClick: () -> Unit) {
         TextMMD(text = title, style = MaterialTheme.typography.bodyMedium)
         TextMMD(text = value, style = MaterialTheme.typography.labelSmall)
     }
+}
+
+/** "https://cloud.example.com" as "cloud.example.com". */
+private fun host(server: String?): String = server.orEmpty().substringAfter("://").trimEnd('/')
+
+/**
+ * Nextcloud: signing in through its own page in the browser, and once in, the folder pictures go
+ * to and signing out. A phone with no browser takes an app password made on the server instead.
+ */
+@Composable
+private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBack: () -> Unit) {
+    var editing by remember { mutableStateOf<NcEntry?>(null) }
+    var user by remember { mutableStateOf("") }
+    SubPage(stringResource(R.string.nextcloud_name), onBack) {
+        if (state.user != null) {
+            item {
+                Setting(
+                    title = stringResource(R.string.nextcloud_account),
+                    value = stringResource(R.string.nextcloud_signed_in_short, state.user, host(state.server)),
+                    onClick = {},
+                )
+            }
+            item {
+                Setting(
+                    title = stringResource(R.string.nextcloud_folder),
+                    value = state.folder,
+                    onClick = { editing = NcEntry.FOLDER },
+                )
+            }
+            item { Note(stringResource(R.string.nextcloud_folder_note)) }
+            item {
+                ArmedRow(
+                    title = stringResource(R.string.nextcloud_sign_out),
+                    armedTitle = stringResource(R.string.nextcloud_sign_out_armed),
+                    note = stringResource(R.string.nextcloud_sign_out_note),
+                    onConfirm = actions::signOutNextcloud,
+                )
+            }
+        } else {
+            item { Note(stringResource(R.string.nextcloud_explain)) }
+            item {
+                Setting(
+                    title = stringResource(R.string.settings_immich_address),
+                    value = state.typed.ifEmpty { stringResource(R.string.settings_not_set) },
+                    onClick = { editing = NcEntry.ADDRESS },
+                )
+            }
+            if (state.byHand) {
+                item {
+                    Setting(
+                        title = stringResource(R.string.nextcloud_user),
+                        value = user.ifEmpty { stringResource(R.string.settings_not_set) },
+                        onClick = { editing = NcEntry.USER },
+                    )
+                }
+                item {
+                    Setting(
+                        title = stringResource(R.string.nextcloud_app_password),
+                        value = stringResource(R.string.nextcloud_app_password_note),
+                        onClick = { editing = NcEntry.PASSWORD },
+                    )
+                }
+            } else if (state.typed.isNotEmpty()) {
+                item {
+                    Setting(
+                        title = stringResource(
+                            when (state.signIn) {
+                                SignIn.IDLE -> R.string.nextcloud_sign_in
+                                SignIn.WAITING -> R.string.nextcloud_waiting
+                                SignIn.CHECKING -> R.string.nextcloud_checking
+                            },
+                        ),
+                        value = stringResource(
+                            when (state.signIn) {
+                                SignIn.IDLE -> R.string.nextcloud_sign_in_note
+                                SignIn.WAITING -> R.string.nextcloud_waiting_note
+                                SignIn.CHECKING -> R.string.nextcloud_checking_note
+                            },
+                        ),
+                        onClick = {
+                            when (state.signIn) {
+                                SignIn.IDLE -> actions.startNextcloudSignIn()
+                                SignIn.WAITING -> actions.cancelNextcloudSignIn()
+                                SignIn.CHECKING -> Unit
+                            }
+                        },
+                    )
+                }
+            }
+            state.problem?.let { p ->
+                item {
+                    Note(
+                        stringResource(
+                            when (p) {
+                                NextcloudProblem.PLAIN_HTTP -> R.string.nextcloud_plain_http
+                                NextcloudProblem.UNREACHABLE -> R.string.nextcloud_unreachable
+                                NextcloudProblem.REFUSED -> R.string.nextcloud_refused
+                                NextcloudProblem.NO_BROWSER -> R.string.nextcloud_no_browser
+                                NextcloudProblem.NOT_KEPT -> R.string.nextcloud_not_kept
+                                NextcloudProblem.TIMED_OUT -> R.string.nextcloud_timed_out
+                            },
+                        ),
+                    )
+                }
+            }
+            if (!state.byHand) {
+                item {
+                    Setting(
+                        title = stringResource(R.string.nextcloud_by_hand),
+                        value = stringResource(R.string.nextcloud_by_hand_note),
+                        onClick = { actions.cancelNextcloudSignIn(); actions.nextcloudByHand(true) },
+                    )
+                }
+            }
+        }
+    }
+    when (editing) {
+        NcEntry.ADDRESS -> EntryDialog(
+            title = stringResource(R.string.nextcloud_address_title),
+            note = stringResource(R.string.nextcloud_address_note),
+            initial = state.typed.ifEmpty { "https://" },
+            secret = false,
+            onDone = actions::setNextcloudAddress,
+            onDismiss = { editing = null },
+        )
+        NcEntry.USER -> EntryDialog(
+            title = stringResource(R.string.nextcloud_user),
+            note = stringResource(R.string.nextcloud_user_note),
+            initial = user,
+            secret = false,
+            onDone = { user = it.trim() },
+            onDismiss = { editing = null },
+            words = true,
+        )
+        NcEntry.PASSWORD -> EntryDialog(
+            title = stringResource(R.string.nextcloud_app_password),
+            note = stringResource(R.string.nextcloud_app_password_how),
+            initial = "",
+            secret = true,
+            onDone = { actions.signInNextcloudByHand(user, it) },
+            onDismiss = { editing = null },
+        )
+        NcEntry.FOLDER -> EntryDialog(
+            title = stringResource(R.string.nextcloud_folder),
+            note = stringResource(R.string.nextcloud_folder_note),
+            initial = state.folder,
+            secret = false,
+            onDone = actions::setNextcloudFolder,
+            onDismiss = { editing = null },
+            words = true,
+        )
+        null -> Unit
+    }
+}
+
+private enum class NcEntry { ADDRESS, USER, PASSWORD, FOLDER }
+
+/** A row that asks for a second tap before it acts, and forgets the first after six seconds. */
+@Composable
+private fun ArmedRow(title: String, armedTitle: String, note: String, onConfirm: () -> Unit) {
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(armed) {
+        if (armed) {
+            delay(6_000)
+            armed = false
+        }
+    }
+    Setting(
+        title = if (armed) armedTitle else title,
+        value = note,
+        onClick = {
+            if (armed) {
+                armed = false
+                onConfirm()
+            } else {
+                armed = true
+            }
+        },
+    )
 }

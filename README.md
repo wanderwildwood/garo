@@ -134,6 +134,30 @@ The line under the switch says how many are up and when it last checked, or what
 for, the network or the charger, or that the server cannot be reached. The key needs
 permission to upload assets.
 
+## Nextcloud
+
+Backing up can go to a [Nextcloud](https://nextcloud.com) instead of Immich: one place at a
+time, chosen under **Settings → Servers and backup → Back up → Send to** when both are set up.
+
+- **Signing in.** **Settings → Servers and backup → Nextcloud**, type the address
+  (`https://cloud.example.com`), then **Sign in**: Nextcloud's own sign-in page opens in the
+  browser. Sign in there and grant access; Gallery notices by itself and receives an app
+  password made for this phone. Your Nextcloud password is never typed into Gallery. A phone
+  without a browser can take a login name and an app password made in Nextcloud instead.
+- **Where pictures go.** Into a folder of your Nextcloud files, `Photos/Kompakt` unless you name
+  another, each under its own folder's path on the phone: `Photos/Kompakt/DCIM/Camera/…`.
+  Missing folders are made.
+- **What goes.** Everything in the chosen folders, photos and videos, the pictures already
+  there as well as new ones. A file already on the server with the same name and size is not
+  sent again, so a second run sends nothing, and a backup cut short carries on where it stopped.
+  Nothing on the server is ever written over or deleted.
+- **When.** The same choice as for Immich: on Wi-Fi while charging (the default), on any Wi-Fi,
+  or on any network, and **Back up now**.
+- **Signing out** deletes the app password on the server and on the phone. The pictures already
+  backed up stay.
+
+The address has to be `https://`. The app password is kept sealed by the phone's keystore.
+
 ## What it does not do
 
 No editor, no slideshow, no wallpapers, no themes.

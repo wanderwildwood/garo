@@ -12,9 +12,10 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <!--
-      Only for an Immich server, and only when one has been set: its albums are read from it.
-      The app talks to the address given in settings and to nothing else, and plain http is
-      refused — the address has to be https.
+      For the servers set in settings and nothing else: Immich, whose albums are read and which
+      can take a backup, and Nextcloud, which can take a backup. Plain http is refused for both:
+      the address has to be https. Share by tap and Receive by tap use it too, for one picture
+      over the local Wi-Fi to a private address (see tap/).
     -->
     <uses-permission android:name="android.permission.INTERNET" />
 

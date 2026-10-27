@@ -1,9 +1,11 @@
 # Privacy
 
 Gallery reads the pictures on the phone to show them to you. If you give it an Immich server,
-it reads your albums and your timeline (every picture on your account) from that server; if you also turn backing up on, it sends the
-pictures in the folders you choose (the camera's, DCIM, unless you choose others) there. Apart from Share by tap and Receive
-by tap, which pass one picture to another phone on the same Wi-Fi, it talks to that server and nothing else.
+it reads your albums and your timeline (every picture on your account) from that server. If you
+sign in to a Nextcloud, it can send pictures there. If you turn backing up on, it sends the
+pictures in the folders you choose (the camera's, DCIM, unless you choose others) to one of the
+two, the one you pick. Apart from Share by tap and Receive by tap, which pass one picture to
+another phone on the same Wi-Fi, it talks to those servers and nothing else.
 
 That is the whole policy. The rest of this page is the evidence for it, because a privacy
 policy that cannot be checked is just a promise.
@@ -22,7 +24,7 @@ On Android 12, which the Kompakt runs, the first is the permission that reads ph
 words it as "photos and media"; the app reads only pictures, from Android's own index of
 them, and never lists or opens any other kind of file.
 
-**`INTERNET` is there for Immich, and for Share by tap and Receive by tap.** Android asks for
+**`INTERNET` is there for Immich and Nextcloud, and for Share by tap and Receive by tap.** Android asks for
 the same permission whether an app talks to a server across the world or to the phone next to
 it on the same Wi-Fi, so the two tap features need it too; what they do with it is in their
 sections below, and none of it leaves the local network. For Immich: until a server is set in
@@ -52,6 +54,38 @@ so nothing is asked. See the next section.
 
 **Editing never changes a picture.** An edited picture is saved as a new picture beside the
 original, through Android's own index; the original is left as it was.
+
+## Nextcloud
+
+**Settings → Servers and backup → Nextcloud** signs in with Nextcloud's own sign-in (Login Flow
+v2), the way Nextcloud's own apps do:
+
+- You type the server's address. The app asks that server for a sign-in page
+  (`POST /index.php/login/v2`) and opens it in the browser. You sign in there, on Nextcloud's
+  page, with two-factor if you use it; the app never sees or asks for your Nextcloud password.
+- Meanwhile the app asks the server every two seconds, for the twenty minutes Nextcloud allows,
+  whether you have finished. When you have, Nextcloud hands the app your login name and an
+  **app password** made for this phone alone. It shows in Nextcloud under Settings → Security →
+  Devices & sessions, where it can be revoked at any time without touching your own password.
+- On a phone with no browser you can type a login name and an app password you made there
+  yourself instead.
+- The app password is checked once against your files (`PROPFIND` on your own folder) and then
+  kept **sealed with a key in the phone's hardware-backed keystore** (`backup/Secrets.kt`), which
+  cannot be exported and is not backed up. If that key is ever lost, the app simply asks you to
+  sign in again.
+- Backing up to Nextcloud uses WebDAV under `remote.php/dav/files/<you>/`, into the folder you
+  name (`Photos/Kompakt` until you change it), each picture under its own folder's path on the
+  phone (`Photos/Kompakt/DCIM/Camera/…`). Four kinds of request and nothing else: `PROPFIND` to
+  see which names and sizes a folder already holds, `MKCOL` to make a folder that is missing,
+  `PUT` to send a picture or video that is not there yet, and, on signing out, `DELETE
+  /ocs/v2.php/core/apppassword`, which deletes this phone's app password on the server. Nothing
+  on the server is ever deleted, moved or written over: a different file with a name already
+  taken goes up under that name with the phone's number for it added. Every call is in
+  `backup/Nextcloud.kt` and `backup/Dav.kt`.
+- To Nextcloud, videos in the chosen folders go too; to Immich only photos, as before.
+- The address has to be `https://`: Android blocks unencrypted traffic for this app.
+- **Sign out** deletes the app password on the server (if the server can be reached) and on the
+  phone, and forgets what was backed up there. The pictures already on the server stay.
 
 ## Share by tap
 
@@ -111,13 +145,14 @@ access to the ones you chose and nothing else.
 
 ## What is stored
 
-The settings — how folders and pictures are ordered, how many go across a row, and the Immich
-address and key — in `SharedPreferences`, which no other app can read. See
+The settings — how folders and pictures are ordered, how many go across a row, the folders to
+back up, the Immich address and key, and the Nextcloud address, login name, folder and sealed
+app password — in `SharedPreferences`, which no other app can read. See
 `media/Settings.kt`. The settings row never shows the key. Its dialog opens with the key
 hidden, behind an eye that shows it — for reading back a key typed by hand.
 
-The app is excluded from Android backups (`allowBackup="false"`), so the key does not travel
-into a phone backup.
+The app is excluded from Android backups (`allowBackup="false"`), so neither the key nor the
+app password travels into a phone backup.
 
 Pictures fetched from Immich are kept in the app's cache, up to 200 MB, so they need not be
 fetched again; Android may clear it, and "Forget the Immich server" in settings deletes it
@@ -127,8 +162,9 @@ along with the address and key. The phone's own pictures are not copied anywhere
 
 No crash reporting, no telemetry, no advertising identifier, no third-party SDK of any kind.
 The dependency list in `app/build.gradle.kts` is AndroidX, Jetpack Compose, Mudita's MMD
-component library and ZXing's `core` (Apache-2.0, which only turns a link into the dots of a QR
-code: no scanner, no camera), and nothing else.
+component library, ZXing's `core` (Apache-2.0, which only turns a link into the dots of a QR
+code: no scanner, no camera) and OkHttp (Apache-2.0, the HTTP client the Nextcloud calls go
+through, since Android's own will not send WebDAV's `PROPFIND` and `MKCOL`), and nothing else.
 
 ## Checking any of this for yourself
 

@@ -156,6 +156,49 @@
     <string name="settings_key_set">Set</string>
     <string name="settings_immich_server_note">Its address, as the Immich app has it, starting https://.</string>
     <string name="settings_immich_key_note">Made in Immich under Account settings, API keys. It needs to read albums and assets and to view assets; to back up, also to upload assets.</string>
+    <!-- Nextcloud. A product name -->
+    <string name="nextcloud_name">Nextcloud</string>
+    <!-- %1$s is the login name, %2$s the server, e.g. "anna on cloud.example.com" -->
+    <string name="nextcloud_signed_in_short">%1$s on %2$s</string>
+    <string name="nextcloud_signed_out">Not signed in</string>
+    <string name="nextcloud_account">Account</string>
+    <string name="nextcloud_folder">Folder in Nextcloud</string>
+    <string name="nextcloud_folder_note">Pictures go into this folder of your Nextcloud files, each under its own folder\'s path on the phone, as Photos/Kompakt/DCIM/Camera. Folders that are missing are made.</string>
+    <string name="nextcloud_sign_out">Sign out</string>
+    <string name="nextcloud_sign_out_armed">Sign out — tap again</string>
+    <string name="nextcloud_sign_out_note">Deletes this phone\'s app password, on the server and here, and stops backing up to Nextcloud. Pictures already there stay.</string>
+    <string name="nextcloud_explain">Sign in on Nextcloud\'s own page, in the browser. Nextcloud then gives this phone an app password of its own, which can be revoked from Nextcloud\'s security settings. Your Nextcloud password is never typed here.</string>
+    <string name="nextcloud_address_title">Nextcloud address</string>
+    <string name="nextcloud_address_note">As you open Nextcloud in a browser, starting https://.</string>
+    <string name="nextcloud_sign_in">Sign in</string>
+    <string name="nextcloud_sign_in_note">Opens Nextcloud\'s sign-in page in the browser</string>
+    <string name="nextcloud_waiting">Waiting for the browser</string>
+    <string name="nextcloud_waiting_note">Sign in there and grant access, then come back. Tap to stop waiting.</string>
+    <string name="nextcloud_checking">Checking</string>
+    <string name="nextcloud_checking_note">Trying the app password Nextcloud gave</string>
+    <string name="nextcloud_by_hand">Sign in with an app password instead</string>
+    <string name="nextcloud_by_hand_note">For a phone without a browser</string>
+    <string name="nextcloud_user">Login name</string>
+    <string name="nextcloud_user_note">The name you sign in to Nextcloud with.</string>
+    <string name="nextcloud_app_password">App password</string>
+    <string name="nextcloud_app_password_note">Type it, and Gallery signs in</string>
+    <string name="nextcloud_app_password_how">Made in Nextcloud under Settings, Security, Devices and sessions: Create new app password. Not your Nextcloud password.</string>
+    <string name="nextcloud_plain_http">The address has to start https://. Gallery sends no pictures or passwords unencrypted.</string>
+    <string name="nextcloud_unreachable">Nextcloud could not be reached at that address.</string>
+    <string name="nextcloud_refused">Nextcloud did not accept the sign-in.</string>
+    <string name="nextcloud_no_browser">There is no browser on this phone to sign in with. Type an app password instead.</string>
+    <string name="nextcloud_not_kept">The app password could not be kept safely on this phone, so it was not kept.</string>
+    <string name="nextcloud_timed_out">Signing in took longer than Nextcloud allows. Try again.</string>
+    <!-- Both servers set up: %1$s and %2$s are Immich and Nextcloud -->
+    <string name="settings_servers_both">%1$s and %2$s</string>
+    <!-- The row that picks where backing up goes, when both servers are set up -->
+    <string name="settings_backup_to">Send to</string>
+    <!-- %1$s is the list of folders -->
+    <string name="backup_folders_photos">%1$s. Photos only</string>
+    <string name="backup_folders_photos_videos">%1$s. Photos and videos</string>
+    <!-- %1$s is where the pictures go -->
+    <string name="backup_failed">%1$s answered but would not take the pictures (full, perhaps); it will try again</string>
+    <string name="backup_refused_nextcloud">Nextcloud no longer accepts this phone\'s sign-in. Sign out and in again.</string>
     <!-- The settings row and page that hold the servers and backing up -->
     <string name="settings_servers">Servers and backup</string>
     <string name="settings_servers_none">None set up</string>
@@ -168,7 +211,7 @@
     <string name="settings_immich_address">Address</string>
     <!-- Backing up, on its own page in settings -->
     <string name="settings_backup_page">Back up</string>
-    <string name="settings_backup_needs_server">Set up the Immich server first</string>
+    <string name="settings_backup_needs_server">Set up Immich or Nextcloud first</string>
     <!-- %1$s is where the pictures go, e.g. Immich -->
     <string name="settings_backup_on_to">On, to %1$s</string>
     <string name="settings_backup_off_short">Off</string>
@@ -216,7 +259,7 @@
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
     <string name="about_title">Gallery %1$s</string>
     <string name="about_privacy_head">Privacy</string>
-    <string name="about_privacy">Gallery reads the pictures on this phone to show them. It goes online only to the servers you set up (Immich, for its albums and to back up the folders you choose) and for Share by tap and Receive by tap, which pass one picture to a phone on the same Wi-Fi and nowhere else. Your sign-in details are kept on this phone. Nothing is sent to the app\'s maker. There are no ads, no analytics and no tracking. Backups and exports go only where you choose to save them.</string>
+    <string name="about_privacy">Gallery reads the pictures on this phone to show them. It goes online only to the servers you set up (Immich, for its albums, and Immich or Nextcloud, to back up the folders you choose) and for Share by tap and Receive by tap, which pass one picture to a phone on the same Wi-Fi and nowhere else. Your sign-in details are kept on this phone. Nothing is sent to the app\'s maker. There are no ads, no analytics and no tracking. Backups and exports go only where you choose to save them.</string>
     <string name="about_terms_head">Terms</string>
     <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk.</string>
     <string name="about_contact">Questions and problems: email@wanderthe.dev</string>

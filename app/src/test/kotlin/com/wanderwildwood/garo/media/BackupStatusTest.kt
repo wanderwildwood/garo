@@ -69,4 +69,15 @@ class BackupStatusTest {
         assertEquals(Line.Refused, line(wifi, problem = BackupRecord.Problem.REFUSED))
         assertEquals(Line.Nothing, line(wifi, total = 0, done = 0))
     }
+
+    @Test
+    fun `a server that answered but would not take the pictures is said as that`() {
+        assertEquals(Then.Failed, then(line(wifi, problem = BackupRecord.Problem.FAILED, lastRun = 5)))
+    }
+
+    @Test
+    fun `videos go to Nextcloud, not to Immich`() {
+        assertEquals(true, Backup.videosTo(Destination.NEXTCLOUD))
+        assertEquals(false, Backup.videosTo(Destination.IMMICH))
+    }
 }

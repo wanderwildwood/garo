@@ -1,6 +1,8 @@
 package com.wanderwildwood.garo.media
 
 import android.content.Context
+import com.wanderwildwood.garo.backup.Account
+import com.wanderwildwood.garo.backup.Secrets
 
 /** The three things there are to choose, kept between runs. */
 data class Choices(
@@ -16,6 +18,12 @@ data class Choices(
 
 /** Where an Immich server is, and the key it was given. */
 data class ImmichLogin(val server: String, val key: String)
+
+/** Where backing up sends the pictures: one place at a time. */
+enum class Destination { IMMICH, NEXTCLOUD }
+
+/** Where pictures go in Nextcloud until another folder is named. */
+const val DEFAULT_NEXTCLOUD_FOLDER = "Photos/Kompakt"
 
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences("garo", Context.MODE_PRIVATE)
@@ -75,6 +83,51 @@ class Settings(context: Context) {
     fun writeHiddenFolders(hidden: Map<String, String>) =
         prefs.edit().putStringSet(HIDDEN, hidden.map { (key, label) -> "$key|$label" }.toSet()).apply()
 
+    // Nextcloud ---------------------------------------------------------------------------------
+
+    /** The account Nextcloud's sign-in handed over; null when signed out, or when the sealed password cannot be opened. */
+    fun nextcloud(): Account? {
+        val server = prefs.getString(NC_SERVER, null)?.takeIf { it.isNotBlank() } ?: return null
+        val user = prefs.getString(NC_USER, null)?.takeIf { it.isNotBlank() } ?: return null
+        val password = Secrets.open(prefs.getString(NC_PASSWORD, null)) ?: return null
+        return Account(server, user, password)
+    }
+
+    /** False, and nothing kept, when the password could not be sealed: it is never kept in the clear. */
+    fun writeNextcloud(account: Account): Boolean {
+        val sealed = Secrets.seal(account.password) ?: return false
+        prefs.edit()
+            .putString(NC_SERVER, account.server)
+            .putString(NC_USER, account.user)
+            .putString(NC_PASSWORD, sealed)
+            .apply()
+        return true
+    }
+
+    fun forgetNextcloud() = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).apply()
+
+    /** The folder in the account's files that pictures go into. */
+    fun nextcloudFolder(): String = prefs.getString(NC_FOLDER, null)?.takeIf { it.isNotBlank() } ?: DEFAULT_NEXTCLOUD_FOLDER
+
+    fun writeNextcloudFolder(folder: String) = prefs.edit().putString(NC_FOLDER, folder).apply()
+
+    /** Where backing up goes, as chosen; [destination] says where it really can. */
+    fun backupTo(): Destination = enumOr(prefs.getString(BACKUP_TO, null), Destination.IMMICH)
+
+    fun writeBackupTo(to: Destination) = prefs.edit().putString(BACKUP_TO, to.name).apply()
+
+    /**
+     * Where backing up goes now: the one chosen when it is set up, else the other when that is,
+     * else nowhere.
+     */
+    fun destination(): Destination? {
+        val ready = buildSet {
+            if (immich() != null) add(Destination.IMMICH)
+            if (nextcloud() != null) add(Destination.NEXTCLOUD)
+        }
+        return backupTo().takeIf { it in ready } ?: ready.firstOrNull()
+    }
+
     private inline fun <reified E : Enum<E>> enumOr(name: String?, fallback: E): E =
         enumValues<E>().firstOrNull { it.name == name } ?: fallback
 
@@ -87,6 +140,11 @@ class Settings(context: Context) {
         const val BACKUP_ON = "backup_on"
         const val BACKUP_WHEN = "backup_when"
         const val BACKUP_FOLDERS = "backup_folders"
+        const val BACKUP_TO = "backup_to"
+        const val NC_SERVER = "nextcloud_server"
+        const val NC_USER = "nextcloud_user"
+        const val NC_PASSWORD = "nextcloud_password"
+        const val NC_FOLDER = "nextcloud_folder"
         const val HIDDEN = "hidden_folders"
     }
 }

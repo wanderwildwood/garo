@@ -28,7 +28,8 @@ class BackupRecord(private val file: File) {
         val problem: Problem? = null,
     )
 
-    enum class Problem { UNREACHABLE, REFUSED }
+    /** Could not reach the server; it would not let this phone in; it answered, but not with a yes. */
+    enum class Problem { UNREACHABLE, REFUSED, FAILED }
 
     private val done = HashSet<String>()
     var status = Status()
@@ -105,6 +106,13 @@ object Backup {
         return folders.any { below.startsWith(it, ignoreCase = true) }
     }
 
+    /**
+     * Whether videos go too. To Nextcloud they do: it keeps files as files, and a video is a file
+     * like a photo. To Immich only photos, as it always has been, so a phone that backed up there
+     * does not start sending gigabytes of video on its own after an update.
+     */
+    fun videosTo(to: Destination): Boolean = to == Destination.NEXTCLOUD
+
     /** The chosen pictures not yet backed up, oldest first, so a backlog goes up in order. */
     fun pending(
         pictures: List<Picture>,
@@ -152,6 +160,8 @@ object BackupStatus {
     sealed interface Then {
         /** There is a network, and the server did not answer on it. */
         data object Unreachable : Then
+        /** The server answered, and not with a yes: full, say. */
+        data object Failed : Then
         data class Waiting(val wait: Wait) : Then
         data class LastRun(val at: Long) : Then
         /** Nothing in the way, and it has not run yet. */
@@ -204,6 +214,7 @@ object BackupStatus {
             else -> null
         }
         if (wait != null) return Then.Waiting(wait)
+        if (problem == BackupRecord.Problem.FAILED) return Then.Failed
         return if (lastRun > 0) Then.LastRun(lastRun) else Then.Soon
     }
 }
