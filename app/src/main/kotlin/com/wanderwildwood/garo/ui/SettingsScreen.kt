@@ -496,6 +496,7 @@ private fun FoldersDialog(choosable: List<String>, chosen: Set<String>, onDone: 
                     fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
                     modifier = Modifier.weight(1f),
                 )
+                Spacer(Modifier.width(16.dp))
                 SwitchMMD(checked = on, onCheckedChange = null)
             }
         }
@@ -587,6 +588,7 @@ private fun BackupRow(backup: BackupState, destination: String, onBackup: (Boole
         }
         Spacer(Modifier.width(12.dp))
         // The row takes the press; the switch only draws the state.
+        Spacer(Modifier.width(16.dp))
         SwitchMMD(checked = backup.on, onCheckedChange = null)
     }
 }
