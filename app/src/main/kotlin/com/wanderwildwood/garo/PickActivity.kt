@@ -32,6 +32,7 @@ import com.wanderwildwood.garo.ui.FoldersScreen
 import com.wanderwildwood.garo.ui.GalleryViewModel
 import com.wanderwildwood.garo.ui.GridScreen
 import com.wanderwildwood.garo.ui.RefreshOnResume
+import com.wanderwildwood.garo.ui.CloudState
 import com.wanderwildwood.garo.ui.Server
 import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.openAppSettings
@@ -151,7 +152,7 @@ private fun Pick(
         FoldersScreen(
             // The phone's own pictures only. An album on the server has no address on the phone
             // to hand the asking app; offering one would be offering something that cannot arrive.
-            state = state.copy(folders = folders, albums = emptyList(), server = Server.NONE),
+            state = state.copy(folders = folders, albums = emptyList(), server = Server.NONE, cloud = CloudState()),
             decoder = viewModel.decoder,
             listState = foldersList,
             onOpen = {

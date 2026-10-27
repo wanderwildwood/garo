@@ -75,6 +75,10 @@ fun FoldersScreen(
     onPullAtTop: (() -> Unit)? = null,
     /** What a pull set going, said above the list while there is something to say. */
     pulled: Pulled? = null,
+    /** Which server a pull asks, for the words of that line. */
+    pullFrom: PullFrom = PullFrom.IMMICH,
+    /** A Nextcloud folder opened, by its path ("" for the top). */
+    onOpenCloud: (String) -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -106,11 +110,11 @@ fun FoldersScreen(
                     button = stringResource(R.string.folders_open_app_settings),
                     onClick = onAppSettings,
                 )
-                state.folders.isEmpty() && state.server == Server.NONE ->
+                state.folders.isEmpty() && state.server == Server.NONE && !state.cloud.on ->
                     Explain(text = none ?: stringResource(R.string.folders_none))
                 else -> Column(Modifier.fillMaxSize()) {
-                    PulledLine(pulled)
-                    FolderList(state, decoder, listState, onOpen, onHide, onPullAtTop)
+                    PulledLine(pulled, pullFrom)
+                    FolderList(state, decoder, listState, onOpen, onHide, onPullAtTop, onOpenCloud)
                 }
             }
         }
@@ -130,9 +134,12 @@ private fun FolderList(
     onOpen: (Folder) -> Unit,
     onHide: ((Folder) -> Unit)?,
     onPullAtTop: (() -> Unit)?,
+    onOpenCloud: (String) -> Unit,
 ) {
     val coverPx = with(LocalDensity.current) { COVER.roundToPx() }
-    val withServer = state.server != Server.NONE
+    val withImmich = state.server != Server.NONE
+    val cloud = state.cloud
+    val withServer = withImmich || cloud.on
     // The list holds on to the row at its top by key, so "All pictures" coming back above it —
     // shown again from settings, or a second folder appearing — would land just out of sight.
     // A list that was at its top stays at its top.
@@ -153,7 +160,7 @@ private fun FolderList(
         }
         items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen, onHide) }
 
-        if (withServer) {
+        if (withImmich) {
             item(key = "h-immich") { Heading(stringResource(R.string.folders_immich)) }
             // Said, not hidden: the albums below may be what was last seen rather than what is
             // there now, and the reader should know which.
@@ -165,6 +172,20 @@ private fun FolderList(
             }
             if (note != null) item(key = "immich-note") { Note(stringResource(note)) }
             items(state.albums, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
+        }
+
+        if (cloud.on) {
+            item(key = "h-nextcloud") { Heading(stringResource(R.string.folders_nextcloud)) }
+            // The folders under the backup folder, as last read; then the way to everything else.
+            val note = when (cloud.topAnswer) {
+                Server.ASKING -> if (cloud.top.isEmpty()) R.string.cloud_asking else null
+                Server.UNREACHABLE -> R.string.cloud_unreachable
+                Server.REFUSED -> R.string.cloud_refused
+                else -> null
+            }
+            if (note != null) item(key = "nextcloud-note") { Note(stringResource(note)) }
+            items(cloud.top, key = { "nextcloud-" + it.path }) { CloudRow(it.name, onClick = { onOpenCloud(it.path) }) }
+            item(key = "nextcloud-all") { CloudRow(stringResource(R.string.cloud_all_files), onClick = { onOpenCloud("") }) }
         }
     }
 }

@@ -784,6 +784,7 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
                 )
             }
             item { Note(stringResource(R.string.nextcloud_folder_note)) }
+            item { Note(stringResource(R.string.nextcloud_browse_note)) }
             item {
                 ArmedRow(
                     title = stringResource(R.string.nextcloud_sign_out),

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Nextcloud picture being shared: copied here under its own name, the last one only. -->
+<paths>
+    <cache-path name="share" path="share/" />
+</paths>

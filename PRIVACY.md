@@ -2,7 +2,8 @@
 
 Gallery reads the pictures on the phone to show them to you. If you give it an Immich server,
 it reads your albums and your timeline (every picture on your account) from that server. If you
-sign in to a Nextcloud, it can send pictures there. If you turn backing up on, it sends the
+sign in to a Nextcloud, it reads the list of your folders and the pictures and videos in them,
+to show them, and it can send pictures there. If you turn backing up on, it sends the
 pictures in the folders you choose (the camera's, DCIM, unless you choose others) to one of the
 two, the one you pick. Apart from Share by tap and Receive by tap, which pass one picture to
 another phone on the same Wi-Fi, it talks to those servers and nothing else.
@@ -84,8 +85,23 @@ v2), the way Nextcloud's own apps do:
   `backup/Nextcloud.kt` and `backup/Dav.kt`.
 - To Nextcloud, videos in the chosen folders go too; to Immich only photos, as before.
 - The address has to be `https://`: Android blocks unencrypted traffic for this app.
+- **Browsing** (the Nextcloud section on the main screen) only reads, and reads only your own
+  files, with the same app password in an `Authorization` header (never in an address, never
+  in a log). Three kinds of request: `PROPFIND` on a folder you open, for the names, sizes,
+  dates, types and Nextcloud's file ids of what is directly in it; `GET
+  /index.php/core/preview?fileId=…` for Nextcloud's own small picture of a file, for the grid;
+  and `GET` of a file under `remote.php/dav/files/<you>/` when you open it, share it or save it
+  (a video plays straight from there, the player sending the same header). Nothing in your
+  Nextcloud is ever changed, moved or deleted from here: there is no delete or edit for those
+  pictures. The calls are in `cloud/CloudFiles.kt`.
+- What browsing keeps: the folder lists only in memory, while the app runs; the small pictures
+  and the originals opened, shared or saved, in the app's cache (`nextcloud/`, up to 200 MB,
+  which Android may clear), deleted when you sign out. **Save to this phone** puts a copy in
+  Pictures/Nextcloud through Android's media index, which needs no permission; **Share** hands a
+  copy to the app you choose, through a link only that app can read.
 - **Sign out** deletes the app password on the server (if the server can be reached) and on the
-  phone, and forgets what was backed up there. The pictures already on the server stay.
+  phone, forgets what was backed up there, and deletes the pictures fetched from it to look at.
+  The pictures already on the server stay.
 
 ## Share by tap
 
@@ -156,7 +172,9 @@ app password travels into a phone backup.
 
 Pictures fetched from Immich are kept in the app's cache, up to 200 MB, so they need not be
 fetched again; Android may clear it, and "Forget the Immich server" in settings deletes it
-along with the address and key. The phone's own pictures are not copied anywhere.
+along with the address and key. Pictures fetched from Nextcloud are kept the same way, in a
+cache of their own up to 200 MB, and signing out deletes them. The phone's own pictures are not
+copied anywhere.
 
 ## No analytics
 

@@ -54,5 +54,10 @@ object Icons {
     // Transport, the fill1 cut the house uses: a hollow arrowhead at this size reads as a smudge.
     val Play: ImageVector = symbol("Play", "M320-200v-560l440 280-440 280Z")
 
+    // A Nextcloud folder, and keeping a copy on the phone.
+    val Folder: ImageVector = symbol("Folder", "M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z")
+
+    val Download: ImageVector = symbol("Download", "M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z")
+
     val Pause: ImageVector = symbol("Pause", "M560-200v-560h160v560H560Zm-320 0v-560h160v560H240Z")
 }

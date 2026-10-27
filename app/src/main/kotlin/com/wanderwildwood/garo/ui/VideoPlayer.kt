@@ -49,7 +49,7 @@ import kotlinx.coroutines.delay
  * when paused, so a paused video costs the panel nothing.
  */
 @Composable
-fun VideoPlayer(uri: Uri, onClose: () -> Unit) {
+fun VideoPlayer(uri: Uri, onClose: () -> Unit, headers: Map<String, String>? = null) {
     BackHandler(onBack = onClose)
     var view by remember { mutableStateOf<VideoView?>(null) }
     var playing by remember { mutableStateOf(false) }
@@ -87,7 +87,8 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit) {
                             playing = false
                             true
                         }
-                        setVideoURI(uri)
+                        // A video on a server: its sign-in goes with every request, in the headers.
+                        if (headers != null) setVideoURI(uri, headers) else setVideoURI(uri)
                         view = this
                     }
                 },

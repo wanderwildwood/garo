@@ -45,6 +45,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.wanderwildwood.garo.cloud.Cloud
+import com.wanderwildwood.garo.cloud.CloudFiles
+import com.wanderwildwood.garo.cloud.CloudItem
+import com.wanderwildwood.garo.cloud.CloudListing
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -82,6 +87,29 @@ data class GalleryState(
     /** Folders hidden by hand: key to name. */
     val hidden: Map<String, String> = emptyMap(),
     val nextcloud: NextcloudState = NextcloudState(),
+    val cloud: CloudState = CloudState(),
+)
+
+/**
+ * Browsing the signed-in Nextcloud: the folders under the backup folder for the main screen, and
+ * each folder's contents once opened. Kept in memory only; the pictures themselves are cached by
+ * the decoder.
+ */
+data class CloudState(
+    /** Signed in, so the section shows. */
+    val on: Boolean = false,
+    /** The backup folder, whose folders the main screen lists. */
+    val backupFolder: String = "",
+    /** The folders in it, by path; empty until read, or when it is not there yet. */
+    val top: List<CloudItem> = emptyList(),
+    /** How the server last answered for [top]. */
+    val topAnswer: Server = Server.NONE,
+    /** Each folder opened, by path: its folders and pictures as last read. */
+    val listings: Map<String, CloudListing> = emptyMap(),
+    /** How the server last answered for each folder opened. */
+    val answers: Map<String, Server> = emptyMap(),
+    /** Folders being read just now. */
+    val opening: Set<String> = emptySet(),
 )
 
 /** The Nextcloud page: who is signed in, or how signing in is going. */
@@ -143,6 +171,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             nextcloud = settings.nextcloud().let { a ->
                 NextcloudState(user = a?.user, server = a?.server, folder = settings.nextcloudFolder())
             },
+            cloud = CloudState(on = settings.nextcloud() != null, backupFolder = settings.nextcloudFolder()),
         ),
     )
     val state: StateFlow<GalleryState> = _state
@@ -173,6 +202,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
     init {
         albums = readAlbums()
         connect()
+        decoder.cloud = settings.nextcloud()?.let { CloudFiles(it) }
     }
 
     /**
@@ -181,6 +211,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
      */
     fun refresh() {
         askServer()
+        askCloud()
         // Put the schedule back every time: a phone that force-stopped the app forgot it.
         BackupWorker.schedule(getApplication())
         val granted = getApplication<Application>().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
@@ -468,6 +499,10 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         // the choice until changed on the backup page.
         if (settings.immich() == null) settings.writeBackupTo(Destination.NEXTCLOUD)
         nextcloud { it.copy(user = account.user, server = account.server, signIn = SignIn.IDLE, byHand = false, typed = "") }
+        decoder.forgetCloud()
+        decoder.cloud = CloudFiles(account)
+        _state.update { it.copy(cloud = CloudState(on = true, backupFolder = settings.nextcloudFolder())) }
+        askCloud()
         BackupWorker.schedule(getApplication())
         BackupWorker.runSoon(getApplication(), replace = true)
         readBackup()
@@ -485,6 +520,11 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         if (settings.destination() == null) settings.writeBackupOn(false)
         BackupWorker.schedule(getApplication())
         nextcloud { NextcloudState(folder = settings.nextcloudFolder()) }
+        // Nothing read from it is kept: its folders, and every picture fetched from it.
+        cloudAsking?.cancel()
+        decoder.cloud = null
+        decoder.forgetCloud()
+        _state.update { it.copy(cloud = CloudState(backupFolder = settings.nextcloudFolder())) }
         readBackup()
         if (account != null) viewModelScope.launch(Dispatchers.IO) { LoginFlow.revoke(account) }
     }
@@ -496,8 +536,95 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         settings.writeNextcloudFolder(clean)
         BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
         nextcloud { it.copy(folder = clean) }
+        _state.update { it.copy(cloud = it.cloud.copy(backupFolder = clean, top = emptyList(), topAnswer = Server.NONE)) }
+        askCloud()
         BackupWorker.runSoon(getApplication(), replace = true)
         readBackup()
+    }
+
+    // Browsing Nextcloud ------------------------------------------------------------------------
+
+    private var cloudAsking: Job? = null
+
+    /** The backup folder's folders, for the main screen; asked whenever the app comes to the front. */
+    private fun askCloud() {
+        val files = decoder.cloud ?: return
+        if (cloudAsking?.isActive == true) return
+        val folder = settings.nextcloudFolder()
+        cloud { it.copy(topAnswer = if (it.topAnswer == Server.OK) Server.OK else Server.ASKING) }
+        cloudAsking = viewModelScope.launch {
+            val answer = runCatching { files.list(folder) }
+            answer.onSuccess { items -> cloud { it.copy(top = Cloud.listing(items, folder).folders, topAnswer = Server.OK) } }
+            answer.onFailure { e ->
+                when (e) {
+                    is CancellationException -> throw e
+                    // No backup folder yet: nothing backed up, and the rest of the files are still a row away.
+                    is CloudFiles.Missing -> cloud { it.copy(top = emptyList(), topAnswer = Server.OK) }
+                    else -> cloud { it.copy(topAnswer = answerFor(e)) }
+                }
+            }
+        }
+    }
+
+    /** A Nextcloud folder opened: shown at once from the last reading, and read again behind it. */
+    fun openCloud(path: String) {
+        viewModelScope.launch { readCloud(path) }
+    }
+
+    /** A pull at the top of a Nextcloud folder: read again, returning how the server answered. */
+    suspend fun pullCloud(path: String): Server = viewModelScope.async { readCloud(path) }.await()
+
+    private suspend fun readCloud(path: String): Server {
+        val files = decoder.cloud ?: return Server.NONE
+        if (path in _state.value.cloud.opening) {
+            _state.first { path !in it.cloud.opening }
+            return _state.value.cloud.answers[path] ?: Server.NONE
+        }
+        cloud { it.copy(opening = it.opening + path) }
+        val answer = try {
+            val items = files.list(path)
+            val listing = Cloud.listing(items, path)
+            cloud { it.copy(listings = it.listings + (path to listing)) }
+            Server.OK
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: CloudFiles.Missing) {
+            // Gone from the server since it was listed: nothing in it.
+            cloud { it.copy(listings = it.listings + (path to CloudListing(emptyList(), emptyList()))) }
+            Server.OK
+        } catch (e: Exception) {
+            answerFor(e)
+        } finally {
+            cloud { it.copy(opening = it.opening - path) }
+        }
+        cloud { it.copy(answers = it.answers + (path to answer)) }
+        return answer
+    }
+
+    private fun answerFor(e: Throwable): Server = if (e is Refused) Server.REFUSED else Server.UNREACHABLE
+
+    /**
+     * A Nextcloud folder as the grid and the viewer take one: its pictures in the order chosen for
+     * pictures (newest first unless changed), its own folders kept beside them in [CloudFolder].
+     */
+    fun cloudFolder(path: String, rootLabel: String): CloudFolder {
+        val listing = _state.value.cloud.listings[path]
+        val label = if (path.isEmpty()) rootLabel else path.substringAfterLast('/')
+        val pictures = listing?.media.orEmpty().map { Cloud.picture(it, label) }
+        return CloudFolder(
+            folder = Folder(
+                key = Cloud.folderKey(path),
+                label = label,
+                pictures = Arrange.sort(pictures, _state.value.choices.pictureOrder),
+                remote = true,
+            ),
+            folders = listing?.folders.orEmpty(),
+            read = listing != null,
+        )
+    }
+
+    private fun cloud(change: (CloudState) -> CloudState) {
+        _state.update { it.copy(cloud = change(it.cloud)) }
     }
 
     private fun nextcloud(change: (NextcloudState) -> NextcloudState) {
@@ -527,7 +654,11 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         refresh()
         asking?.join()
         reading?.join()
-        return _state.value.server
+        cloudAsking?.join()
+        // With both servers set, the worse of the two answers is the one worth saying.
+        val immich = _state.value.server
+        val cloud = _state.value.cloud.let { if (it.on) it.topAnswer else Server.NONE }
+        return listOf(immich, cloud).filter { it != Server.NONE }.maxByOrNull { it.ordinal } ?: Server.NONE
     }
 
     /** Read one album's pictures; how the server answered, as [GalleryState.server] keeps it. */
@@ -714,3 +845,6 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         }
     }.getOrNull()
 }
+
+/** A Nextcloud folder opened: its pictures as a [Folder], and the folders inside it. */
+data class CloudFolder(val folder: Folder, val folders: List<CloudItem>, val read: Boolean)

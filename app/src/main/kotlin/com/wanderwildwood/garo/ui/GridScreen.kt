@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
+import com.wanderwildwood.garo.cloud.CloudItem
 import com.wanderwildwood.garo.media.Clock
 import com.wanderwildwood.garo.media.Decoder
 import com.wanderwildwood.garo.media.Folder
@@ -62,6 +64,11 @@ fun GridScreen(
     onPullAtTop: (() -> Unit)? = null,
     /** What a pull set going, said above the pictures while there is something to say. */
     pulled: Pulled? = null,
+    /** Which server a pull asks, for the words of that line. */
+    pullFrom: PullFrom = PullFrom.IMMICH,
+    /** A Nextcloud folder's own folders, listed above its pictures. */
+    subfolders: List<CloudItem> = emptyList(),
+    onSubfolder: (CloudItem) -> Unit = {},
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -74,12 +81,12 @@ fun GridScreen(
         },
     ) { padding ->
         val rows = folder.pictures.chunked(perRow)
-        if (rows.isEmpty() && note != null) {
+        if (rows.isEmpty() && subfolders.isEmpty() && note != null) {
             Box(Modifier.fillMaxSize().padding(padding)) { Explain(text = note) }
             return@Scaffold
         }
         Column(Modifier.fillMaxSize().padding(padding)) {
-        PulledLine(pulled)
+        PulledLine(pulled, pullFrom)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // Asked for at the size it is drawn, so the phone hands back a thumbnail that
             // fills the square without being stretched up from a smaller one.
@@ -90,6 +97,9 @@ fun GridScreen(
                 modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
                 onPullAtTop = onPullAtTop,
             ) {
+                items(subfolders, key = { "sub-" + it.path }) { sub ->
+                    CloudRow(sub.name, onClick = { onSubfolder(sub) }, modifier = Modifier.padding(start = 16.dp))
+                }
                 items(rows.size, key = { rows[it].first().id }) { r ->
                     Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {
                         rows[r].forEachIndexed { c, picture ->
@@ -118,7 +128,8 @@ fun GridScreen(
                             // reads over any picture where a white triangle on the picture does not.
                             if (picture.video) {
                                 TextMMD(
-                                    text = Clock.format(picture.duration),
+                                    // A server that does not say how long it is (Nextcloud) gets the word.
+                                    text = if (picture.duration > 0) Clock.format(picture.duration) else stringResource(R.string.grid_video),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier

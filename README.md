@@ -136,8 +136,25 @@ permission to upload assets.
 
 ## Nextcloud
 
-Backing up can go to a [Nextcloud](https://nextcloud.com) instead of Immich: one place at a
-time, chosen under **Settings → Servers and backup → Back up → Send to** when both are set up.
+Signed in to a [Nextcloud](https://nextcloud.com), the pictures already there show in Gallery,
+and backing up can go there instead of Immich.
+
+- **Browsing.** A **Nextcloud** section on the main screen, below the phone's folders (and
+  Immich's albums, if set), lists the folders in the backup folder, and **All files** opens the
+  top of your Nextcloud. A folder opens the way an album does: its folders first, by name, then
+  its pictures and videos (jpg, png, webp, gif, heic, avif; mp4, mkv, webm, mov), newest first,
+  as a grid of Nextcloud's own previews. Folders that are empty or hidden, and files that are
+  not pictures or videos, are left out. A picture opens on the whole panel, fetched whole so it
+  can be zoomed to 100%; a video plays straight from Nextcloud. Back walks up the folders.
+- **Read-only.** A Nextcloud picture can be shared (a copy goes to the app you choose) or
+  saved to this phone (into Pictures/Nextcloud), and its details shown; it cannot be edited or
+  deleted from here, and nothing in Nextcloud is changed.
+- A swipe down at the top of a folder, or of the main screen, asks Nextcloud again, and a line
+  says "Asking Nextcloud…" and then "Up to date". Pictures fetched are kept in the app's cache
+  (up to 200 MB) and deleted on signing out.
+
+Backing up goes to one place at a time, chosen under **Settings → Servers and backup → Back up
+→ Send to** when both are set up.
 
 - **Signing in.** **Settings → Servers and backup → Nextcloud**, type the address
   (`https://cloud.example.com`), then **Sign in**: Nextcloud's own sign-in page opens in the

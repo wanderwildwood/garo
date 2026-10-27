@@ -39,7 +39,7 @@ class PullState internal constructor(
     fun pull() {
         if (job?.isActive == true) return
         job = scope.launch {
-            Log.i("garo", "pulled at the top of a list: asking Immich")
+            Log.i("garo", "pulled at the top of a list: asking the server")
             pulled = Pulled.ASKING
             pulled = pulledAfter(run.value())
             delay(PULLED_LINE_MS)
@@ -55,17 +55,32 @@ fun rememberPull(run: suspend () -> Server): PullState {
     return remember { PullState(scope, latest) }
 }
 
+/** Which server a pull asks, for the words of the line above the list. */
+enum class PullFrom { IMMICH, NEXTCLOUD, BOTH }
+
 /** The line above a pulled list, while there is something to say. */
 @Composable
-fun PulledLine(pulled: Pulled?) {
+fun PulledLine(pulled: Pulled?, from: PullFrom = PullFrom.IMMICH) {
     if (pulled == null) return
     TextMMD(
         text = stringResource(
             when (pulled) {
-                Pulled.ASKING -> R.string.pull_asking
+                Pulled.ASKING -> when (from) {
+                    PullFrom.IMMICH -> R.string.pull_asking
+                    PullFrom.NEXTCLOUD -> R.string.pull_asking_nextcloud
+                    PullFrom.BOTH -> R.string.pull_asking_both
+                }
                 Pulled.UP_TO_DATE -> R.string.pull_up_to_date
-                Pulled.UNREACHABLE -> R.string.pull_unreachable
-                Pulled.REFUSED -> R.string.immich_refused
+                Pulled.UNREACHABLE -> when (from) {
+                    PullFrom.IMMICH -> R.string.pull_unreachable
+                    PullFrom.NEXTCLOUD -> R.string.pull_unreachable_nextcloud
+                    PullFrom.BOTH -> R.string.pull_unreachable_both
+                }
+                Pulled.REFUSED -> when (from) {
+                    PullFrom.IMMICH -> R.string.immich_refused
+                    PullFrom.NEXTCLOUD -> R.string.cloud_refused
+                    PullFrom.BOTH -> R.string.pull_refused_both
+                }
             },
         ),
         style = MaterialTheme.typography.labelSmall,

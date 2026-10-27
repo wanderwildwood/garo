@@ -6,6 +6,10 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.util.LruCache
 import android.util.Size
+import com.wanderwildwood.garo.cloud.Cloud
+import com.wanderwildwood.garo.cloud.CloudFiles
+import com.wanderwildwood.garo.cloud.CloudItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
@@ -31,6 +35,17 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
     // network — on the tailnet over mobile data, that is the difference between instant and
     // seconds. Android may clear it when space runs short, which costs only a fetch.
     private val remoteDir = File(cacheDir, "immich").apply { mkdirs() }
+
+    /** Set while signed in to Nextcloud: where its folders' pictures come from. */
+    @Volatile var cloud: CloudFiles? = null
+
+    // Pictures from Nextcloud: its small previews for the grid, and the originals the viewer,
+    // Share and Save have fetched. The same 200 MB cap as Immich's, apart from it.
+    private val cloudDir = File(cacheDir, "nextcloud")
+    // The copy last handed to another app by Share (see cloud/Copies.kt).
+    private val shareDir = File(cacheDir, "share")
+    private val cloudThumbs get() = File(cloudDir, "thumb").apply { mkdirs() }
+    private val cloudOriginals get() = File(cloudDir, "original").apply { mkdirs() }
 
 
     // A few at once: enough that a page of the grid fills in a single pass, few enough that
@@ -60,8 +75,10 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         return withContext(io) {
             runCatching {
                 val remote = picture.remote
+                val item = picture.cloud
                 when {
                     remote != null -> decode(fetch(remote, THUMBNAIL), px)
+                    item != null -> cloudThumbnail(picture, item, px)
                     picture.video -> videoFrame(uri, px)
                     else -> resolver.loadThumbnail(uri, Size(px, px), null)
                 }
@@ -83,11 +100,18 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
             runCatching {
                 // A video's still is the frame Android's own thumbnailer picks, asked for at the
                 // viewer's size; the video itself plays only when asked to.
+                val item = picture.cloud
                 if (picture.video) {
+                    // A video in Nextcloud: its preview, or a frame read over the network.
+                    if (item != null) return@runCatching cloudThumbnail(picture, item, minOf(longSide / 2, 1024))
                     return@runCatching videoFrame(uri, longSide)
                 }
                 val remote = picture.remote
-                val source = if (remote != null) {
+                val source = if (item != null) {
+                    // The original, fetched once into the cache: Nextcloud's previews stop well
+                    // short of a camera's size, and zooming in wants the real thing.
+                    ImageDecoder.createSource(cloudOriginal(item))
+                } else if (remote != null) {
                     // Immich's preview, 1440 on its long side: as much as twice this panel
                     // can show, and a fraction of the original's weight over the network.
                     ImageDecoder.createSource(fetch(remote, PREVIEW))
@@ -119,9 +143,12 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
      */
     suspend fun region(picture: Picture, area: android.graphics.Rect, scale: Float): Bitmap? {
         if (picture.remote != null || picture.video) return null
+        // A Nextcloud picture's original is in the cache once the viewer has shown it.
+        val cached = picture.cloud?.let { File(cloudOriginals, Cloud.originalKey(it)).takeIf { f -> f.length() > 0 } ?: return null }
         return withContext(io) {
             runCatching {
-                ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, picture.uri)) { decoder, info, _ ->
+                val source = if (cached != null) ImageDecoder.createSource(cached) else ImageDecoder.createSource(resolver, picture.uri)
+                ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                     val crop = android.graphics.Rect(area)
                     if (scale < 1f) {
                         val w = (info.size.width * scale).toInt().coerceAtLeast(1)
@@ -155,8 +182,75 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         // Whole or not at all: a fetch cut off half way must not become a picture with half
         // its rows missing that is then served from disk for ever.
         part.renameTo(file)
-        trim()
+        trim(remoteDir)
         return file
+    }
+
+    /**
+     * A Nextcloud file's small picture: Nextcloud's own preview when it has one, else made here —
+     * from the picture itself, or a frame of the video read over the network — and kept, so the
+     * next time it is a read from disk.
+     */
+    private suspend fun cloudThumbnail(picture: Picture, item: CloudItem, px: Int): Bitmap {
+        val nc = cloud ?: throw IllegalStateException("not signed in")
+        val file = File(cloudThumbs, Cloud.cacheKey(item, px))
+        if (file.length() > 0) {
+            file.setLastModified(System.currentTimeMillis())
+            return decode(file, px)
+        }
+        val id = item.fileId
+        if (item.hasPreview && id != null) {
+            try {
+                nc.preview(id, px * 2, file)
+                trim(cloudDir)
+                return decode(file, px)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // No preview after all (a server without the generator for this kind): made here.
+            }
+        }
+        val bitmap = if (picture.video) cloudVideoFrame(nc, item, px * 2) else decode(cloudOriginal(item), px)
+        runCatching {
+            val part = File(file.path + "." + System.nanoTime() + ".part")
+            part.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            part.renameTo(file)
+        }
+        return bitmap
+    }
+
+    /**
+     * The original of a Nextcloud file, fetched once into the cache and then read from there:
+     * what the viewer decodes, and what Share and Save to this phone hand on.
+     */
+    suspend fun cloudOriginal(item: CloudItem): File {
+        val file = File(cloudOriginals, Cloud.originalKey(item))
+        if (file.length() > 0) {
+            file.setLastModified(System.currentTimeMillis())
+            return file
+        }
+        val nc = cloud ?: throw IllegalStateException("not signed in")
+        nc.download(item.path, file)
+        trim(cloudDir)
+        return file
+    }
+
+    /** One frame of a video on the server, read by Android's own retriever with the sign-in in a header. */
+    private fun cloudVideoFrame(nc: CloudFiles, item: CloudItem, px: Int): Bitmap {
+        val retriever = android.media.MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(nc.fileUrl(item.path), nc.headers())
+            val frame = retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: throw IllegalStateException("no frame")
+            val scale = minOf(1f, px.toFloat() / maxOf(frame.width, frame.height))
+            return if (scale < 1f) {
+                Bitmap.createScaledBitmap(frame, (frame.width * scale).toInt().coerceAtLeast(1), (frame.height * scale).toInt().coerceAtLeast(1), true)
+            } else {
+                frame
+            }
+        } finally {
+            retriever.release()
+        }
     }
 
     private fun decode(file: File, px: Int): Bitmap =
@@ -169,9 +263,9 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
 
-    /** Keeps the disk cache under its limit, the least recently seen going first. */
-    private fun trim() {
-        val files = remoteDir.walkTopDown().filter { it.isFile }.toList()
+    /** Keeps a disk cache under its limit, the least recently seen going first. */
+    private fun trim(dir: File) {
+        val files = dir.walkTopDown().filter { it.isFile }.toList()
         var total = files.sumOf { it.length() }
         if (total <= DISK_BYTES) return
         for (f in files.sortedBy { it.lastModified() }) {
@@ -212,6 +306,14 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         remoteDir.mkdirs()
         thumbnails.evictAll()
         full.evictAll()
+    }
+
+    /** Everything fetched from Nextcloud, for signing out or signing in as someone else. */
+    fun forgetCloud() {
+        cloudDir.deleteRecursively()
+        shareDir.deleteRecursively()
+        thumbnails.snapshot().keys.filter { it.contains(":nextcloud://") }.forEach(thumbnails::remove)
+        full.snapshot().keys.filter { it.scheme == "nextcloud" }.forEach(full::remove)
     }
 
     fun forget(uri: Uri) {

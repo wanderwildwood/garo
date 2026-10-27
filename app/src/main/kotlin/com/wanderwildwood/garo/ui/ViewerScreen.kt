@@ -62,6 +62,19 @@ import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
+import com.wanderwildwood.garo.cloud.CloudItem
+import com.wanderwildwood.garo.cloud.Copies
+import android.net.Uri
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import com.wanderwildwood.garo.media.Decoder
 import com.wanderwildwood.garo.media.Picture
 import kotlin.math.abs
@@ -102,6 +115,8 @@ fun ViewerScreen(
     onDelete: (Picture) -> Unit,
     /** The title tapped: "3 of 80" leads to the folder those 80 are in. */
     onTitle: (() -> Unit)? = null,
+    /** A copy of a Nextcloud picture saved to the phone. */
+    onSaved: () -> Unit = {},
 ) {
     if (pictures.isEmpty()) {
         LaunchedEffect(Unit) { onBack() }
@@ -170,14 +185,14 @@ fun ViewerScreen(
         android.nfc.NfcAdapter.getDefaultAdapter(context) != null &&
             context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)
     }
-    fun shareWithApp() {
+    fun shareWithApp(uri: Uri = picture.uri, type: String? = null) {
         val send = Intent(Intent.ACTION_SEND)
-            .setType(context.contentResolver.getType(picture.uri) ?: "image/*")
-            .putExtra(Intent.EXTRA_STREAM, picture.uri)
+            .setType(type ?: context.contentResolver.getType(uri) ?: "image/*")
+            .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         // The grant travels on the clip as well as the stream: Android hands the
         // read permission on through a chooser only from the clip.
-        send.clipData = ClipData.newRawUri(null, picture.uri)
+        send.clipData = ClipData.newRawUri(null, uri)
         runCatching {
             context.startActivity(Intent.createChooser(send, null))
         }.onFailure {
@@ -189,11 +204,51 @@ fun ViewerScreen(
         return
     }
 
+    // A picture in Nextcloud is fetched whole before it is shared or saved; the line at the foot
+    // says so meanwhile, and only one fetch runs at a time.
+    val scope = rememberCoroutineScope()
+    var fetching by remember { mutableStateOf<Job?>(null) }
+    fun withOriginal(item: CloudItem, then: suspend (File) -> Unit) {
+        if (fetching?.isActive == true) return
+        fetching = scope.launch {
+            val file = try {
+                decoder.cloudOriginal(item)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                Toast.makeText(context, R.string.cloud_fetch_failed, Toast.LENGTH_SHORT).show()
+                null
+            }
+            if (file != null) then(file)
+            fetching = null
+        }
+    }
+    fun shareFromCloud(item: CloudItem) = withOriginal(item) { file ->
+        val copy = runCatching { withContext(Dispatchers.IO) { Copies.forSharing(context, file, item) } }.getOrNull()
+        if (copy == null) {
+            Toast.makeText(context, R.string.cloud_fetch_failed, Toast.LENGTH_SHORT).show()
+        } else {
+            shareWithApp(FileProvider.getUriForFile(context, context.packageName + ".files", copy), Copies.type(item))
+        }
+    }
+    fun saveFromCloud(item: CloudItem) = withOriginal(item) { file ->
+        val saved = runCatching { withContext(Dispatchers.IO) { Copies.saveToPhone(context, file, item) } }.isSuccess
+        Toast.makeText(context, if (saved) R.string.cloud_saved else R.string.cloud_save_failed, Toast.LENGTH_SHORT).show()
+        if (saved) onSaved()
+    }
+
     // A video plays on its own screen; until then its first frame stands in the viewer like a
     // picture, with a play button over it, and pages turn past it as past any other.
     var playing by remember(picture.uri) { mutableStateOf(false) }
     if (playing) {
-        VideoPlayer(picture.uri, onClose = { playing = false })
+        // A video in Nextcloud streams from there, the sign-in going in a header, not the address.
+        val item = picture.cloud
+        val files = decoder.cloud
+        if (item != null && files != null) {
+            VideoPlayer(Uri.parse(files.fileUrl(item.path)), headers = files.headers(), onClose = { playing = false })
+        } else {
+            VideoPlayer(picture.uri, onClose = { playing = false })
+        }
         return
     }
 
@@ -255,7 +310,7 @@ fun ViewerScreen(
                     // A picture on the server is not a file here to hand over or to delete; sharing
                     // one would mean fetching the original first, which is for a later version.
                     // Pictures only, and only those on the phone: the saved copy goes beside the original.
-                    if (picture.remote == null && !picture.video) BarButton(Icons.Edit, stringResource(R.string.viewer_cd_edit)) {
+                    if (!picture.onServer && !picture.video) BarButton(Icons.Edit, stringResource(R.string.viewer_cd_edit)) {
                         // For a result: the saved picture comes back, and the viewer turns to it.
                         edit.launch(
                             Intent(context, com.wanderwildwood.garo.EditActivity::class.java)
@@ -263,14 +318,33 @@ fun ViewerScreen(
                                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
                         )
                     }
-                    if (picture.remote == null) BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
+                    val inCloud = picture.cloud
+                    if (inCloud != null) {
+                        // Read-only: share a copy, or keep one on the phone; nothing changes in Nextcloud.
+                        BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) { shareFromCloud(inCloud) }
+                        BarButton(Icons.Download, stringResource(R.string.viewer_cd_save)) { saveFromCloud(inCloud) }
+                    } else if (picture.remote == null) BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
                         // A phone that can tap offers both ways; any other goes straight to the apps.
                         if (canTap && !picture.video) choosing = true else shareWithApp()
                     }
-                    if (canDelete && picture.remote == null) {
+                    if (canDelete && !picture.onServer) {
                         BarButton(Icons.Delete, stringResource(R.string.viewer_cd_delete)) { onDelete(picture) }
                     }
                 },
+            )
+        }
+    }
+
+    if (fetching != null) {
+        Box(Modifier.fillMaxSize()) {
+            TextMMD(
+                text = stringResource(R.string.cloud_fetching),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
             )
         }
     }

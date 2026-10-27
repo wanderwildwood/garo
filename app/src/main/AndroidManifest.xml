@@ -13,7 +13,7 @@
 
     <!--
       For the servers set in settings and nothing else: Immich, whose albums are read and which
-      can take a backup, and Nextcloud, which can take a backup. Plain http is refused for both:
+      can take a backup, and Nextcloud, whose folders are read and which can take a backup. Plain http is refused for both:
       the address has to be https. Share by tap and Receive by tap use it too, for one picture
       over the local Wi-Fi to a private address (see tap/).
     -->
@@ -158,6 +158,18 @@
                 android:name="android.nfc.cardemulation.host_apdu_service"
                 android:resource="@xml/tap_apdu_service" />
         </service>
+
+        <!-- A picture from Nextcloud handed to another app to share: a copy in the cache, read
+             only by the app it is shared with, for that share. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
 
         <!-- Camera (shashinki) saying it has just saved a photo; see NewPictureReceiver. -->
         <receiver

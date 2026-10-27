@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mudita.mmd.ThemeMMD
 import com.mudita.mmd.components.text.TextMMD
+import com.wanderwildwood.garo.cloud.Cloud
 import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.MediaIndex
 import com.wanderwildwood.garo.media.Picture
@@ -40,6 +41,7 @@ import com.wanderwildwood.garo.ui.Access
 import com.wanderwildwood.garo.ui.FoldersScreen
 import com.wanderwildwood.garo.ui.GalleryViewModel
 import com.wanderwildwood.garo.ui.GridScreen
+import com.wanderwildwood.garo.ui.PullFrom
 import com.wanderwildwood.garo.ui.RefreshOnResume
 import com.wanderwildwood.garo.ui.rememberPull
 import com.wanderwildwood.garo.ui.Server
@@ -138,6 +140,8 @@ private fun Gallery(
     // Pictures marked in a folder to be deleted together. A hold starts it; it lasts while
     // the folder is open, and leaving the folder lets them go.
     var marked by rememberSaveable { mutableStateOf(LongArray(0)) }
+    // The Nextcloud folder browsing started from: back walks up the folders to it, then out.
+    var cloudFrom by rememberSaveable { mutableStateOf<String?>(null) }
     val markedSet = remember(marked) { marked.toSet() }
 
     val foldersList = rememberLazyListState()
@@ -190,17 +194,31 @@ private fun Gallery(
         delete.launch(IntentSenderRequest.Builder(request.intentSender).build())
     }
 
-    val folder = state.folders.firstOrNull { it.key == folderKey } ?: state.albums.firstOrNull { it.key == folderKey }
+    // A Nextcloud folder is made from its listing as last read, and stands in for one before that.
+    val cloudPath = Cloud.pathOf(folderKey)
+    val cloudListing = cloudPath?.let { state.cloud.listings[it] }
+    val cloudRoot = stringResource(R.string.folders_nextcloud)
+    val cloudFolder = remember(cloudPath, cloudListing, state.choices.pictureOrder, state.cloud.on) {
+        if (cloudPath != null && state.cloud.on) viewModel.cloudFolder(cloudPath, cloudRoot) else null
+    }
+    val folder = state.folders.firstOrNull { it.key == folderKey }
+        ?: state.albums.firstOrNull { it.key == folderKey }
+        ?: cloudFolder?.folder
+    // Rows above the pictures in the grid: a Nextcloud folder's own folders.
+    val rowsAbove = cloudFolder?.folders?.size ?: 0
 
     // A swipe down at the top of a list fed from Immich asks it again, and says so in a line.
     // The phone's own folders are read again on every return to the app, so with no server set
     // the folders list has nothing a pull would add.
     val albumPull = rememberPull { folderKey?.let { viewModel.pullAlbum(it) } ?: state.server }
     val foldersPull = rememberPull { viewModel.pullFolders() }
+    val cloudPull = rememberPull { Cloud.pathOf(folderKey)?.let { viewModel.pullCloud(it) } ?: Server.NONE }
 
-    // An album's pictures are read from the server when it is opened, and again each time.
+    // An album's pictures are read from the server when it is opened, and again each time; so is
+    // a Nextcloud folder's contents.
     LaunchedEffect(folderKey) {
         folderKey?.let { key -> if (state.albums.any { it.key == key }) viewModel.openAlbum(key) }
+        Cloud.pathOf(folderKey)?.let { viewModel.openCloud(it) }
     }
 
     // A folder emptied from outside — every picture deleted elsewhere — has nothing left to show.
@@ -209,7 +227,10 @@ private fun Gallery(
     // one from before it, which would undo the search as soon as it succeeded.
     LaunchedEffect(folderKey, folder, state.reading) {
         val key = folderKey
-        if (key != null && !state.reading && found && state.folders.none { it.key == key } && state.albums.none { it.key == key }) {
+        if (key != null && !state.reading && found && state.folders.none { it.key == key } && state.albums.none { it.key == key } &&
+            // A Nextcloud folder stays open until signing out takes it away.
+            (Cloud.pathOf(key) == null || !state.cloud.on)
+        ) {
             folderKey = null
             viewing = null
         }
@@ -251,7 +272,7 @@ private fun Gallery(
             // Back in the grid with the row holding that picture in view.
             val toGrid: () -> Unit = {
                 viewing?.let { i ->
-                    val row = i / state.choices.perRow
+                    val row = i / state.choices.perRow + rowsAbove
                     val shown = gridList.layoutInfo.visibleItemsInfo.map { it.index }
                     if (row !in shown) gridList.requestScrollToItem(row)
                 }
@@ -271,6 +292,8 @@ private fun Gallery(
                     browsing = true
                     toGrid()
                 },
+                // A copy saved from Nextcloud is a new picture on the phone: read the index again.
+                onSaved = viewModel::refresh,
             )
         }
 
@@ -278,9 +301,17 @@ private fun Gallery(
             fun toggle(picture: Picture) {
                 marked = if (picture.id in markedSet) marked.filter { it != picture.id }.toLongArray() else marked + picture.id
             }
-            // Back lets go of the marks first, then leaves the folder.
+            // Back lets go of the marks first, then leaves the folder: a Nextcloud folder for the
+            // one above it, as far as the one browsing started from.
             val up: () -> Unit = {
-                if (markedSet.isNotEmpty()) marked = LongArray(0) else folderKey = null
+                when {
+                    markedSet.isNotEmpty() -> marked = LongArray(0)
+                    cloudPath != null && cloudPath != cloudFrom.orEmpty() && cloudPath.startsWith(cloudFrom.orEmpty()) -> {
+                        folderKey = Cloud.folderKey(Cloud.parentOf(cloudPath))
+                        gridList.requestScrollToItem(0)
+                    }
+                    else -> folderKey = null
+                }
             }
             BackHandler(onBack = up)
             GridScreen(
@@ -311,12 +342,34 @@ private fun Gallery(
                 // the frame before the reading has started, which would otherwise flash an error.
                 note = when {
                     !folder.remote -> null
+                    cloudPath != null -> {
+                        val answer = state.cloud.answers[cloudPath]
+                        val reading = cloudPath in state.cloud.opening
+                        stringResource(
+                            when {
+                                !reading && answer == Server.REFUSED -> R.string.cloud_refused
+                                !reading && answer == Server.UNREACHABLE && cloudFolder?.read != true -> R.string.cloud_unreachable
+                                cloudFolder?.read == true -> R.string.cloud_empty
+                                else -> R.string.cloud_reading
+                            },
+                        )
+                    }
                     folder.key !in state.opening && state.server == Server.REFUSED -> stringResource(R.string.immich_refused)
                     folder.key !in state.opening && state.server == Server.UNREACHABLE -> stringResource(R.string.immich_unreachable)
                     else -> stringResource(R.string.immich_reading_album)
                 },
-                onPullAtTop = if (folder.remote) albumPull::pull else null,
-                pulled = albumPull.pulled.takeIf { folder.remote },
+                onPullAtTop = when {
+                    cloudPath != null -> cloudPull::pull
+                    folder.remote -> albumPull::pull
+                    else -> null
+                },
+                pulled = if (cloudPath != null) cloudPull.pulled else albumPull.pulled.takeIf { folder.remote },
+                pullFrom = if (cloudPath != null) PullFrom.NEXTCLOUD else PullFrom.IMMICH,
+                subfolders = cloudFolder?.folders.orEmpty(),
+                onSubfolder = { sub ->
+                    folderKey = Cloud.folderKey(sub.path)
+                    gridList.requestScrollToItem(0)
+                },
             )
         }
 
@@ -337,8 +390,19 @@ private fun Gallery(
             onAllow = ask,
             onAppSettings = { openAppSettings(context) },
             onHide = { viewModel.hideFolder(it.key, it.label) },
-            onPullAtTop = if (state.server != Server.NONE) foldersPull::pull else null,
+            onPullAtTop = if (state.server != Server.NONE || state.cloud.on) foldersPull::pull else null,
             pulled = foldersPull.pulled,
+            pullFrom = when {
+                state.server != Server.NONE && state.cloud.on -> PullFrom.BOTH
+                state.cloud.on -> PullFrom.NEXTCLOUD
+                else -> PullFrom.IMMICH
+            },
+            onOpenCloud = { path ->
+                cloudFrom = path
+                if (Cloud.folderKey(path) != folderKey) gridList.requestScrollToItem(0)
+                folderKey = Cloud.folderKey(path)
+                marked = LongArray(0)
+            },
         )
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.wanderwildwood.garo.R
+import com.wanderwildwood.garo.cloud.Cloud
 import com.wanderwildwood.garo.media.Picture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,7 +40,7 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
 
     // The camera's make and model sit inside the file, not in the index, so it is opened to read them.
     val camera by produceState(picture.camera, picture.uri) {
-        if (picture.remote != null) return@produceState
+        if (picture.onServer) return@produceState
         value = withContext(Dispatchers.IO) {
             runCatching {
                 context.contentResolver.openInputStream(picture.uri)?.use { stream ->
@@ -66,7 +67,7 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
         when {
             picture.taken != null -> Fact(stringResource(R.string.info_taken), date(picture.taken))
             // A picture on the server was never "saved to the phone": its file date is only that.
-            picture.modified > 0 && picture.remote != null -> Fact(stringResource(R.string.info_file_date), date(picture.modified))
+            picture.modified > 0 && picture.onServer -> Fact(stringResource(R.string.info_file_date), date(picture.modified))
             picture.modified > 0 -> Fact(stringResource(R.string.info_saved), date(picture.modified))
         }
 
@@ -85,6 +86,7 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
         }
         picture.path?.let { Fact(stringResource(R.string.info_folder), it.trimEnd('/')) }
         if (picture.remote != null) Fact(stringResource(R.string.info_album), picture.folderName)
+        picture.cloud?.let { Fact(stringResource(R.string.info_nextcloud_folder), Cloud.parentOf(it.path).ifEmpty { "/" }) }
         camera?.let { Fact(stringResource(R.string.info_camera), it) }
 
         // The folder in Files, when there is a file manager to open it in.
