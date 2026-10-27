@@ -156,17 +156,39 @@
     <string name="settings_key_set">Set</string>
     <string name="settings_immich_server_note">Its address, as the Immich app has it, starting https://.</string>
     <string name="settings_immich_key_note">Made in Immich under Account settings, API keys. It needs to read albums and assets and to view assets; to back up, also to upload assets.</string>
-    <!-- Backing up the camera's pictures to Immich -->
-    <string name="settings_backup">Back up the camera to Immich</string>
-    <string name="backup_off">Off. Pictures from the camera stay only on the phone.</string>
+    <!-- The settings row and page that hold the servers and backing up -->
+    <string name="settings_servers">Servers and backup</string>
+    <string name="settings_servers_none">None set up</string>
+    <!-- %1$s is where the pictures go, e.g. Immich -->
+    <string name="settings_servers_backing_up">Backing up to %1$s</string>
+    <!-- The Immich server's own page in settings -->
+    <string name="immich_name">Immich</string>
+    <string name="settings_cd_back">Back</string>
+    <string name="settings_immich_page_note">Immich\'s albums and timeline show under the phone\'s folders, and the phone\'s pictures can be backed up to it.</string>
+    <string name="settings_immich_address">Address</string>
+    <!-- Backing up, on its own page in settings -->
+    <string name="settings_backup_page">Back up</string>
+    <string name="settings_backup_needs_server">Set up the Immich server first</string>
+    <!-- %1$s is where the pictures go, e.g. Immich -->
+    <string name="settings_backup_on_to">On, to %1$s</string>
+    <string name="settings_backup_off_short">Off</string>
+    <!-- %1$s is where the pictures go, e.g. Immich -->
+    <string name="settings_backup">Back up to %1$s</string>
+    <string name="backup_off">Off. The pictures stay only on the phone.</string>
+    <string name="settings_backup_folders">Folders backed up</string>
+    <string name="backup_folder_dcim">Camera (DCIM)</string>
+    <string name="backup_folders_note">Everything in a chosen folder and the folders inside it goes up: the pictures already there as well as new ones.</string>
     <!-- %1$d backed up, %2$d camera pictures on the phone -->
     <string name="backup_some">%1$d of %2$d backed up</string>
     <!-- %1$d camera pictures, all backed up -->
     <string name="backup_all">All %1$d backed up</string>
-    <string name="backup_nothing">The camera has no pictures on the phone yet.</string>
+    <string name="backup_nothing">The chosen folders have no pictures yet.</string>
     <!-- %1$s is a date and time -->
     <string name="backup_last_run">Last checked %1$s</string>
-    <string name="backup_last_unreachable">The last try could not reach Immich; it will try again</string>
+    <!-- %1$s is where the pictures go, e.g. Immich -->
+    <string name="backup_unreachable">%1$s cannot be reached on this network just now; it will try again</string>
+    <string name="backup_soon">It will start shortly</string>
+    <string name="backup_waiting_charger">Waiting for the charger</string>
     <string name="backup_waiting_wifi_charging">Waiting for Wi-Fi and the charger</string>
     <string name="backup_waiting_wifi">Waiting for Wi-Fi</string>
     <string name="backup_waiting_network">Waiting for a network</string>
@@ -193,10 +215,12 @@
 
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
     <string name="about_title">Gallery %1$s</string>
-    <string name="about_privacy">It reads the pictures on this phone to show them. With an Immich server set, it also reads your albums from it and, if you turn backing up on, sends the camera\'s pictures to it — to that server only, using the key you gave it. Share by tap and Receive by tap talk only to another phone on the same Wi-Fi.</string>
+    <string name="about_privacy_head">Privacy</string>
+    <string name="about_privacy">Gallery reads the pictures on this phone to show them. It goes online only to the servers you set up (Immich, for its albums and to back up the folders you choose) and for Share by tap and Receive by tap, which pass one picture to a phone on the same Wi-Fi and nowhere else. Your sign-in details are kept on this phone. Nothing is sent to the app\'s maker. There are no ads, no analytics and no tracking. Backups and exports go only where you choose to save them.</string>
+    <string name="about_terms_head">Terms</string>
+    <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk.</string>
+    <string name="about_contact">Questions and problems: email@wanderthe.dev</string>
     <string name="about_after">After Fossify Gallery, GPL 3.0, whose ways of ordering folders and pictures this keeps.</string>
-    <!-- The name of the app's licence -->
-    <string name="about_licence">GNU General Public License v3</string>
     <string name="about_icons">Icons from Material Symbols, Apache 2.0</string>
     <!-- The donation link label, beside a drawing of a llama. A fixed phrase: a verb and an object, so the reader knows what pressing it does -->
     <string name="about_feed_the_llamas">feed the llamas</string>
@@ -242,9 +266,6 @@
     <string name="edit_leave_title">Leave without saving?</string>
     <string name="edit_keep_editing">Keep editing</string>
     <string name="edit_discard">Leave</string>
-    <string name="list_jump_setting">Letters and page dots</string>
-    <string name="list_jump_shown">Shown</string>
-    <string name="list_jump_hidden">Hidden</string>
     <string name="tap_service_description">Share by tap</string>
     <string name="tap_title">Share by tap</string>
     <string name="tap_choice_app">Send with an app</string>

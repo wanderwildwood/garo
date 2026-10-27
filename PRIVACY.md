@@ -1,8 +1,9 @@
 # Privacy
 
 Gallery reads the pictures on the phone to show them to you. If you give it an Immich server,
-it reads your albums and your timeline (every picture on your account) from that server; if you also turn backing up on, it sends the camera's
-pictures there. It talks to that server and nothing else.
+it reads your albums and your timeline (every picture on your account) from that server; if you also turn backing up on, it sends the
+pictures in the folders you choose (the camera's, DCIM, unless you choose others) there. Apart from Share by tap and Receive
+by tap, which pass one picture to another phone on the same Wi-Fi, it talks to that server and nothing else.
 
 That is the whole policy. The rest of this page is the evidence for it, because a privacy
 policy that cannot be checked is just a promise.
@@ -21,14 +22,19 @@ On Android 12, which the Kompakt runs, the first is the permission that reads ph
 words it as "photos and media"; the app reads only pictures, from Android's own index of
 them, and never lists or opens any other kind of file.
 
-**`INTERNET` is there for Immich alone.** Until a server is set in settings the app opens no
-connection at all. Once one is, it asks that server — and only that server — for the list of
+**`INTERNET` is there for Immich, and for Share by tap and Receive by tap.** Android asks for
+the same permission whether an app talks to a server across the world or to the phone next to
+it on the same Wi-Fi, so the two tap features need it too; what they do with it is in their
+sections below, and none of it leaves the local network. For Immich: until a server is set in
+settings the app opens no connection to one at all. Once one is, it asks that server — and only that server — for the list of
 albums, how many pictures the timeline holds, an album's or the timeline's pictures, and each
 picture's image. Every request carries the API key you
 gave it. Every call it makes is in `media/Immich.kt`.
 
-**Backing up is off until you turn it on.** Turned on, it sends the camera's pictures —
-those under `DCIM` and nothing else — to the same server, and only when the network and the
+**Backing up is off until you turn it on.** Turned on, it sends the pictures in the folders
+chosen under **Settings → Back up → Folders backed up** — `DCIM`, the camera's, until you choose
+others; everything below a chosen folder goes, the pictures already there as well as new ones —
+to the same server, and only when the network and the
 charger allow as set, or straight away on any network when you press **Back up now**. Before sending, it asks the server which it already has, by each file's
 SHA-1; the checksums go to your server and nowhere else. It never deletes anything, on the
 phone or the server. Plain `http://` is refused: Android blocks unencrypted
@@ -61,8 +67,9 @@ the local network.
 - **Anyone on the same network who can read the link can download the picture**, once. It
   stops after one finished download, after two minutes, or when you leave the screen,
   whichever comes first.
-- Nothing goes to the internet or to any server of mine or anyone's. `INTERNET` is not used
-  for this; the picture crosses the local network only, in the clear (plain `http`, which is
+- Nothing goes to the internet or to any server of mine or anyone's. The local server needs
+  `INTERNET`, which is Android's permission for any network socket, but the picture crosses
+  the local network only, in the clear (plain `http`, which is
   why the link works on any phone and why it only lasts two minutes).
 - The picture is copied into the app's cache for the time it is served and deleted when the
   screen is left.
@@ -91,8 +98,8 @@ showing Share by tap, and fetches the picture.
 - The download goes to the app's cache and is checked to be a picture Android can read before
   anything is kept. Then it is saved into Pictures/Received through Android's media index,
   which needs no permission; a file that is not a picture is deleted.
-- No account, no server of mine or anyone's, no internet; `INTERNET` and `NFC` are the two
-  permissions it uses, both already above.
+- No account, no server of mine or anyone's, nothing past the local network; `INTERNET` (for
+  the one local request) and `NFC` are the two permissions it uses, both already above.
 
 ## Pictures another app hands over
 
@@ -152,3 +159,9 @@ with backing up off they are not used. The last is not mine either: AndroidX def
 automatically for every app, it is signature-level and scoped to this package so only this
 app can hold it, and it exists so a runtime-registered broadcast receiver is not exported to
 other apps. It grants access to nothing.
+
+## Contact
+
+Questions and problems: email@wanderthe.dev. The same text in short is in the app, under
+Settings → About, with the terms: the app is free software under the GNU General Public License
+v3 and comes with no warranty.

@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -41,27 +43,32 @@ fun AboutDialog(onDismiss: () -> Unit) {
             fontWeight = FontWeight.Medium,
         )
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
         TextMMD(
-            text = stringResource(R.string.about_privacy),
+            text = stringResource(R.string.about_privacy_head),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        TextMMD(text = stringResource(R.string.about_privacy), style = MaterialTheme.typography.labelSmall)
+
+        Spacer(Modifier.height(10.dp))
+        TextMMD(
+            text = stringResource(R.string.about_terms_head),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        TextMMD(
+            text = stringResource(R.string.about_terms) + " " + stringResource(R.string.about_contact),
             style = MaterialTheme.typography.labelSmall,
         )
 
-
-        Spacer(Modifier.height(14.dp))
-        TextMMD(
-            text = stringResource(R.string.about_after),
-            style = MaterialTheme.typography.labelSmall,
-        )
-
-        Spacer(Modifier.height(14.dp))
-        TextMMD(text = stringResource(R.string.about_licence), style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(10.dp))
+        TextMMD(text = stringResource(R.string.about_after), style = MaterialTheme.typography.labelSmall)
         TextMMD(text = stringResource(R.string.about_icons), style = MaterialTheme.typography.labelSmall)
 
-        Spacer(Modifier.height(14.dp))
         Llama()
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
         OutlinedButtonMMD(
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -101,6 +108,8 @@ private fun Llama() {
                         Toast.makeText(context, context.getString(R.string.about_no_browser), Toast.LENGTH_SHORT).show()
                     }
                 }
+                .heightIn(min = 48.dp)
+                .wrapContentHeight(Alignment.CenterVertically)
                 .padding(vertical = 4.dp),
         )
         Spacer(Modifier.width(6.dp))
@@ -121,6 +130,7 @@ private fun Llama() {
                         Toast.makeText(context, context.getString(R.string.about_no_browser), Toast.LENGTH_SHORT).show()
                     }
                 }
+                .heightIn(min = 48.dp)
                 .padding(vertical = 4.dp),
         ) {
             Image(

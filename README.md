@@ -124,12 +124,15 @@ says so.
 
 Album pictures cannot yet be shared, deleted, or chosen for another app.
 
-**Backing up.** With a server set, "Back up the camera to Immich" sends the camera's pictures —
-anything under `DCIM`, whichever camera app saved it — to the server. By default only on Wi-Fi
-while charging, so a backlog goes up overnight; it can also be any Wi-Fi, or any network. The
-server is asked first what it already has, by checksum, so nothing goes up twice. Screenshots,
-downloads and pictures saved from messages stay on the phone. The settings row says how many
-are up and when it last checked, or what stopped it. The key needs permission to upload assets.
+**Backing up.** With a server set, **Settings → Back up** sends the pictures in the chosen
+folders to the server: `DCIM`, the camera's, whichever camera app saved there, until other
+folders are chosen under **Folders backed up**. Everything below a chosen folder goes, the
+pictures already there as well as new ones. By default only on Wi-Fi while charging, so a
+backlog goes up overnight; it can also be any Wi-Fi, or any network, and **Back up now** sends
+at once. The server is asked first what it already has, by checksum, so nothing goes up twice.
+The line under the switch says how many are up and when it last checked, or what it is waiting
+for, the network or the charger, or that the server cannot be reached. The key needs
+permission to upload assets.
 
 ## What it does not do
 

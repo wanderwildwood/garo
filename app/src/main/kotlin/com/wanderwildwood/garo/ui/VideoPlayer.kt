@@ -113,12 +113,12 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                OutlinedButtonMMD(onClick = onClose, modifier = Modifier.height(44.dp)) {
+                OutlinedButtonMMD(onClick = onClose, modifier = Modifier.height(48.dp)) {
                     TextMMD(text = stringResource(R.string.video_close), style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedButtonMMD(
                     onClick = { view?.let { it.seekTo((it.currentPosition - 10_000).coerceAtLeast(0)); position = it.currentPosition } },
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.height(48.dp),
                 ) { TextMMD(text = stringResource(R.string.video_back_ten), style = MaterialTheme.typography.bodySmall) }
                 Box(
                     contentAlignment = Alignment.Center,
@@ -148,7 +148,7 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit) {
                 }
                 OutlinedButtonMMD(
                     onClick = { view?.let { it.seekTo((it.currentPosition + 10_000).coerceAtMost(it.duration)); position = it.currentPosition } },
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.height(48.dp),
                 ) { TextMMD(text = stringResource(R.string.video_on_ten), style = MaterialTheme.typography.bodySmall) }
             }
         }

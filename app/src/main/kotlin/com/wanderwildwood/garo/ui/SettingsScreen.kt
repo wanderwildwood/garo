@@ -33,7 +33,10 @@ import android.text.format.DateFormat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import com.mudita.mmd.components.switcher.SwitchMMD
-import com.wanderwildwood.garo.media.BackupRecord
+import com.wanderwildwood.garo.media.BackupStatus
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.font.FontWeight
 import com.wanderwildwood.garo.media.BackupWhen
 import java.util.Date
 import androidx.compose.runtime.getValue
@@ -54,7 +57,14 @@ import com.wanderwildwood.garo.media.FolderOrder
 import com.wanderwildwood.garo.media.PictureOrder
 
 /**
- * Three rows that cycle through their few values in place, then the Immich server.
+ * The settings pages: the main one, and under "Servers and backup" the pages the server rows
+ * moved to, so that the main one fits on one page of the panel.
+ */
+private enum class Page { MAIN, SERVERS, IMMICH, BACKUP }
+
+/**
+ * Three rows that cycle through their few values in place, then a row each for the Immich
+ * server and backing up, which open pages of their own.
  *
  * Fossify has some sixty settings. What survives is what changes what a person sees on this
  * screen; the rest — themes, animations, swipe-to-dismiss, slideshow timing, the editor, video
@@ -76,13 +86,74 @@ fun SettingsScreen(
     onBackup: (Boolean) -> Unit = {},
     onBackupWhen: (BackupWhen) -> Unit = {},
     onBackUpNow: () -> Unit = {},
+    onBackupFolders: (Set<String>) -> Unit = {},
     hidden: Map<String, String> = emptyMap(),
     onShowFolder: (String) -> Unit = {},
     onReceive: (() -> Unit)? = null,
+    /** Each time a page opens: the backup line is read again, as the network may have changed. */
+    onPage: () -> Unit = {},
 ) {
+    var page by rememberSaveable { mutableStateOf(Page.MAIN) }
+    LaunchedEffect(page) { onPage() }
+    val immichSet = serverAddress != null && hasKey
+    // Backing up has nothing to go to once the server is forgotten; the page above it then.
+    when (if (page == Page.BACKUP && !immichSet) Page.SERVERS else page) {
+        Page.SERVERS -> {
+            BackHandler { page = Page.MAIN }
+            SubPage(stringResource(R.string.settings_servers), onBack = { page = Page.MAIN }) {
+                item {
+                    Setting(
+                        title = stringResource(R.string.settings_immich_server),
+                        value = serverAddress ?: stringResource(R.string.settings_not_set),
+                        onClick = { page = Page.IMMICH },
+                    )
+                }
+                item {
+                    // Backing up needs somewhere to go first; until then the row says so and leads there.
+                    Setting(
+                        title = stringResource(R.string.settings_backup_page),
+                        value = when {
+                            !immichSet -> stringResource(R.string.settings_backup_needs_server)
+                            backup.on -> stringResource(R.string.settings_backup_on_to, stringResource(R.string.immich_name))
+                            else -> stringResource(R.string.settings_backup_off_short)
+                        },
+                        onClick = { page = if (immichSet) Page.BACKUP else Page.IMMICH },
+                    )
+                }
+            }
+            return
+        }
+        Page.IMMICH -> {
+            BackHandler { page = Page.SERVERS }
+            ImmichPage(
+                serverAddress = serverAddress,
+                hasKey = hasKey,
+                onServer = onServer,
+                onKey = onKey,
+                onForgetServer = onForgetServer,
+                savedKey = savedKey,
+                onBack = { page = Page.SERVERS },
+            )
+            return
+        }
+        Page.BACKUP -> {
+            BackHandler { page = Page.SERVERS }
+            BackupPage(
+                backup = backup,
+                destination = stringResource(R.string.immich_name),
+                onBackup = onBackup,
+                onBackupWhen = onBackupWhen,
+                onBackUpNow = onBackUpNow,
+                onBackupFolders = onBackupFolders,
+                onBack = { page = Page.SERVERS },
+            )
+            return
+        }
+        Page.MAIN -> Unit
+    }
+
     var aboutOpen by remember { mutableStateOf(false) }
     var hiddenOpen by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Entry?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -100,7 +171,7 @@ fun SettingsScreen(
                 .padding(padding)
                 .padding(horizontal = 20.dp),
         ) {
-            item { Spacer(Modifier.height(12.dp)) }
+            item { Spacer(Modifier.height(4.dp)) }
             item {
                 Setting(
                     title = stringResource(R.string.settings_folder_order),
@@ -137,16 +208,6 @@ fun SettingsScreen(
                 )
             }
 
-            item {
-                val context = LocalContext.current
-                val jumpShown by rememberListJumpShown()
-                Setting(
-                    title = stringResource(R.string.list_jump_setting),
-                    value = stringResource(if (jumpShown) R.string.list_jump_shown else R.string.list_jump_hidden),
-                    onClick = { ListJumpPrefs.setShown(context, !jumpShown) },
-                )
-            }
-
             item { OpensRow() }
 
             // Only on a phone that has NFC; elsewhere the row could do nothing.
@@ -171,53 +232,16 @@ fun SettingsScreen(
                 }
             }
 
-            // Immich: the server and the key, then — only once there is something to forget —
-            // the way to forget it, last, as the one row here that undoes anything.
             item {
                 Setting(
-                    title = stringResource(R.string.settings_immich_server),
-                    value = serverAddress ?: stringResource(R.string.settings_not_set),
-                    onClick = { editing = Entry.SERVER },
+                    title = stringResource(R.string.settings_servers),
+                    value = when {
+                        !immichSet -> stringResource(R.string.settings_servers_none)
+                        backup.on -> stringResource(R.string.settings_servers_backing_up, stringResource(R.string.immich_name))
+                        else -> stringResource(R.string.immich_name)
+                    },
+                    onClick = { page = Page.SERVERS },
                 )
-            }
-            item {
-                Setting(
-                    title = stringResource(R.string.settings_immich_key),
-                    // Never the key itself, not even its first letters: this screen may be
-                    // photographed, and the key opens every picture on the server.
-                    value = stringResource(if (hasKey) R.string.settings_key_set else R.string.settings_not_set),
-                    onClick = { editing = Entry.KEY },
-                )
-            }
-            // Backing up asks for a server and a key first; without them there is nothing to
-            // back up to, and a switch that cannot do anything is not shown.
-            if (serverAddress != null && hasKey) {
-                item { BackupRow(backup, onBackup) }
-                if (backup.on) {
-                    item {
-                        Setting(
-                            title = stringResource(R.string.settings_backup_when),
-                            value = stringResource(
-                                when (backup.whenTo) {
-                                    BackupWhen.WIFI_CHARGING -> R.string.backup_when_wifi_charging
-                                    BackupWhen.WIFI -> R.string.backup_when_wifi
-                                    BackupWhen.ANY_NETWORK -> R.string.backup_when_any
-                                },
-                            ),
-                            onClick = { onBackupWhen(backup.whenTo.next()) },
-                        )
-                    }
-                    item {
-                        Setting(
-                            title = stringResource(R.string.settings_backup_now),
-                            value = stringResource(R.string.settings_backup_now_note),
-                            onClick = onBackUpNow,
-                        )
-                    }
-                }
-            }
-            if (serverAddress != null || hasKey) {
-                item { ForgetRow(onForgetServer) }
             }
         }
     }
@@ -227,7 +251,67 @@ fun SettingsScreen(
     if (hiddenOpen && hidden.isNotEmpty()) {
         HiddenDialog(hidden, onShow = onShowFolder, onDismiss = { hiddenOpen = false })
     }
+}
 
+/** A settings page under the main one: its title, a back arrow, and its rows. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SubPage(title: String, onBack: () -> Unit, rows: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            TopAppBarMMD(
+                title = { TextMMD(text = title) },
+                navigationIcon = { BarButton(Icons.Back, stringResource(R.string.settings_cd_back), onBack) },
+            )
+        },
+    ) { padding ->
+        PagedColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp),
+        ) {
+            item { Spacer(Modifier.height(12.dp)) }
+            rows()
+        }
+    }
+}
+
+/** The Immich server: its address and key, and — once there is something to forget — the way to forget it. */
+@Composable
+private fun ImmichPage(
+    serverAddress: String?,
+    hasKey: Boolean,
+    onServer: (String) -> Unit,
+    onKey: (String) -> Unit,
+    onForgetServer: () -> Unit,
+    savedKey: () -> String,
+    onBack: () -> Unit,
+) {
+    var editing by remember { mutableStateOf<Entry?>(null) }
+    SubPage(stringResource(R.string.settings_immich_server), onBack) {
+        item { Note(stringResource(R.string.settings_immich_page_note)) }
+        item {
+            Setting(
+                title = stringResource(R.string.settings_immich_address),
+                value = serverAddress ?: stringResource(R.string.settings_not_set),
+                onClick = { editing = Entry.SERVER },
+            )
+        }
+        item {
+            Setting(
+                title = stringResource(R.string.settings_immich_key),
+                // Never the key itself, not even its first letters: this screen may be
+                // photographed, and the key opens every picture on the server.
+                value = stringResource(if (hasKey) R.string.settings_key_set else R.string.settings_not_set),
+                onClick = { editing = Entry.KEY },
+            )
+        }
+        if (serverAddress != null || hasKey) {
+            item { ForgetRow(onForgetServer) }
+        }
+    }
     when (editing) {
         Entry.SERVER -> EntryDialog(
             title = stringResource(R.string.settings_immich_server),
@@ -248,6 +332,141 @@ fun SettingsScreen(
         )
         null -> Unit
     }
+}
+
+/** Backing up: the switch and how far it has got, which folders, when, and now. */
+@Composable
+private fun BackupPage(
+    backup: BackupState,
+    destination: String,
+    onBackup: (Boolean) -> Unit,
+    onBackupWhen: (BackupWhen) -> Unit,
+    onBackUpNow: () -> Unit,
+    onBackupFolders: (Set<String>) -> Unit,
+    onBack: () -> Unit,
+) {
+    var choosing by remember { mutableStateOf(false) }
+    SubPage(stringResource(R.string.settings_backup_page), onBack) {
+        item { BackupRow(backup, destination, onBackup) }
+        item {
+            Setting(
+                title = stringResource(R.string.settings_backup_folders),
+                value = folderNames(backup.folders),
+                onClick = { choosing = true },
+            )
+        }
+        if (backup.on) {
+            item {
+                Setting(
+                    title = stringResource(R.string.settings_backup_when),
+                    value = stringResource(
+                        when (backup.whenTo) {
+                            BackupWhen.WIFI_CHARGING -> R.string.backup_when_wifi_charging
+                            BackupWhen.WIFI -> R.string.backup_when_wifi
+                            BackupWhen.ANY_NETWORK -> R.string.backup_when_any
+                        },
+                    ),
+                    onClick = { onBackupWhen(backup.whenTo.next()) },
+                )
+            }
+            item {
+                Setting(
+                    title = stringResource(R.string.settings_backup_now),
+                    value = stringResource(R.string.settings_backup_now_note),
+                    onClick = onBackUpNow,
+                )
+            }
+        }
+    }
+    if (choosing) {
+        FoldersDialog(
+            choosable = backup.choosable,
+            chosen = backup.folders,
+            onDone = { onBackupFolders(it); choosing = false },
+            onDismiss = { choosing = false },
+        )
+    }
+}
+
+/**
+ * "DCIM/" as "Camera (DCIM)", the top of the storage as the folders list names it, anything
+ * else as its path without the last slash.
+ */
+@Composable
+private fun folderName(path: String): String =
+    folderName(path, stringResource(R.string.backup_folder_dcim), stringResource(R.string.folder_root_phone))
+
+private fun folderName(path: String, dcim: String, top: String): String = when {
+    path.equals("DCIM/", ignoreCase = true) -> dcim
+    path == "/" -> top
+    else -> path.trimEnd('/')
+}
+
+@Composable
+private fun folderNames(folders: Set<String>): String {
+    val dcim = stringResource(R.string.backup_folder_dcim)
+    val top = stringResource(R.string.folder_root_phone)
+    return folders.sortedWith(String.CASE_INSENSITIVE_ORDER).joinToString(", ") { folderName(it, dcim, top) }
+}
+
+/**
+ * Which folders go up: a row each, a press to put it in or take it out, bold and marked when in.
+ * At least one stays chosen; Done is there once the choice differs from what is saved.
+ */
+@Composable
+private fun FoldersDialog(choosable: List<String>, chosen: Set<String>, onDone: (Set<String>) -> Unit, onDismiss: () -> Unit) {
+    var picked by remember { mutableStateOf(chosen) }
+    EInkDialog(onDismiss = onDismiss) {
+        TextMMD(text = stringResource(R.string.settings_backup_folders), style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(4.dp))
+        TextMMD(text = stringResource(R.string.backup_folders_note), style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(8.dp))
+        val row: @Composable (String) -> Unit = { path ->
+            val on = picked.any { it.equals(path, ignoreCase = true) }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable {
+                        val next = if (on) picked.filterNot { it.equals(path, ignoreCase = true) }.toSet() else picked + path
+                        if (next.isNotEmpty()) picked = next
+                    }
+                    .padding(vertical = 8.dp),
+            ) {
+                TextMMD(
+                    text = folderName(path),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.weight(1f),
+                )
+                SwitchMMD(checked = on, onCheckedChange = null)
+            }
+        }
+        if (choosable.size <= FITS) {
+            choosable.forEach { row(it) }
+        } else {
+            PagedColumn(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                items(choosable, key = { it }) { row(it) }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth()) {
+            OutlinedButtonMMD(onClick = onDismiss, modifier = Modifier.weight(1f).height(48.dp)) {
+                TextMMD(text = stringResource(R.string.entry_cancel), style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.width(10.dp))
+            OutlinedButtonMMD(onClick = { onDone(picked) }, modifier = Modifier.weight(1f).height(48.dp)) {
+                TextMMD(text = stringResource(R.string.entry_save), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/** A line or two of explanation between the rows. */
+@Composable
+private fun Note(text: String) {
+    TextMMD(text = text, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(vertical = 8.dp))
 }
 
 private enum class Entry { SERVER, KEY }
@@ -297,36 +516,8 @@ private fun HiddenDialog(hidden: Map<String, String>, onShow: (String) -> Unit, 
  * than none, because nobody goes looking.
  */
 @Composable
-private fun BackupRow(backup: BackupState, onBackup: (Boolean) -> Unit) {
-    val context = LocalContext.current
-    val status = when {
-        !backup.on -> stringResource(R.string.backup_off)
-        backup.problem == BackupRecord.Problem.REFUSED -> stringResource(R.string.backup_refused)
-        backup.total == 0 -> stringResource(R.string.backup_nothing)
-        else -> {
-            val count = if (backup.done >= backup.total) {
-                stringResource(R.string.backup_all, backup.total)
-            } else {
-                stringResource(R.string.backup_some, backup.done, backup.total)
-            }
-            val last = when {
-                backup.problem == BackupRecord.Problem.UNREACHABLE -> stringResource(R.string.backup_last_unreachable)
-                backup.lastRun > 0 -> stringResource(
-                    R.string.backup_last_run,
-                    DateFormat.getMediumDateFormat(context).format(Date(backup.lastRun)) + ", " +
-                        DateFormat.getTimeFormat(context).format(Date(backup.lastRun)),
-                )
-                else -> stringResource(
-                    when (backup.whenTo) {
-                        BackupWhen.WIFI_CHARGING -> R.string.backup_waiting_wifi_charging
-                        BackupWhen.WIFI -> R.string.backup_waiting_wifi
-                        BackupWhen.ANY_NETWORK -> R.string.backup_waiting_network
-                    },
-                )
-            }
-            "$count. $last"
-        }
-    }
+private fun BackupRow(backup: BackupState, destination: String, onBackup: (Boolean) -> Unit) {
+    val status = backupLine(backup.line, destination)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -335,7 +526,7 @@ private fun BackupRow(backup: BackupState, onBackup: (Boolean) -> Unit) {
             .padding(vertical = 14.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            TextMMD(text = stringResource(R.string.settings_backup), style = MaterialTheme.typography.bodyMedium)
+            TextMMD(text = stringResource(R.string.settings_backup, destination), style = MaterialTheme.typography.bodyMedium)
             TextMMD(text = status, style = MaterialTheme.typography.labelSmall)
         }
         Spacer(Modifier.width(12.dp))
@@ -344,13 +535,49 @@ private fun BackupRow(backup: BackupState, onBackup: (Boolean) -> Unit) {
     }
 }
 
-/** "Forget the server — tap again", disarming itself after four seconds, as every armed row does. */
+/** The status line in words. */
+@Composable
+private fun backupLine(line: BackupStatus.Line, destination: String): String {
+    val context = LocalContext.current
+    return when (line) {
+        BackupStatus.Line.Off -> stringResource(R.string.backup_off)
+        BackupStatus.Line.Refused -> stringResource(R.string.backup_refused)
+        BackupStatus.Line.Nothing -> stringResource(R.string.backup_nothing)
+        is BackupStatus.Line.Progress -> {
+            val count = if (line.done >= line.total) {
+                stringResource(R.string.backup_all, line.total)
+            } else {
+                stringResource(R.string.backup_some, line.done, line.total)
+            }
+            val then = when (val t = line.then) {
+                BackupStatus.Then.Unreachable -> stringResource(R.string.backup_unreachable, destination)
+                BackupStatus.Then.Soon -> stringResource(R.string.backup_soon)
+                is BackupStatus.Then.LastRun -> stringResource(
+                    R.string.backup_last_run,
+                    DateFormat.getMediumDateFormat(context).format(Date(t.at)) + ", " +
+                        DateFormat.getTimeFormat(context).format(Date(t.at)),
+                )
+                is BackupStatus.Then.Waiting -> stringResource(
+                    when (t.wait) {
+                        BackupStatus.Wait.WIFI_AND_CHARGER -> R.string.backup_waiting_wifi_charging
+                        BackupStatus.Wait.WIFI -> R.string.backup_waiting_wifi
+                        BackupStatus.Wait.CHARGER -> R.string.backup_waiting_charger
+                        BackupStatus.Wait.NETWORK -> R.string.backup_waiting_network
+                    },
+                )
+            }
+            "$count. $then"
+        }
+    }
+}
+
+/** "Forget the server — tap again", disarming itself after six seconds, as every armed row does. */
 @Composable
 private fun ForgetRow(onForget: () -> Unit) {
     var armed by remember { mutableStateOf(false) }
     LaunchedEffect(armed) {
         if (armed) {
-            delay(4_000)
+            delay(6_000)
             armed = false
         }
     }
@@ -432,8 +659,13 @@ private fun EntryDialog(
                 TextMMD(text = stringResource(R.string.entry_cancel), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.width(10.dp))
-            OutlinedButtonMMD(onClick = save, enabled = filled, modifier = Modifier.weight(1f).height(48.dp)) {
-                TextMMD(text = stringResource(R.string.entry_save), style = MaterialTheme.typography.bodySmall)
+            // Save once there is something to save, rather than standing there greyed.
+            if (filled) {
+                OutlinedButtonMMD(onClick = save, modifier = Modifier.weight(1f).height(48.dp)) {
+                    TextMMD(text = stringResource(R.string.entry_save), style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                Spacer(Modifier.weight(1f))
             }
         }
     }
@@ -450,7 +682,7 @@ private fun Setting(title: String, value: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
+            .padding(vertical = 12.dp),
     ) {
         TextMMD(text = title, style = MaterialTheme.typography.bodyMedium)
         TextMMD(text = value, style = MaterialTheme.typography.labelSmall)

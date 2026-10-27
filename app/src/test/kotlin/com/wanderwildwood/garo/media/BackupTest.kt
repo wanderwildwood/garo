@@ -8,7 +8,7 @@ import java.io.File
 
 class BackupTest {
 
-    private fun pic(id: Long, path: String?, taken: Long? = null, size: Long = 100, modified: Long = 1_000, remote: String? = null) = Picture(
+    private fun pic(id: Long, path: String?, taken: Long? = null, size: Long = 100, modified: Long = 1_000, remote: String? = null, video: Boolean = false) = Picture(
         id = id,
         name = "IMG_$id.jpg",
         folderKey = "k",
@@ -21,6 +21,7 @@ class BackupTest {
         width = 0,
         height = 0,
         remote = remote,
+        video = video,
     )
 
     @Test
@@ -86,5 +87,46 @@ class BackupTest {
     @Test
     fun `the server knows this phone's copy by its id and size`() {
         assertEquals("garo-42-1234", Backup.deviceAssetId(pic(42, "DCIM/Camera/", size = 1234)))
+    }
+
+    @Test
+    fun `chosen folders take everything below them, and videos only when asked`() {
+        val chosen = setOf("DCIM/", "Pictures/Screenshots/")
+        assertTrue(Backup.isChosen(pic(1, "DCIM/OpenCamera/"), chosen))
+        assertTrue(Backup.isChosen(pic(2, "Pictures/Screenshots/"), chosen))
+        assertTrue(Backup.isChosen(pic(3, "Pictures/Screenshots/Old/"), chosen))
+        assertTrue(Backup.isChosen(pic(4, "Pictures/Screenshots"), chosen))
+        assertFalse(Backup.isChosen(pic(5, "Pictures/"), chosen))
+        assertFalse(Backup.isChosen(pic(6, "Pictures/ScreenshotsOld/"), chosen))
+        assertFalse(Backup.isChosen(pic(7, "DCIM/Camera/", video = true), chosen))
+        assertTrue(Backup.isChosen(pic(7, "DCIM/Camera/", video = true), chosen, videos = true))
+    }
+
+    @Test
+    fun `a full backup is every picture in the chosen folders not yet up`() {
+        val pictures = listOf(
+            pic(1, "DCIM/Camera/", taken = 300),
+            pic(2, "Download/", taken = 100),
+            pic(3, "Pictures/Screenshots/", taken = 50),
+        )
+        val pending = Backup.pending(pictures, setOf("DCIM/", "Download/")) { false }
+        assertEquals(listOf(2L, 1L), pending.map { it.id })
+    }
+
+    @Test
+    fun `DCIM is offered once, then every other folder by its path`() {
+        val pictures = listOf(
+            pic(1, "DCIM/Camera/"),
+            pic(2, "DCIM/OpenCamera/"),
+            pic(3, "Pictures/Screenshots/"),
+            pic(4, "Download/"),
+            pic(5, "Download/"),
+            pic(6, "Albums/x/", remote = "abc"),
+            pic(7, ""),
+        )
+        assertEquals(listOf("DCIM/", "/", "Download/", "Pictures/Screenshots/"), Backup.choosable(pictures))
+        // The top of the storage is chosen alone, not everything below it.
+        assertTrue(Backup.isChosen(pic(7, ""), setOf("/")))
+        assertFalse(Backup.isChosen(pic(3, "Pictures/Screenshots/"), setOf("/")))
     }
 }

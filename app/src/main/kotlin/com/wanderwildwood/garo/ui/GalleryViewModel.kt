@@ -11,7 +11,15 @@ import com.wanderwildwood.garo.backup.BackupWorker
 import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.Backup
 import com.wanderwildwood.garo.media.BackupRecord
+import com.wanderwildwood.garo.media.BackupStatus
 import com.wanderwildwood.garo.media.BackupWhen
+import com.wanderwildwood.garo.media.Conditions
+import com.wanderwildwood.garo.media.Reach
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import com.wanderwildwood.garo.media.Choices
 import com.wanderwildwood.garo.media.Decoder
 import com.wanderwildwood.garo.media.Folder
@@ -67,15 +75,16 @@ data class GalleryState(
     val hidden: Map<String, String> = emptyMap(),
 )
 
-/** What the backup row says. */
+/** What the backup rows say. */
 data class BackupState(
     val on: Boolean = false,
     val whenTo: BackupWhen = BackupWhen.WIFI_CHARGING,
-    /** The camera's pictures on the phone, and how many of those are up. */
-    val total: Int = 0,
-    val done: Int = 0,
-    val lastRun: Long = 0L,
-    val problem: BackupRecord.Problem? = null,
+    /** The line under the switch: how far it has got, or what it waits for. */
+    val line: BackupStatus.Line = BackupStatus.Line.Off,
+    /** The folders backed up, as paths ending in "/". */
+    val folders: Set<String> = Backup.DEFAULT_FOLDERS,
+    /** The folders there are to choose from, DCIM first. */
+    val choosable: List<String> = listOf("DCIM/"),
 )
 
 class GalleryViewModel(app: Application) : AndroidViewModel(app) {
@@ -238,22 +247,57 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
         readBackup()
     }
 
+    /** Folders to back up, chosen in settings; the next run goes by them. */
+    fun setBackupFolders(folders: Set<String>) {
+        if (folders.isEmpty()) return
+        settings.writeBackupFolders(folders)
+        BackupWorker.runSoon(getApplication(), replace = true)
+        readBackup()
+    }
+
     /** Read the record again: the worker writes it from outside this screen. */
     fun readBackup() {
         val record = BackupWorker.record(getApplication())
-        val camera = everything.filter(Backup::isCamera)
+        val folders = settings.backupFolders()
+        val chosen = everything.filter { Backup.isChosen(it, folders) }
+        val whenTo = settings.backupWhen()
+        val reach = when (_state.value.server) {
+            Server.OK -> Reach.OK
+            Server.UNREACHABLE -> Reach.UNREACHABLE
+            else -> Reach.UNKNOWN
+        }
         _state.update {
             it.copy(
                 backup = BackupState(
                     on = settings.backupOn(),
-                    whenTo = settings.backupWhen(),
-                    total = camera.size,
-                    done = camera.count(record::isDone),
-                    lastRun = record.status.lastRun,
-                    problem = record.status.problem,
+                    whenTo = whenTo,
+                    line = BackupStatus.of(
+                        on = settings.backupOn(),
+                        problem = record.status.problem,
+                        total = chosen.size,
+                        done = chosen.count(record::isDone),
+                        lastRun = record.status.lastRun,
+                        whenTo = whenTo,
+                        now = conditions(),
+                        reach = reach,
+                    ),
+                    folders = folders,
+                    choosable = (Backup.choosable(everything) + folders).distinct(),
                 ),
             )
         }
+    }
+
+    /** The network and the charger as they are this moment, for the line under the switch. */
+    private fun conditions(): Conditions {
+        val app = getApplication<Application>()
+        val cm = app.getSystemService(ConnectivityManager::class.java)
+        val caps = cm?.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+        val network = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val unmetered = network && caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
+        val battery = app.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val charging = (battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0
+        return Conditions(network, unmetered, charging)
     }
 
     /** The key as saved, read only when the key dialog opens, so it can be checked by eye. */
@@ -358,6 +402,8 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update { it.copy(server = if (problem is Immich.Trouble.Refused) Server.REFUSED else Server.UNREACHABLE) }
             }
             arrange()
+            // The backup line says whether the server answers; it has just been asked.
+            readBackup()
         }
     }
 

@@ -84,56 +84,54 @@ fun GridScreen(
             // Asked for at the size it is drawn, so the phone hands back a thumbnail that
             // fills the square without being stretched up from a smaller one.
             val cellPx = with(LocalDensity.current) { (maxWidth / perRow).roundToPx() }
-            ListJumpBox(listState, ListJump.Pages) {
-                PagedColumn(
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(GAP),
-                    modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
-                    onPullAtTop = onPullAtTop,
-                ) {
-                    items(rows.size, key = { rows[it].first().id }) { r ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {
-                            rows[r].forEachIndexed { c, picture ->
-                                Box(Modifier.weight(1f).aspectRatio(1f)) {
-                                Thumbnail(
-                                    decoder = decoder,
-                                    picture = picture,
-                                    px = cellPx,
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .combinedClickable(
-                                            onClick = { onOpen(r * perRow + c) },
-                                            onLongClick = onHold?.let { hold -> { hold(r * perRow + c) } },
-                                        )
-                                        .then(
-                                            // State by the edge, not by a tick or a tint: a tick is
-                                            // a smudge at this size, and a tint is lost in a photo.
-                                            if (picture.id in chosen) {
-                                                Modifier.border(CHOSEN_EDGE, MaterialTheme.colorScheme.onSurface)
-                                            } else {
-                                                Modifier
-                                            },
-                                        ),
-                                )
-                                // A video says so, and how long it is: black on a white label, which
-                                // reads over any picture where a white triangle on the picture does not.
-                                if (picture.video) {
-                                    TextMMD(
-                                        text = Clock.format(picture.duration),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomStart)
-                                            .padding(4.dp)
-                                            .background(MaterialTheme.colorScheme.surface)
-                                            .padding(horizontal = 4.dp),
+            PagedColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(GAP),
+                modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
+                onPullAtTop = onPullAtTop,
+            ) {
+                items(rows.size, key = { rows[it].first().id }) { r ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {
+                        rows[r].forEachIndexed { c, picture ->
+                            Box(Modifier.weight(1f).aspectRatio(1f)) {
+                            Thumbnail(
+                                decoder = decoder,
+                                picture = picture,
+                                px = cellPx,
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .combinedClickable(
+                                        onClick = { onOpen(r * perRow + c) },
+                                        onLongClick = onHold?.let { hold -> { hold(r * perRow + c) } },
                                     )
-                                }
-                                }
+                                    .then(
+                                        // State by the edge, not by a tick or a tint: a tick is
+                                        // a smudge at this size, and a tint is lost in a photo.
+                                        if (picture.id in chosen) {
+                                            Modifier.border(CHOSEN_EDGE, MaterialTheme.colorScheme.onSurface)
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                            )
+                            // A video says so, and how long it is: black on a white label, which
+                            // reads over any picture where a white triangle on the picture does not.
+                            if (picture.video) {
+                                TextMMD(
+                                    text = Clock.format(picture.duration),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(4.dp)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 4.dp),
+                                )
                             }
-                            // A short last row keeps its squares the size of the rest.
-                            repeat(perRow - rows[r].size) { Spacer(Modifier.weight(1f)) }
+                            }
                         }
+                        // A short last row keeps its squares the size of the rest.
+                        repeat(perRow - rows[r].size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }

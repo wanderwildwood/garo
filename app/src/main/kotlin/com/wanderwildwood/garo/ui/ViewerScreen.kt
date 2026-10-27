@@ -1,6 +1,10 @@
 package com.wanderwildwood.garo.ui
 
+import android.app.Activity
 import android.content.ClipData
+import android.content.ContentUris
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
@@ -104,10 +108,26 @@ fun ViewerScreen(
         return
     }
     var chosen by rememberSaveable { mutableStateOf(startIndex) }
-    // After a delete the list is one shorter, and the same place now holds the next picture.
-    val index = chosen.coerceIn(0, pictures.lastIndex)
+    // The picture on show, by its id as well as its place: a picture saved from the editor joins
+    // the folder above this one, and the place alone would then hold a different photo.
+    var chosenId by rememberSaveable { mutableStateOf(pictures.getOrNull(startIndex)?.id) }
+    // A picture just saved from the editor, to be shown as soon as the folder has it.
+    var savedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val ids = remember(pictures) { pictures.map { it.id } }
+    val index = Viewing.index(ids, savedId, chosenId, chosen)
     val picture = pictures[index]
-    LaunchedEffect(index) { onIndex(index) }
+    LaunchedEffect(index, picture.id) {
+        chosen = index
+        chosenId = picture.id
+        if (picture.id == savedId) savedId = null
+        onIndex(index)
+    }
+    val edit = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val saved = result.data?.data
+        if (result.resultCode == Activity.RESULT_OK && saved != null) {
+            savedId = runCatching { ContentUris.parseId(saved) }.getOrNull()?.takeIf { it >= 0 }
+        }
+    }
 
     var barShown by rememberSaveable { mutableStateOf(true) }
     var infoOpen by remember { mutableStateOf(false) }
@@ -137,7 +157,11 @@ fun ViewerScreen(
 
     fun turn(by: Int) {
         val next = index + by
-        if (next in pictures.indices) chosen = next
+        if (next in pictures.indices) {
+            chosen = next
+            chosenId = pictures[next].id
+            savedId = null
+        }
     }
 
     var choosing by remember { mutableStateOf(false) }
@@ -232,7 +256,8 @@ fun ViewerScreen(
                     // one would mean fetching the original first, which is for a later version.
                     // Pictures only, and only those on the phone: the saved copy goes beside the original.
                     if (picture.remote == null && !picture.video) BarButton(Icons.Edit, stringResource(R.string.viewer_cd_edit)) {
-                        context.startActivity(
+                        // For a result: the saved picture comes back, and the viewer turns to it.
+                        edit.launch(
                             Intent(context, com.wanderwildwood.garo.EditActivity::class.java)
                                 .setData(picture.uri)
                                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
@@ -482,3 +507,18 @@ private class Sharp(val image: ImageBitmap, val area: Rect, val scale: Float)
 
 /** Pinching goes to four times fitted at least; a double tap may go further, to 1:1. */
 private const val MAX_ZOOM = 4f
+
+/** Which picture the viewer is on, worked out again whenever the folder's pictures change. */
+internal object Viewing {
+    /**
+     * The place in [ids] of the picture to show: one just saved from the editor once the folder
+     * has it, else the one already on show wherever it now is, else — when that one has gone, as
+     * after a delete — the same place, which now holds the next picture.
+     */
+    fun index(ids: List<Long>, saved: Long?, current: Long?, place: Int): Int {
+        if (ids.isEmpty()) return 0
+        saved?.let { s -> ids.indexOf(s).takeIf { it >= 0 }?.let { return it } }
+        current?.let { c -> ids.indexOf(c).takeIf { it >= 0 }?.let { return it } }
+        return place.coerceIn(0, ids.lastIndex)
+    }
+}

@@ -166,7 +166,7 @@ fun EditScreen(uri: Uri, onSaved: (Uri) -> Unit, onCancel: () -> Unit) {
                 navigationIcon = { BarButton(Icons.Close, stringResource(R.string.edit_cd_close)) { close() } },
                 actions = {
                     if (!edits.untouched && !saving) {
-                        ButtonMMD(onClick = ::save, modifier = Modifier.padding(end = 8.dp).height(44.dp)) {
+                        ButtonMMD(onClick = ::save, modifier = Modifier.padding(end = 8.dp).height(48.dp)) {
                             TextMMD(text = stringResource(R.string.edit_save), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -394,15 +394,31 @@ private fun Picture(
     }
 }
 
-/** The crop: what is cut away under a white veil, the frame in black, and a square at each corner. */
+/**
+ * The crop: what is cut away hatched over in ink, the frame in black, and a square at each
+ * corner. Hatching rather than a see-through white veil: the panel has no see-through, and a
+ * veil reaches it as a grey dither, while a line is a line.
+ */
 private fun DrawScope.drawCrop(fit: Fit, crop: Frame, ink: Color, handle: Float) {
     val a = fit.toCanvas(Dot(crop.left, crop.top))
     val b = fit.toCanvas(Dot(crop.right, crop.bottom))
-    val veil = Color.White.copy(alpha = 0.7f)
-    drawRect(veil, Offset(fit.left, fit.top), Size(fit.w, a.y - fit.top))
-    drawRect(veil, Offset(fit.left, b.y), Size(fit.w, fit.top + fit.h - b.y))
-    drawRect(veil, Offset(fit.left, a.y), Size(a.x - fit.left, b.y - a.y))
-    drawRect(veil, Offset(b.x, a.y), Size(fit.left + fit.w - b.x, b.y - a.y))
+    val gap = 10.dp.toPx()
+    val line = 1.5.dp.toPx()
+    fun hatch(left: Float, top: Float, right: Float, bottom: Float) {
+        if (right - left <= 0f || bottom - top <= 0f) return
+        clipRect(left, top, right, bottom) {
+            // Lines at 45 degrees, from the bottom-left corner across, spaced the same everywhere.
+            var x = left - (bottom - top)
+            while (x < right) {
+                drawLine(ink, Offset(x, bottom), Offset(x + (bottom - top), top), strokeWidth = line)
+                x += gap
+            }
+        }
+    }
+    hatch(fit.left, fit.top, fit.left + fit.w, a.y)
+    hatch(fit.left, b.y, fit.left + fit.w, fit.top + fit.h)
+    hatch(fit.left, a.y, a.x, b.y)
+    hatch(b.x, a.y, fit.left + fit.w, b.y)
     drawRect(ink, a, Size(b.x - a.x, b.y - a.y), style = Stroke(width = 3.dp.toPx()))
     val s = handle / 2
     listOf(a, Offset(b.x, a.y), Offset(a.x, b.y), b).forEach { c ->
@@ -486,14 +502,14 @@ private fun CropControls(
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Choice(stringResource(R.string.edit_turn), chosen = false, modifier = Modifier.weight(1f), onClick = onTurn)
         Choice(stringResource(R.string.edit_mirror), chosen = false, modifier = Modifier.weight(1f), onClick = onMirror)
-        Choice("−", chosen = false, modifier = Modifier.width(44.dp)) { onStraighten(-1) }
+        Choice("−", chosen = false, modifier = Modifier.width(48.dp)) { onStraighten(-1) }
         TextMMD(
             text = stringResource(R.string.edit_straighten, straighten),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.width(64.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        Choice("+", chosen = false, modifier = Modifier.width(44.dp)) { onStraighten(1) }
+        Choice("+", chosen = false, modifier = Modifier.width(48.dp)) { onStraighten(1) }
     }
 }
 
@@ -511,7 +527,12 @@ private fun DrawControls(
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Choice(stringResource(R.string.edit_pen), chosen = !words, modifier = Modifier.weight(1f)) { onWords(false) }
         Choice(stringResource(R.string.edit_words), chosen = words, modifier = Modifier.weight(1f)) { onWords(true) }
-        Choice(stringResource(R.string.edit_undo), chosen = false, enabled = canUndo, modifier = Modifier.weight(1f), onClick = onUndo)
+        // Only while there is something to undo; a faded button is a grey smear on this panel.
+        if (canUndo) {
+            Choice(stringResource(R.string.edit_undo), chosen = false, modifier = Modifier.weight(1f), onClick = onUndo)
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
     }
     Spacer(Modifier.height(8.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -562,28 +583,24 @@ private fun SizeControls(chosen: Int, full: Pair<Int, Int>?, edits: Edits, onCho
     TextMMD(text = stringResource(R.string.edit_size_note), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 2.dp))
 }
 
-/** A word to press, bordered; the chosen one is filled black. */
+/** A word to press, bordered; the chosen one is filled black. 48 dp high, a finger's width. */
 @Composable
-private fun Choice(text: String, chosen: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+private fun Choice(text: String, chosen: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val ink = MaterialTheme.colorScheme.onSurface
     val shape = RoundedCornerShape(8.dp)
     Box(
         modifier
-            .height(40.dp)
-            .border(2.dp, if (enabled) ink else ink.copy(alpha = 0.3f), shape)
+            .height(48.dp)
+            .border(2.dp, ink, shape)
             .background(if (chosen) ink else MaterialTheme.colorScheme.surface, shape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         TextMMD(
             text = text,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = if (chosen) FontWeight.Bold else FontWeight.Normal,
-            color = when {
-                chosen -> MaterialTheme.colorScheme.surface
-                enabled -> ink
-                else -> ink.copy(alpha = 0.3f)
-            },
+            color = if (chosen) MaterialTheme.colorScheme.surface else ink,
             maxLines = 1,
         )
     }
@@ -609,8 +626,13 @@ private fun WordsDialog(onPlace: (String) -> Unit, onDismiss: () -> Unit) {
             OutlinedButtonMMD(onClick = onDismiss, modifier = Modifier.weight(1f).height(48.dp)) {
                 TextMMD(text = stringResource(R.string.edit_cancel), style = MaterialTheme.typography.bodySmall)
             }
-            OutlinedButtonMMD(onClick = { onPlace(text) }, enabled = text.isNotBlank(), modifier = Modifier.weight(1f).height(48.dp)) {
-                TextMMD(text = stringResource(R.string.edit_place), style = MaterialTheme.typography.bodySmall)
+            // Place appears once there are words to place, rather than standing there greyed.
+            if (text.isNotBlank()) {
+                OutlinedButtonMMD(onClick = { onPlace(text) }, modifier = Modifier.weight(1f).height(48.dp)) {
+                    TextMMD(text = stringResource(R.string.edit_place), style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                Spacer(Modifier.weight(1f))
             }
         }
     }

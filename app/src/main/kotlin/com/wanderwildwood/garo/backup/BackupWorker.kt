@@ -24,7 +24,7 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 /**
- * Backs the camera's pictures up to Immich, a few at a time, whenever Android lets it.
+ * Backs the chosen folders' pictures up to Immich, a few at a time, whenever Android lets it.
  *
  * Android gives a worker like this about ten minutes before it stops it, so it works in small
  * steps and records each picture the moment it is up; the next run starts where this one was
@@ -45,7 +45,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             rootPhone = applicationContext.getString(R.string.folder_root_phone),
             rootCard = applicationContext.getString(R.string.folder_root_card),
         )
-        val pending = runCatching { Backup.pending(index.pictures(), record::isDone) }.getOrElse { return Result.retry() }
+        val pending = runCatching { Backup.pending(index.pictures(), settings.backupFolders(), isDone = record::isDone) }.getOrElse { return Result.retry() }
         if (pending.isEmpty()) {
             record.finish(null)
             return Result.success()

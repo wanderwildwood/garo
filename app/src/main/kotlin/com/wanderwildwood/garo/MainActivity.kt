@@ -9,6 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalCursorBlinkEnabled
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -63,14 +65,17 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            ThemeMMD(colorScheme = monochrome) {
-                when {
-                    handed == null -> Gallery()
-                    // One the phone's index knows — the camera's, or a file from Files — is opened
-                    // in its own folder, so the pictures either side are a page-turn away.
-                    lookFor != null -> Gallery(lookFor = lookFor, handed = handed, onLeave = ::finish)
-                    // Anyone else's — an attachment, a file in a message — can only be shown alone.
-                    else -> Outside(handed, onBack = ::finish)
+            // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
+            CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
+                ThemeMMD(colorScheme = monochrome) {
+                    when {
+                        handed == null -> Gallery()
+                        // One the phone's index knows — the camera's, or a file from Files — is opened
+                        // in its own folder, so the pictures either side are a page-turn away.
+                        lookFor != null -> Gallery(lookFor = lookFor, handed = handed, onLeave = ::finish)
+                        // Anyone else's — an attachment, a file in a message — can only be shown alone.
+                        else -> Outside(handed, onBack = ::finish)
+                    }
                 }
             }
         }
@@ -231,6 +236,8 @@ private fun Gallery(
                 onBackup = viewModel::setBackup,
                 onBackupWhen = viewModel::setBackupWhen,
                 onBackUpNow = viewModel::backUpNow,
+                onBackupFolders = viewModel::setBackupFolders,
+                onPage = viewModel::readBackup,
                 hidden = state.hidden,
                 onShowFolder = viewModel::showFolder,
                 onReceive = if (android.nfc.NfcAdapter.getDefaultAdapter(context) != null) ({ receiving = true }) else null,

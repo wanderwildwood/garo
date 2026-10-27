@@ -146,7 +146,7 @@ fun OpensRow() {
                     }
                 }
             }
-            .padding(vertical = 14.dp),
+            .padding(vertical = 12.dp),
     ) {
         TextMMD(text = stringResource(R.string.settings_opens), style = MaterialTheme.typography.bodyMedium)
         TextMMD(

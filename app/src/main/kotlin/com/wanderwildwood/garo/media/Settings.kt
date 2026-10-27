@@ -56,6 +56,15 @@ class Settings(context: Context) {
     fun writeBackupOn(on: Boolean) = prefs.edit().putBoolean(BACKUP_ON, on).apply()
     fun writeBackupWhen(w: BackupWhen) = prefs.edit().putString(BACKUP_WHEN, w.name).apply()
 
+    /**
+     * The folders backed up, each a path on the phone ending in "/", e.g. "DCIM/" or
+     * "Pictures/Screenshots/"; everything below one is included. DCIM, the camera's, until chosen.
+     */
+    fun backupFolders(): Set<String> =
+        prefs.getStringSet(BACKUP_FOLDERS, null)?.takeIf { it.isNotEmpty() } ?: Backup.DEFAULT_FOLDERS
+
+    fun writeBackupFolders(folders: Set<String>) = prefs.edit().putStringSet(BACKUP_FOLDERS, folders).apply()
+
     /** Folders hidden by hand, each kept with its name so settings can list it to bring back. */
     fun hiddenFolders(): Map<String, String> =
         prefs.getStringSet(HIDDEN, emptySet()).orEmpty().mapNotNull { entry ->
@@ -77,6 +86,7 @@ class Settings(context: Context) {
         const val IMMICH_KEY = "immich_key"
         const val BACKUP_ON = "backup_on"
         const val BACKUP_WHEN = "backup_when"
+        const val BACKUP_FOLDERS = "backup_folders"
         const val HIDDEN = "hidden_folders"
     }
 }
