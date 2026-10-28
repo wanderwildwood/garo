@@ -72,8 +72,8 @@ phones are on.
 
 A Kompakt has no browser, and nothing on it that handles a tag, so it receives with
 **Settings → Receive by tap**. Open it on the receiving phone, hold it back to back with the phone
-that is showing Share by tap, and the picture is saved into Pictures/Received, with **Open it**
-to see it at once. Both phones must be on the same Wi-Fi, and this screen must stay on.
+that is showing Share by tap, and the picture is kept where Android's own save screen puts it (you choose),
+with **Open it** to see it at once. Both phones must be on the same Wi-Fi, and this screen must stay on.
 
 The receiving phone reads the sender's tag itself (NFC reader mode) and takes the link from it,
 but follows it only if it is `http://`, a private IPv4 address (`10.x`, `172.16`–`172.31`,
@@ -150,7 +150,7 @@ and backing up can go there instead of Immich.
   not pictures or videos, are left out. A picture opens on the whole panel, fetched whole so it
   can be zoomed to 100%; a video plays straight from Nextcloud. Back walks up the folders.
 - **Read-only.** A Nextcloud picture can be shared (a copy goes to the app you choose) or
-  saved to this phone (into Pictures/Nextcloud), and its details shown; it cannot be edited or
+  saved to this phone (where you choose, in Android's own save screen), and its details shown; it cannot be edited or
   deleted from here, and nothing in Nextcloud is changed.
 - A swipe down at the top of a folder, or of the main screen, asks Nextcloud again, and a line
   says "Asking Nextcloud…" and then "Up to date". Pictures fetched are kept in the app's cache

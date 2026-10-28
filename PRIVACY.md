@@ -53,8 +53,8 @@ marked — and only a yes deletes anything.
 **`NFC` is for Share by tap, and nothing else.** It is a normal permission, granted at install,
 so nothing is asked. See the next section.
 
-**Editing never changes a picture.** An edited picture is saved as a new picture beside the
-original, through Android's own index; the original is left as it was.
+**Editing never changes a picture.** An edited picture is saved as a new file where you choose, in
+Android's own save screen; the original is left as it was.
 
 ## Nextcloud
 
@@ -96,8 +96,8 @@ v2), the way Nextcloud's own apps do:
   pictures. The calls are in `cloud/CloudFiles.kt`.
 - What browsing keeps: the folder lists only in memory, while the app runs; the small pictures
   and the originals opened, shared or saved, in the app's cache (`nextcloud/`, up to 200 MB,
-  which Android may clear), deleted when you sign out. **Save to this phone** puts a copy in
-  Pictures/Nextcloud through Android's media index, which needs no permission; **Share** hands a
+  which Android may clear), deleted when you sign out. **Save to this phone** writes a copy where
+  you choose in Android's own save screen, which needs no permission; **Share** hands a
   copy to the app you choose, through a link only that app can read.
 - **Sign out** deletes the app password on the server (if the server can be reached) and on the
   phone, forgets what was backed up there, and deletes the pictures fetched from it to look at.
@@ -146,8 +146,8 @@ showing Share by tap, and fetches the picture.
   the cleartext setting for the rest of the app is not changed, so Immich still has to be
   `https://`. At most 64 MB is taken.
 - The download goes to the app's cache and is checked to be a picture Android can read before
-  anything is kept. Then it is saved into Pictures/Received through Android's media index,
-  which needs no permission; a file that is not a picture is deleted.
+  anything is kept. Then you choose where to save it in Android's own save screen, which
+  needs no permission; a file that is not a picture is deleted.
 - No account, no server of mine or anyone's, nothing past the local network; `INTERNET` (for
   the one local request) and `NFC` are the two permissions it uses, both already above.
 

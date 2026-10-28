@@ -1,7 +1,6 @@
 package com.wanderwildwood.garo.ui
 
 import android.app.Activity
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -11,9 +10,10 @@ import android.nfc.Tag
 import android.nfc.tech.IsoDep
 import android.os.Handler
 import android.os.Looper
-import android.provider.MediaStore
+import android.provider.DocumentsContract
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,11 +52,16 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** What Receive by tap has to show. */
 private sealed interface Got {
     data object Waiting : Got
     data object Receiving : Got
+    /** Fetched and checked; kept in the cache until the reader chooses where to save it. */
+    class Ready(val file: File, val mime: String) : Got
     class Saved(val uri: Uri) : Got
     data object Nothing : Got
     data object NotWifi : Got
@@ -71,8 +77,9 @@ private sealed interface Got {
  * Reads one tap and fetches the picture it points at. The reader runs only while the screen is
  * showing ([listen] on resume, [quiet] on pause), reads the link off the other phone, accepts it
  * only if it is a private-address link of the exact shape Share by tap writes, downloads at most
- * 64 MB to a cache file, checks Android can decode it as a picture, and saves it into the phone's
- * pictures through MediaStore (Pictures/Received), which needs no permission.
+ * 64 MB to a cache file and checks Android can decode it as a picture. The reader then chooses
+ * where to save it through Android's own "save as" screen; nothing is written to a shared folder
+ * before that.
  */
 private class Receiver(private val context: Context, private val say: (Got) -> Unit) {
     private val main = Handler(Looper.getMainLooper())
@@ -129,11 +136,18 @@ private class Receiver(private val context: Context, private val say: (Got) -> U
         post(Got.Receiving)
 
         val dir = File(context.cacheDir, "receive").apply { mkdirs() }
+        // Only the latest picture received is ever held.
+        dir.listFiles()?.forEach { it.delete() }
         val temp = File(dir, UUID.randomUUID().toString())
+        var keep = false
         try {
             val result = temp.outputStream().use { PhotoFetch.fetch(target, it) }
             when (result) {
-                is Fetched.Done -> post(save(temp))
+                is Fetched.Done -> {
+                    val got = check(temp)
+                    keep = got is Got.Ready
+                    post(got)
+                }
                 Fetched.Unreachable -> post(Got.NotWifi)
                 Fetched.SenderStopped -> post(Got.SenderStopped)
                 Fetched.TooBig -> post(Got.TooBig)
@@ -142,43 +156,17 @@ private class Receiver(private val context: Context, private val say: (Got) -> U
         } catch (_: Exception) {
             post(Got.Nothing)
         } finally {
-            temp.delete()
+            if (!keep) temp.delete()
         }
     }
 
     /** Only a file Android can read the size of as a picture is kept. */
-    private fun save(file: File): Got {
+    private fun check(file: File): Got {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         val mime = bounds.outMimeType
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || mime == null || !mime.startsWith("image/")) return Got.NotPicture
-        val extension = when (mime) {
-            "image/jpeg" -> "jpg"
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            "image/gif" -> "gif"
-            "image/bmp" -> "bmp"
-            "image/heif", "image/heic" -> "heic"
-            else -> "jpg"
-        }
-        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-        val resolver = context.contentResolver
-        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "Received-$stamp.$extension")
-            put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/Received")
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        val uri = runCatching { resolver.insert(collection, values) }.getOrNull() ?: return Got.SaveFailed
-        return try {
-            resolver.openOutputStream(uri)!!.use { out -> file.inputStream().use { it.copyTo(out) } }
-            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
-            Got.Saved(uri)
-        } catch (_: Exception) {
-            runCatching { resolver.delete(uri, null, null) }
-            Got.SaveFailed
-        }
+        return Got.Ready(file, mime)
     }
 }
 
@@ -202,6 +190,28 @@ fun ReceiveByTapScreen(onClose: () -> Unit) {
     var got by remember { mutableStateOf<Got>(Got.Waiting) }
     var round by remember { mutableIntStateOf(0) }
     val receiver = remember { Receiver(context.applicationContext) { got = it } }
+    val scope = rememberCoroutineScope()
+    val chooseWhere = rememberLauncherForActivityResult(SaveAs()) { destination ->
+        val ready = got as? Got.Ready
+        if (destination != null && ready != null) {
+            scope.launch {
+                val ok = runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(destination)!!.use { out ->
+                            ready.file.inputStream().use { it.copyTo(out) }
+                        }
+                    }
+                }.isSuccess
+                if (ok) {
+                    ready.file.delete()
+                    got = Got.Saved(destination)
+                } else {
+                    runCatching { DocumentsContract.deleteDocument(context.contentResolver, destination) }
+                    got = Got.SaveFailed
+                }
+            }
+        }
+    }
 
     val owner = LocalLifecycleOwner.current
     val view = LocalView.current
@@ -235,6 +245,18 @@ fun ReceiveByTapScreen(onClose: () -> Unit) {
                     Line(stringResource(R.string.receive_wifi))
                 }
                 Got.Receiving -> Line(stringResource(R.string.receive_getting), big = true)
+                is Got.Ready -> {
+                    Line(stringResource(R.string.receive_got), big = true)
+                    Line(stringResource(R.string.receive_got_detail))
+                    Spacer(Modifier.height(14.dp))
+                    Press(R.string.receive_save) {
+                        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+                        val ask = SaveAs.Ask("Received-$stamp.${SaveAs.extensionFor(g.mime)}", g.mime)
+                        if (runCatching { chooseWhere.launch(ask) }.isFailure) got = Got.SaveFailed
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Press(R.string.receive_again) { got = Got.Waiting; round++ }
+                }
                 is Got.Saved -> {
                     Line(stringResource(R.string.receive_saved), big = true)
                     Line(stringResource(R.string.receive_saved_detail))

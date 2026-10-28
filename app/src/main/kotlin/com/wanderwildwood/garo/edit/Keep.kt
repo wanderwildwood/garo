@@ -1,17 +1,17 @@
 package com.wanderwildwood.garo.edit
 
 import android.content.ContentResolver
-import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
-import android.provider.MediaStore
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import com.wanderwildwood.garo.ui.SaveAs
 import kotlin.math.max
 
 /**
- * Reading the picture to edit, and writing the edited one as a new picture beside it. The
- * original is never written to: a crop that went wrong is a second file to delete, not a
+ * Reading the picture to edit, and writing the edited one as a new file where the reader chooses.
+ * The original is never written to: a crop that went wrong is a second file to delete, not a
  * photograph lost.
  */
 object Keep {
@@ -39,32 +39,26 @@ object Keep {
         size
     }.getOrNull()
 
+    /** Whether the edited picture is saved as PNG (a screenshot keeps its sharp edges) or JPEG. */
+    fun isPng(resolver: ContentResolver, original: Uri): Boolean =
+        resolver.getType(original) == "image/png" ||
+            (displayName(resolver, original) ?: "").endsWith(".png", ignoreCase = true)
+
+    /** The name offered when the reader is asked where to save: "Beach.jpg" gives "Beach edited.jpg". */
+    fun suggestedName(resolver: ContentResolver, original: Uri): String =
+        SaveAs.editedName(displayName(resolver, original), isPng(resolver, original))
+
     /**
-     * The edited picture, written as a new one in the original's folder when the phone knows
-     * it, or in Pictures, named after it: "Beach.jpg" becomes "Beach edited.jpg". PNG stays
-     * PNG, so a screenshot keeps its sharp edges; everything else is saved as JPEG.
+     * Writes the edited picture to [destination], a document the reader chose in the system's
+     * "save as" screen. The original is never written to. A half-written file is removed.
      */
-    fun save(resolver: ContentResolver, original: Uri, bitmap: Bitmap): Uri {
-        val name = displayName(resolver, original) ?: "Picture"
-        val png = resolver.getType(original) == "image/png" || name.endsWith(".png", ignoreCase = true)
-        val stem = name.substringBeforeLast('.').ifBlank { "Picture" }
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "$stem edited.${if (png) "png" else "jpg"}")
-            put(MediaStore.MediaColumns.MIME_TYPE, if (png) "image/png" else "image/jpeg")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, folder(resolver, original) ?: "Pictures/")
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        val uri = resolver.insert(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values)
-            ?: error("the phone would not make a new picture")
+    fun write(resolver: ContentResolver, destination: Uri, bitmap: Bitmap, png: Boolean) {
         try {
-            resolver.openOutputStream(uri)!!.use { out ->
+            resolver.openOutputStream(destination)!!.use { out ->
                 bitmap.compress(if (png) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, QUALITY, out)
             }
-            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
-            return uri
         } catch (e: Exception) {
-            // Half a file is worse than none.
-            runCatching { resolver.delete(uri, null, null) }
+            runCatching { DocumentsContract.deleteDocument(resolver, destination) }
             throw e
         }
     }
@@ -74,14 +68,6 @@ object Keep {
             if (it.moveToFirst()) it.getString(0) else null
         }
     }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/')
-
-    /** The original's folder, for a picture the phone's media index holds ("DCIM/Camera/"). */
-    private fun folder(resolver: ContentResolver, uri: Uri): String? = runCatching {
-        if (uri.authority != MediaStore.AUTHORITY) return null
-        resolver.query(uri, arrayOf(MediaStore.MediaColumns.RELATIVE_PATH), null, null, null)?.use {
-            if (it.moveToFirst()) it.getString(0) else null
-        }
-    }.getOrNull()
 
     private const val QUALITY = 95
 }

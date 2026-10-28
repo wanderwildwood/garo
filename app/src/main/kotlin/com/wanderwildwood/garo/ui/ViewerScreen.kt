@@ -242,10 +242,28 @@ fun ViewerScreen(
             shareWithApp(FileProvider.getUriForFile(context, context.packageName + ".files", copy), Copies.type(item))
         }
     }
+    // Save asks where to put the copy, through Android's own "save as" screen.
+    var waiting by remember { mutableStateOf<Pair<File, CloudItem>?>(null) }
+    val chooseWhere = rememberLauncherForActivityResult(SaveAs()) { destination ->
+        val held = waiting
+        waiting = null
+        if (destination != null && held != null) {
+            scope.launch {
+                val saved = runCatching {
+                    withContext(Dispatchers.IO) { Copies.saveTo(context, held.first, destination) }
+                }.isSuccess
+                Toast.makeText(context, if (saved) R.string.cloud_saved else R.string.cloud_save_failed, Toast.LENGTH_SHORT).show()
+                if (saved) onSaved()
+            }
+        }
+    }
     fun saveFromCloud(item: CloudItem) = withOriginal(item) { file ->
-        val saved = runCatching { withContext(Dispatchers.IO) { Copies.saveToPhone(context, file, item) } }.isSuccess
-        Toast.makeText(context, if (saved) R.string.cloud_saved else R.string.cloud_save_failed, Toast.LENGTH_SHORT).show()
-        if (saved) onSaved()
+        waiting = file to item
+        val ask = SaveAs.Ask(Copies.suggestedName(item), Copies.type(item))
+        if (runCatching { chooseWhere.launch(ask) }.isFailure) {
+            waiting = null
+            Toast.makeText(context, R.string.cloud_save_failed, Toast.LENGTH_SHORT).show()
+        }
     }
 
     // A video plays on its own screen; until then its first frame stands in the viewer like a
@@ -267,7 +285,7 @@ fun ViewerScreen(
     // beside the picture when the phone is turned.
     val actions = buildList {
         add(ViewerAction(Icons.Info, R.string.viewer_cd_info, R.string.viewer_cd_info) { infoOpen = true })
-        // Pictures only, and only those on the phone: the saved copy goes beside the original.
+        // Pictures only, and only those on the phone: the edited copy is saved where the reader chooses.
         if (!picture.onServer && !picture.video) add(ViewerAction(Icons.Edit, R.string.viewer_cd_edit, R.string.viewer_cd_edit) {
             // For a result: the saved picture comes back, and the viewer turns to it.
             edit.launch(

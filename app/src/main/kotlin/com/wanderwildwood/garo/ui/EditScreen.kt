@@ -3,6 +3,7 @@ package com.wanderwildwood.garo.ui
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -97,8 +98,8 @@ private const val WORDS = 0.06f
  *
  * The picture fills the top of the screen; under it the controls of whichever of Crop, Draw
  * and Size is chosen in the tabs at the foot. Nothing moves on its own: a handle follows the
- * finger, and the rest of the screen stays still. Save writes a new picture beside the old
- * one and never changes the original.
+ * finger, and the rest of the screen stays still. Save asks where to put the new picture
+ * and never changes the original.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,19 +144,33 @@ fun EditScreen(uri: Uri, onSaved: (Uri) -> Unit, onCancel: () -> Unit) {
     fun close() = if (edits.untouched) onCancel() else leaving = true
     BackHandler { close() }
 
+    // Save asks where to put the picture, through Android's own "save as" screen; only then is it
+    // rendered and written.
+    var pickedPng by remember { mutableStateOf(false) }
+    val chooseWhere = rememberLauncherForActivityResult(SaveAs()) { destination ->
+        if (destination == null) {
+            saving = false
+        } else {
+            scope.launch {
+                val saved = withContext(Dispatchers.Default) {
+                    runCatching {
+                        val big = Keep.load(resolver, uri, SAVE_LONG_SIDE)
+                        Keep.write(resolver, destination, Render.render(big, edits), pickedPng)
+                        destination
+                    }.getOrNull()
+                }
+                saving = false
+                if (saved != null) onSaved(saved) else failed = true
+            }
+        }
+    }
+
     fun save() {
         if (saving) return
         saving = true
-        scope.launch {
-            val saved = withContext(Dispatchers.Default) {
-                runCatching {
-                    val big = Keep.load(resolver, uri, SAVE_LONG_SIDE)
-                    Keep.save(resolver, uri, Render.render(big, edits))
-                }.getOrNull()
-            }
-            saving = false
-            if (saved != null) onSaved(saved) else failed = true
-        }
+        pickedPng = Keep.isPng(resolver, uri)
+        val ask = SaveAs.Ask(Keep.suggestedName(resolver, uri), if (pickedPng) "image/png" else "image/jpeg")
+        if (runCatching { chooseWhere.launch(ask) }.isFailure) saving = false
     }
 
     Scaffold(

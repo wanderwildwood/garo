@@ -68,7 +68,7 @@
     <!-- On a video in the grid whose length is not known, where the length would be -->
     <string name="grid_video">Video</string>
     <string name="cloud_fetching">Fetching from Nextcloud…</string>
-    <string name="cloud_saved">Saved to Pictures/Nextcloud</string>
+    <string name="cloud_saved">Saved</string>
     <string name="cloud_save_failed">It could not be saved to this phone.</string>
     <string name="cloud_fetch_failed">It could not be fetched from Nextcloud.</string>
     <!-- Details dialog: the folder in Nextcloud a picture is in -->
@@ -306,7 +306,7 @@
     <string name="viewer_from">%1$s · %2$s</string>
     <string name="edit_title">Edit</string>
     <string name="edit_saving">Saving…</string>
-    <string name="edit_saved">Saved beside the original</string>
+    <string name="edit_saved">Saved</string>
     <string name="edit_failed">This picture could not be opened or saved.</string>
     <string name="edit_cd_close">Close</string>
     <string name="edit_save">Save</string>
@@ -369,7 +369,10 @@
     <string name="receive_wifi">Both phones must be on the same Wi-Fi. This screen must stay on.</string>
     <string name="receive_getting">Receiving the picture.</string>
     <string name="receive_saved">Saved</string>
-    <string name="receive_saved_detail">The picture is in the Received folder.</string>
+    <string name="receive_saved_detail">The picture is where you chose to put it.</string>
+    <string name="receive_got">Picture received</string>
+    <string name="receive_got_detail">Choose where to save it.</string>
+    <string name="receive_save">Save it</string>
     <string name="receive_open">Open it</string>
     <string name="receive_again">Receive another</string>
     <string name="receive_nothing">Nothing was received.</string>

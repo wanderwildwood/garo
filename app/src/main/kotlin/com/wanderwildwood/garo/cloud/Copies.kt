@@ -1,51 +1,34 @@
 package com.wanderwildwood.garo.cloud
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.provider.MediaStore
+import android.provider.DocumentsContract
 import android.webkit.MimeTypeMap
 import java.io.File
 import java.util.Locale
 
 /**
- * A Nextcloud picture taken out of the app: a copy saved into the phone's own pictures, or a
+ * A Nextcloud picture taken out of the app: a copy saved where the reader chooses, or a
  * copy in the cache handed to another app to share. Both start from the original the decoder
  * has already fetched; nothing here talks to the server.
  */
 object Copies {
 
-    /** Where a saved copy goes, as the phone's own pictures name their folders. */
-    const val SAVED_FOLDER = "Pictures/Nextcloud"
-
     /**
-     * Saved through Android's media index, which needs no permission for a file this app adds,
-     * into Pictures/Nextcloud under its own name (the index adds a number if that name is taken).
+     * Written to [destination], a document the reader chose in the system's "save as" screen; the
+     * name offered there is [suggestedName].
      */
-    fun saveToPhone(context: Context, file: File, item: CloudItem): Uri {
-        val video = Cloud.kind(item) == Kind.VIDEO
+    fun saveTo(context: Context, file: File, destination: Uri) {
         val resolver = context.contentResolver
-        val collection = if (video) {
-            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        } else {
-            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        }
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, safeName(item.name))
-            put(MediaStore.MediaColumns.MIME_TYPE, type(item))
-            put(MediaStore.MediaColumns.RELATIVE_PATH, SAVED_FOLDER)
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        val uri = resolver.insert(collection, values) ?: throw IllegalStateException("not added")
         try {
-            resolver.openOutputStream(uri)!!.use { out -> file.inputStream().use { it.copyTo(out, 64 * 1024) } }
-            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
-            return uri
+            resolver.openOutputStream(destination)!!.use { out -> file.inputStream().use { it.copyTo(out, 64 * 1024) } }
         } catch (e: Exception) {
-            runCatching { resolver.delete(uri, null, null) }
+            runCatching { DocumentsContract.deleteDocument(resolver, destination) }
             throw e
         }
     }
+
+    fun suggestedName(item: CloudItem): String = safeName(item.name)
 
     /**
      * A copy under the file's own name in the cache's share folder, for a FileProvider address:
