@@ -155,6 +155,7 @@
     <string name="settings_folder_order">Folders</string>
     <string name="settings_picture_order">Pictures in a folder</string>
     <string name="settings_per_row">Pictures across a row</string>
+    <string name="settings_turn">Turn sideways with the phone</string>
     <!-- Order values, shown under the two rows above -->
     <string name="order_newest_first">Newest first</string>
     <string name="order_oldest_first">Oldest first</string>
@@ -301,6 +302,8 @@
     <!-- Editing a picture -->
     <string name="edit_label">Edit picture</string>
     <string name="viewer_cd_edit">Edit</string>
+    <string name="viewer_save">Save</string>
+    <string name="viewer_from">%1$s · %2$s</string>
     <string name="edit_title">Edit</string>
     <string name="edit_saving">Saving…</string>
     <string name="edit_saved">Saved beside the original</string>

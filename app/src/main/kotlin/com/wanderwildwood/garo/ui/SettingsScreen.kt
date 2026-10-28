@@ -247,6 +247,14 @@ fun SettingsScreen(
                 )
             }
 
+            item {
+                SwitchSetting(
+                    title = stringResource(R.string.settings_turn),
+                    on = choices.turnWithPhone,
+                    onChange = { onChoose(choices.copy(turnWithPhone = it)) },
+                )
+            }
+
             item { OpensRow() }
 
             // Only on a phone that has NFC; elsewhere the row could do nothing.
@@ -753,6 +761,23 @@ private fun Setting(title: String, value: String, onClick: () -> Unit) {
     ) {
         TextMMD(text = title, style = MaterialTheme.typography.bodyMedium)
         TextMMD(text = value, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/** A setting that is on or off: the row takes the press, the switch only draws the state. */
+@Composable
+private fun SwitchSetting(title: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable { onChange(!on) }
+            .padding(vertical = 12.dp),
+    ) {
+        TextMMD(text = title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(16.dp))
+        SwitchMMD(checked = on, onCheckedChange = null)
     }
 }
 

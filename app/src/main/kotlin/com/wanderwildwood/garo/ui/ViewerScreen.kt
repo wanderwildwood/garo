@@ -1,6 +1,17 @@
 package com.wanderwildwood.garo.ui
 
 import android.app.Activity
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.platform.LocalConfiguration
+import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import android.content.ClipData
 import android.content.ContentUris
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -145,7 +156,7 @@ fun ViewerScreen(
     }
 
     var barShown by rememberSaveable { mutableStateOf(true) }
-    var infoOpen by remember { mutableStateOf(false) }
+    var infoOpen by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
     val longSide = remember(context) {
@@ -179,8 +190,8 @@ fun ViewerScreen(
         }
     }
 
-    var choosing by remember { mutableStateOf(false) }
-    var tapping by remember(picture.uri) { mutableStateOf(false) }
+    var choosing by rememberSaveable { mutableStateOf(false) }
+    var tapping by rememberSaveable(picture.uri) { mutableStateOf(false) }
     val canTap = remember(context) {
         android.nfc.NfcAdapter.getDefaultAdapter(context) != null &&
             context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)
@@ -239,7 +250,7 @@ fun ViewerScreen(
 
     // A video plays on its own screen; until then its first frame stands in the viewer like a
     // picture, with a play button over it, and pages turn past it as past any other.
-    var playing by remember(picture.uri) { mutableStateOf(false) }
+    var playing by rememberSaveable(picture.uri) { mutableStateOf(false) }
     if (playing) {
         // A video in Nextcloud streams from there, the sign-in going in a header, not the address.
         val item = picture.cloud
@@ -252,7 +263,39 @@ fun ViewerScreen(
         return
     }
 
-    Box(Modifier.fillMaxSize()) {
+    // What can be done with the picture on show: the bar's icons upright, a column of words
+    // beside the picture when the phone is turned.
+    val actions = buildList {
+        add(ViewerAction(Icons.Info, R.string.viewer_cd_info, R.string.viewer_cd_info) { infoOpen = true })
+        // Pictures only, and only those on the phone: the saved copy goes beside the original.
+        if (!picture.onServer && !picture.video) add(ViewerAction(Icons.Edit, R.string.viewer_cd_edit, R.string.viewer_cd_edit) {
+            // For a result: the saved picture comes back, and the viewer turns to it.
+            edit.launch(
+                Intent(context, com.wanderwildwood.garo.EditActivity::class.java)
+                    .setData(picture.uri)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+            )
+        })
+        val inCloud = picture.cloud
+        if (inCloud != null) {
+            // Read-only: share a copy, or keep one on the phone; nothing changes in Nextcloud.
+            add(ViewerAction(Icons.Share, R.string.viewer_cd_share, R.string.viewer_cd_share) { shareFromCloud(inCloud) })
+            add(ViewerAction(Icons.Download, R.string.viewer_cd_save, R.string.viewer_save) { saveFromCloud(inCloud) })
+        } else if (picture.remote == null) {
+            // An Immich picture is not a file here to hand over. A phone that can tap offers both
+            // ways; any other goes straight to the apps.
+            add(ViewerAction(Icons.Share, R.string.viewer_cd_share, R.string.viewer_cd_share) {
+                if (canTap && !picture.video) choosing = true else shareWithApp()
+            })
+        }
+        if (canDelete && !picture.onServer) {
+            add(ViewerAction(Icons.Delete, R.string.viewer_cd_delete, R.string.viewer_cd_delete) { onDelete(picture) })
+        }
+    }
+    val position = if (pictures.size > 1) stringResource(R.string.viewer_position, index + 1, pictures.size) else picture.name
+
+    // The picture and anything drawn over it, whichever way the phone is held.
+    val pane: @Composable BoxScope.(wide: Boolean) -> Unit = { wide ->
         when (val s = shown) {
             Shown.Decoding -> Unit
             // A video another app handed over may have no still to show; its play button is enough.
@@ -290,48 +333,62 @@ fun ViewerScreen(
             }
         }
 
-        if (barShown) {
-            TopAppBarMMD(
-                title = {
-                    TextMMD(
-                        text = if (pictures.size > 1) {
-                            stringResource(R.string.viewer_position, index + 1, pictures.size)
-                        } else {
-                            picture.name
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = if (onTitle != null) Modifier.clickable(onClick = onTitle) else Modifier,
-                    )
-                },
-                navigationIcon = { BarButton(Icons.Back, stringResource(R.string.viewer_cd_back), onBack) },
-                actions = {
-                    BarButton(Icons.Info, stringResource(R.string.viewer_cd_info)) { infoOpen = true }
-                    // A picture on the server is not a file here to hand over or to delete; sharing
-                    // one would mean fetching the original first, which is for a later version.
-                    // Pictures only, and only those on the phone: the saved copy goes beside the original.
-                    if (!picture.onServer && !picture.video) BarButton(Icons.Edit, stringResource(R.string.viewer_cd_edit)) {
-                        // For a result: the saved picture comes back, and the viewer turns to it.
-                        edit.launch(
-                            Intent(context, com.wanderwildwood.garo.EditActivity::class.java)
-                                .setData(picture.uri)
-                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                        )
-                    }
-                    val inCloud = picture.cloud
-                    if (inCloud != null) {
-                        // Read-only: share a copy, or keep one on the phone; nothing changes in Nextcloud.
-                        BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) { shareFromCloud(inCloud) }
-                        BarButton(Icons.Download, stringResource(R.string.viewer_cd_save)) { saveFromCloud(inCloud) }
-                    } else if (picture.remote == null) BarButton(Icons.Share, stringResource(R.string.viewer_cd_share)) {
-                        // A phone that can tap offers both ways; any other goes straight to the apps.
-                        if (canTap && !picture.video) choosing = true else shareWithApp()
-                    }
-                    if (canDelete && !picture.onServer) {
-                        BarButton(Icons.Delete, stringResource(R.string.viewer_cd_delete)) { onDelete(picture) }
-                    }
-                },
+        // Turned: where in the folder this is, at the foot of the picture, where the bar's title
+        // would be upright.
+        if (wide && barShown) {
+            TextMMD(
+                text = if (picture.cloud != null) stringResource(R.string.viewer_from, position, stringResource(R.string.folders_nextcloud)) else position,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .then(if (onTitle != null) Modifier.clickable(onClick = onTitle) else Modifier)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             )
+        }
+    }
+
+    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        // The picture takes the panel; the buttons stand in a column at the right, in words.
+        Row(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxHeight()) { pane(true) }
+            if (barShown) {
+                VerticalDivider(color = MaterialTheme.colorScheme.onSurface)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+                    modifier = Modifier
+                        .width(136.dp)
+                        .fillMaxHeight()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    actions.forEach { a ->
+                        ColumnButton(stringResource(a.label), a.onClick)
+                    }
+                    ColumnButton(stringResource(R.string.viewer_cd_back), onBack)
+                }
+            }
+        }
+    } else {
+        Box(Modifier.fillMaxSize()) {
+            pane(false)
+            if (barShown) {
+                TopAppBarMMD(
+                    title = {
+                        TextMMD(
+                            text = position,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = if (onTitle != null) Modifier.clickable(onClick = onTitle) else Modifier,
+                        )
+                    },
+                    navigationIcon = { BarButton(Icons.Back, stringResource(R.string.viewer_cd_back), onBack) },
+                    actions = {
+                        actions.forEach { a -> BarButton(a.icon, stringResource(a.description), a.onClick) }
+                    },
+                )
+            }
         }
     }
 
@@ -573,6 +630,22 @@ private fun Zoomable(
                 }
             }
         }
+    }
+}
+
+/** One thing to do with the picture: its icon in the bar, its word in the turned column. */
+private class ViewerAction(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    @androidx.annotation.StringRes val description: Int,
+    @androidx.annotation.StringRes val label: Int,
+    val onClick: () -> Unit,
+)
+
+/** A button in the turned viewer's column: a word in an outlined box, 48 dp high at least. */
+@Composable
+private fun ColumnButton(text: String, onClick: () -> Unit) {
+    OutlinedButtonMMD(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        TextMMD(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

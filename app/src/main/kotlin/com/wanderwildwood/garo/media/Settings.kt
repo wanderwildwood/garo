@@ -4,12 +4,17 @@ import android.content.Context
 import com.wanderwildwood.garo.backup.Account
 import com.wanderwildwood.garo.backup.Secrets
 
-/** The three things there are to choose, kept between runs. */
+/** The things there are to choose, kept between runs. */
 data class Choices(
     val folderOrder: FolderOrder = FolderOrder.NEWEST,
     val pictureOrder: PictureOrder = PictureOrder.NEWEST,
     /** Pictures across a row of the grid. Three is the size at which a face is still a face. */
     val perRow: Int = 3,
+    /**
+     * Whether the viewer turns sideways when the phone does. The Kompakt's own settings have no
+     * auto-rotate to follow, so the app watches the phone itself.
+     */
+    val turnWithPhone: Boolean = true,
 ) {
     companion object {
         val PER_ROW = listOf(2, 3, 4)
@@ -32,6 +37,7 @@ class Settings(context: Context) {
         folderOrder = enumOr(prefs.getString(FOLDER_ORDER, null), FolderOrder.NEWEST),
         pictureOrder = enumOr(prefs.getString(PICTURE_ORDER, null), PictureOrder.NEWEST),
         perRow = prefs.getInt(PER_ROW, 3).takeIf { it in Choices.PER_ROW } ?: 3,
+        turnWithPhone = prefs.getBoolean(TURN_WITH_PHONE, true),
     )
 
     fun write(choices: Choices) {
@@ -39,6 +45,7 @@ class Settings(context: Context) {
             .putString(FOLDER_ORDER, choices.folderOrder.name)
             .putString(PICTURE_ORDER, choices.pictureOrder.name)
             .putInt(PER_ROW, choices.perRow)
+            .putBoolean(TURN_WITH_PHONE, choices.turnWithPhone)
             .apply()
     }
 
@@ -135,6 +142,7 @@ class Settings(context: Context) {
         const val FOLDER_ORDER = "folder_order"
         const val PICTURE_ORDER = "picture_order"
         const val PER_ROW = "per_row"
+        const val TURN_WITH_PHONE = "turn_with_phone"
         const val IMMICH_SERVER = "immich_server"
         const val IMMICH_KEY = "immich_key"
         const val BACKUP_ON = "backup_on"

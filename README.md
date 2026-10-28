@@ -31,6 +31,9 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
   does, and so does a swipe; a tap in the middle shows or hides the bar. Two fingers zoom,
   and one finger then moves about the enlarged picture. A double tap jumps to 100% (one picture
   pixel to one screen pixel, at full detail, centred on the tap) and a second one returns to fitted.
+- **Turned sideways**, the picture takes the panel and Details, Share, Save and Back stand in a
+  column at the right, in words. The phone's own settings never turn the Kompakt's screen, so
+  Gallery watches the phone itself; **Settings → Turn sideways with the phone** keeps it upright.
 - **Videos** sit in their folders beside the pictures, each marked with its length. Opened,
   a video shows its first frame with a play button; it plays here, with pause, ten seconds
   back and on, and where it is. It smears, as anything moving does on this panel, but it plays.

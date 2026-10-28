@@ -2,6 +2,7 @@ package com.wanderwildwood.garo
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -25,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +39,7 @@ import com.wanderwildwood.garo.cloud.Cloud
 import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.MediaIndex
 import com.wanderwildwood.garo.media.Picture
+import com.wanderwildwood.garo.media.Settings
 import com.wanderwildwood.garo.ui.Access
 import com.wanderwildwood.garo.ui.FoldersScreen
 import com.wanderwildwood.garo.ui.GalleryViewModel
@@ -53,8 +56,11 @@ import com.wanderwildwood.garo.ui.openAppSettings
 import com.wanderwildwood.garo.ui.rememberAsk
 
 class MainActivity : ComponentActivity() {
+    private val turner = TurnWithPhone(this)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        turner.set(Settings(this).read().turnWithPhone)
 
         // Another app asking for one picture to be shown: a file from Files, an attachment from
         // Email, the camera's "last photo". Leaving the picture leaves the app, back to whoever
@@ -67,6 +73,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            // The switch in Settings takes effect at once.
+            val choices by viewModel<GalleryViewModel>().state.collectAsStateWithLifecycle()
+            LaunchedEffect(choices.choices.turnWithPhone) { turner.set(choices.choices.turnWithPhone) }
             // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
                 ThemeMMD(colorScheme = monochrome) {
@@ -81,6 +90,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        turner.resume()
+    }
+
+    override fun onPause() {
+        turner.pause()
+        super.onPause()
     }
 
     private companion object {
@@ -144,6 +163,10 @@ private fun Gallery(
     var cloudFrom by rememberSaveable { mutableStateOf<String?>(null) }
     val markedSet = remember(marked) { marked.toSet() }
 
+    // Turned sideways the grid keeps its squares about the size they are upright, so more go across.
+    val wide = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val perRow = if (wide) (state.choices.perRow * 7 + 2) / 4 else state.choices.perRow
+
     val foldersList = rememberLazyListState()
     val gridList = rememberLazyListState()
 
@@ -157,7 +180,7 @@ private fun Gallery(
             if (i >= 0) {
                 folderKey = f.key
                 viewing = i
-                gridList.requestScrollToItem(i / state.choices.perRow)
+                gridList.requestScrollToItem(i / perRow)
                 found = true
                 return@LaunchedEffect
             }
@@ -272,7 +295,7 @@ private fun Gallery(
             // Back in the grid with the row holding that picture in view.
             val toGrid: () -> Unit = {
                 viewing?.let { i ->
-                    val row = i / state.choices.perRow + rowsAbove
+                    val row = i / perRow + rowsAbove
                     val shown = gridList.layoutInfo.visibleItemsInfo.map { it.index }
                     if (row !in shown) gridList.requestScrollToItem(row)
                 }
@@ -316,7 +339,7 @@ private fun Gallery(
             BackHandler(onBack = up)
             GridScreen(
                 folder = folder,
-                perRow = state.choices.perRow,
+                perRow = perRow,
                 decoder = viewModel.decoder,
                 listState = gridList,
                 onBack = up,
