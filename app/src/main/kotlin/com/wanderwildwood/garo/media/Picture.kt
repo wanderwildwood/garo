@@ -79,6 +79,16 @@ data class Picture(
     }
 
     /**
+     * The file's own absolute path, for asking Files to show it selected. Null when the index
+     * gave no folder (a picture opened from outside) or the name is missing.
+     */
+    val filePath: String? get() {
+        val dir = folderPath ?: return null
+        if (name.isEmpty() || remote != null || cloud != null) return null
+        return "$dir/$name"
+    }
+
+    /**
      * The folder as Android's storage documents name it — "primary:DCIM/Camera", or a card's
      * id in place of "primary" — which is how a file manager is asked to open a folder without
      * handing it a bare path, which Android refuses to let leave an app.

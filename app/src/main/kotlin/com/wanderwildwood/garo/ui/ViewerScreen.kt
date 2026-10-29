@@ -317,7 +317,18 @@ fun ViewerScreen(
         when (val s = shown) {
             Shown.Decoding -> Unit
             // A video another app handed over may have no still to show; its play button is enough.
-            Shown.Failed -> if (!picture.video) Explain(text = stringResource(R.string.viewer_failed))
+            Shown.Failed -> if (!picture.video) {
+                val why = decoder.failure(picture)
+                Explain(
+                    text = stringResource(
+                        when {
+                            why is SecurityException || why?.cause is SecurityException -> R.string.viewer_failed_denied
+                            why is java.io.FileNotFoundException -> R.string.viewer_failed_gone
+                            else -> R.string.viewer_failed
+                        },
+                    ),
+                )
+            }
             is Shown.Ready -> Zoomable(
                 bitmap = s.bitmap,
                 key = picture.uri,

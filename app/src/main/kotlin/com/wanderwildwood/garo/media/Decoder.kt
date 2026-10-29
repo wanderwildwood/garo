@@ -86,6 +86,55 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         }
     }
 
+    // Why the last attempt at a picture failed, so the viewer can say so in plain words.
+    private val failures = object : LruCache<Uri, Throwable>(16) {}
+
+    /** What went wrong the last time [picture] could not be decoded; null when nothing did. */
+    fun failure(picture: Picture): Throwable? = failures.get(picture.uri)
+
+    private fun isBlank(bitmap: Bitmap): Boolean {
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(GRID * GRID)
+        for (j in 0 until GRID) for (i in 0 until GRID) {
+            pixels[j * GRID + i] = bitmap.getPixel(i * (w - 1) / (GRID - 1), j * (h - 1) / (GRID - 1))
+        }
+        return Blank.isBlank(pixels)
+    }
+
+    private fun legacyDecode(uri: Uri, longSide: Int): Bitmap? {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0) return null
+        val options = android.graphics.BitmapFactory.Options().apply {
+            inSampleSize = Integer.highestOneBit((max(bounds.outWidth, bounds.outHeight) / longSide).coerceAtLeast(1))
+        }
+        return resolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, options) }
+    }
+
+    /** The first frame of a GIF that has something in it, drawn over white; null if none does. */
+    private fun gifFrameWithContent(uri: Uri, longSide: Int): Bitmap? {
+        @Suppress("DEPRECATION")
+        val movie = resolver.openInputStream(uri)?.use { android.graphics.Movie.decodeStream(it) } ?: return null
+        val w = movie.width()
+        val h = movie.height()
+        if (w <= 0 || h <= 0) return null
+        val scale = minOf(1f, longSide.toFloat() / max(w, h))
+        val bitmap = Bitmap.createBitmap((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val length = movie.duration().coerceAtLeast(1)
+        for (step in 0..FRAME_TRIES) {
+            movie.setTime((length.toLong() * step / (FRAME_TRIES + 1)).toInt())
+            canvas.drawColor(android.graphics.Color.WHITE)
+            canvas.save()
+            canvas.scale(scale, scale)
+            movie.draw(canvas, 0f, 0f)
+            canvas.restore()
+            if (!isBlank(bitmap)) return bitmap
+        }
+        return null
+    }
+
     fun cachedFull(picture: Picture): Bitmap? = full.get(picture.uri)
 
     /**
@@ -118,7 +167,10 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
                 } else {
                     ImageDecoder.createSource(resolver, uri)
                 }
-                ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                var mime = ""
+                // A still, or an animated picture's first frame: nothing here ever animates.
+                val first = try { ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                    mime = info.mimeType
                     val w = info.size.width
                     val h = info.size.height
                     if (remote == null) originals.put(uri, Size(w, h))
@@ -130,8 +182,20 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
                     // Software, not hardware: a hardware bitmap cannot be read back, and the
                     // panel has no GPU to gain from one.
                     decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                } } catch (e: Exception) {
+                    // The older decoder reads some files this one refuses; if it cannot either,
+                    // the first complaint is the one to report.
+                    if (remote != null || item != null) throw e
+                    legacyDecode(uri, longSide) ?: throw e
                 }
-            }.getOrNull()?.also { full.put(uri, it) }
+                // Many GIFs open on an empty frame that the real picture is drawn over; a screen
+                // of nothing says nothing, so the first frame with something in it stands in.
+                if (mime == "image/gif" && remote == null && item == null && isBlank(first)) {
+                    gifFrameWithContent(uri, longSide) ?: first
+                } else {
+                    first
+                }
+            }.onFailure { failures.put(uri, it) }.getOrNull()?.also { full.put(uri, it); failures.remove(uri) }
         }
     }
 
@@ -324,6 +388,8 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
     private companion object {
         const val THUMBNAIL_BYTES = 24 * 1024 * 1024
         const val DISK_BYTES = 200L * 1024 * 1024
+        const val GRID = 24
+        const val FRAME_TRIES = 8
         const val THUMBNAIL = "thumbnail"
         const val PREVIEW = "preview"
     }

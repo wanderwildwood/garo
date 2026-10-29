@@ -90,12 +90,22 @@ fun InfoDialog(picture: Picture, onDismiss: () -> Unit) {
         camera?.let { Fact(stringResource(R.string.info_camera), it) }
 
         // The folder in Files, when there is a file manager to open it in.
-        val showFolder = remember(picture) { folderIntent(picture)?.takeIf { it.resolveActivity(context.packageManager) != null } }
+        val showFolder = remember(picture) {
+            // Files' own "show this file" first, so the file is found selected; the folder's
+            // top is the fallback when Files does not know the action.
+            val reveal = ShowInFiles.path(picture)?.let { ShowInFiles.intent(it) }
+                ?.takeIf { it.resolveActivity(context.packageManager) != null }
+            reveal ?: folderIntent(picture)?.takeIf { it.resolveActivity(context.packageManager) != null }
+        }
         if (showFolder != null) {
             Spacer(Modifier.height(14.dp))
             OutlinedButtonMMD(
                 onClick = {
-                    runCatching { context.startActivity(showFolder) }
+                    val plain = folderIntent(picture)
+                    // Never a crash: if the reveal cannot start, open the folder instead.
+                    if (runCatching { context.startActivity(showFolder) }.isFailure && plain != null) {
+                        runCatching { context.startActivity(plain) }
+                    }
                     onDismiss()
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
