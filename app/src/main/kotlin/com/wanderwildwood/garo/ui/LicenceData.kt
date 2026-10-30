@@ -9,7 +9,7 @@ data class Library(
 )
 
 /** The address of the app's own source code. */
-const val SOURCE_URL = "https://github.com.wanderwildwood.garo"
+const val SOURCE_URL = "https://github.com/wanderwildwood/garo"
 
 /** Everything the APK carries, or fetches, that this project did not write. */
 val LIBRARIES: List<Library> =
