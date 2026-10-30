@@ -1,5 +1,13 @@
 package com.wanderwildwood.garo.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,46 +41,58 @@ import com.wanderwildwood.garo.R
  */
 @Composable
 fun AboutDialog(onDismiss: () -> Unit) {
-    EInkDialog(onDismiss = onDismiss) {
-        TextMMD(
-            text = stringResource(R.string.about_title, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-        )
-
-        Spacer(Modifier.height(10.dp))
-        TextMMD(
-            text = stringResource(R.string.about_privacy_head),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        TextMMD(text = stringResource(R.string.about_privacy), style = MaterialTheme.typography.labelSmall)
-
-        Spacer(Modifier.height(10.dp))
-        TextMMD(
-            text = stringResource(R.string.about_terms_head),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        TextMMD(
-            text = stringResource(R.string.about_terms) + " " + stringResource(R.string.about_contact),
-            style = MaterialTheme.typography.labelSmall,
-        )
-
-        Spacer(Modifier.height(4.dp))
-        LicencesLink()
-
-        Spacer(Modifier.height(10.dp))
-        TextMMD(text = stringResource(R.string.about_after), style = MaterialTheme.typography.labelSmall)
-        TextMMD(text = stringResource(R.string.about_icons), style = MaterialTheme.typography.labelSmall)
-
-        Llama()
-
-        Spacer(Modifier.height(8.dp))
-        OutlinedButtonMMD(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-        ) { TextMMD(text = stringResource(R.string.about_close), style = MaterialTheme.typography.bodySmall) }
+    // A full screen of pages rather than a dialog: with Privacy, Terms and Licences it is longer
+    // than a panel, and a page turns on whole rows like every other list here.
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                PagedColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    item {
+                        TextMMD(
+                            text = stringResource(R.string.about_title, BuildConfig.VERSION_NAME),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    item {
+                        TextMMD(
+                            text = stringResource(R.string.about_privacy_head),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    item { TextMMD(text = stringResource(R.string.about_privacy), style = MaterialTheme.typography.bodyMedium) }
+                    item {
+                        TextMMD(
+                            text = stringResource(R.string.about_terms_head),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    item {
+                        TextMMD(
+                            text = stringResource(R.string.about_terms) + " " + stringResource(R.string.about_contact),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    item { LicencesLink() }
+                    item { TextMMD(text = stringResource(R.string.about_after), style = MaterialTheme.typography.bodyMedium) }
+                    item { TextMMD(text = stringResource(R.string.about_icons), style = MaterialTheme.typography.bodyMedium) }
+                    item { Llama() }
+                }
+                OutlinedButtonMMD(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .height(48.dp),
+                ) { TextMMD(text = stringResource(R.string.about_close), style = MaterialTheme.typography.bodyMedium) }
+            }
+        }
     }
 }
 
