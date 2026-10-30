@@ -49,22 +49,35 @@ class Settings(context: Context) {
             .apply()
     }
 
-    // The key is kept in this app's own preferences, which no other app can read. It is not
-    // encrypted further: anything able to read this app's private files could equally read it
-    // out of memory, and Android's encrypted preferences are withdrawn.
+    // The key opens every picture on the server, so it is sealed (AES-GCM, key in the phone's
+    // keystore) like the Nextcloud password. A key saved in plain text by an earlier version is
+    // sealed the first time it is read.
     fun immich(): ImmichLogin? {
         val server = prefs.getString(IMMICH_SERVER, null)?.takeIf { it.isNotBlank() } ?: return null
-        val key = prefs.getString(IMMICH_KEY, null)?.takeIf { it.isNotBlank() } ?: return null
+        val key = immichKey() ?: return null
         return ImmichLogin(server, key)
     }
 
     fun immichServer(): String? = prefs.getString(IMMICH_SERVER, null)?.takeIf { it.isNotBlank() }
     /** The saved key, for the key dialog to open with — hidden there until the eye is pressed. */
-    fun immichKey(): String? = prefs.getString(IMMICH_KEY, null)?.takeIf { it.isNotBlank() }
+    fun immichKey(): String? {
+        val stored = prefs.getString(IMMICH_KEY, null)?.takeIf { it.isNotBlank() } ?: return null
+        val plain = Secrets.open(stored)?.takeIf { it.isNotBlank() } ?: return null
+        if (!Secrets.isSealed(stored)) {
+            Secrets.seal(plain)?.let { prefs.edit().putString(IMMICH_KEY, it).apply() }
+        }
+        return plain
+    }
     fun hasImmichKey(): Boolean = !prefs.getString(IMMICH_KEY, null).isNullOrBlank()
 
     fun writeImmichServer(server: String?) = prefs.edit().putString(IMMICH_SERVER, server?.trim()).apply()
-    fun writeImmichKey(key: String?) = prefs.edit().putString(IMMICH_KEY, key?.trim()).apply()
+    /** Nothing is kept, rather than the key in the clear, when it cannot be sealed. */
+    fun writeImmichKey(key: String?) {
+        val trimmed = key?.trim()
+        val sealed = if (trimmed.isNullOrEmpty()) null else Secrets.seal(trimmed)
+        if (sealed == null) prefs.edit().remove(IMMICH_KEY).apply()
+        else prefs.edit().putString(IMMICH_KEY, sealed).apply()
+    }
 
     fun backupOn(): Boolean = prefs.getBoolean(BACKUP_ON, false)
     fun backupWhen(): BackupWhen = enumOr(prefs.getString(BACKUP_WHEN, null), BackupWhen.WIFI_CHARGING)

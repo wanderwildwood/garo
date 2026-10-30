@@ -434,9 +434,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
                 return@launch
             }
             val app = getApplication<Application>()
-            val opened = runCatching {
-                app.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(started.loginUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }.isSuccess
+            val opened = tryOpenLink(app, started.loginUrl)
             if (!opened) {
                 nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.NO_BROWSER, byHand = true) }
                 return@launch

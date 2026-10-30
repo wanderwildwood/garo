@@ -32,7 +32,9 @@ sections below, and none of it leaves the local network. For Immich: until a ser
 settings the app opens no connection to one at all. Once one is, it asks that server — and only that server — for the list of
 albums, how many pictures the timeline holds, an album's or the timeline's pictures, and each
 picture's image. Every request carries the API key you
-gave it. Every call it makes is in `media/Immich.kt`.
+gave it. The key is kept sealed with a key in the phone's hardware-backed keystore, like the
+Nextcloud password below (a key saved by an older version is sealed the first time it is used).
+Every call it makes is in `media/Immich.kt`.
 
 **Backing up is off until you turn it on.** Turned on, it sends the pictures in the folders
 chosen under **Settings → Back up → Folders backed up** — `DCIM`, the camera's, until you choose

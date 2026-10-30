@@ -221,6 +221,7 @@ For updates without doing this by hand, add this repository to
 
 ## Licence
 
-GNU General Public License v3.0 only. See [LICENSE](LICENSE).
+GNU General Public License v3.0 only. See [LICENSE](LICENSE). Settings → About → Licences in the app
+shows the source address, the full licence texts and what the app is built with.
 
 Copyright © wander wildwood.

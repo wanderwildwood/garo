@@ -53,6 +53,12 @@
         <intent><action android:name="android.intent.action.SEND" /><data android:mimeType="video/*" /></intent>
         <intent><action android:name="android.intent.action.SEND" /><data android:mimeType="*/*" /></intent>
         <intent><action android:name="android.intent.action.SEND_MULTIPLE" /><data android:mimeType="*/*" /></intent>
+        <!-- Web browsers, so a link goes to a real one and never to the WebView test shell. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
     </queries>
 
     <!-- No backup: the Immich key is the one thing kept here worth anything, and a copy of it in

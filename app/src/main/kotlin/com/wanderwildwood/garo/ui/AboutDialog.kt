@@ -1,6 +1,5 @@
 package com.wanderwildwood.garo.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,8 +12,6 @@ import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.wanderwildwood.garo.BuildConfig
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -62,6 +59,9 @@ fun AboutDialog(onDismiss: () -> Unit) {
             style = MaterialTheme.typography.labelSmall,
         )
 
+        Spacer(Modifier.height(4.dp))
+        LicencesLink()
+
         Spacer(Modifier.height(10.dp))
         TextMMD(text = stringResource(R.string.about_after), style = MaterialTheme.typography.labelSmall)
         TextMMD(text = stringResource(R.string.about_icons), style = MaterialTheme.typography.labelSmall)
@@ -100,13 +100,7 @@ private fun Llama() {
             // The site's address opens the site, the way the llama beside it opens its page.
             modifier = Modifier
                 .clickable {
-                    runCatching {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://wanderthe.dev")),
-                        )
-                    }.onFailure {
-                        Toast.makeText(context, context.getString(R.string.about_no_browser), Toast.LENGTH_SHORT).show()
-                    }
+                    openLink(context, "https://wanderthe.dev", context.getString(R.string.about_no_browser_address, "wanderthe.dev"))
                 }
                 .heightIn(min = 48.dp)
                 .wrapContentHeight(Alignment.CenterVertically)
@@ -122,13 +116,7 @@ private fun Llama() {
                     // The short square.link form, not the long checkout.square.site address it
                     // redirects to -- the short one is what the site itself links to, so a
                     // regenerated checkout follows it and a published app does not break.
-                    runCatching {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://square.link/u/AGu8oT10")),
-                        )
-                    }.onFailure {
-                        Toast.makeText(context, context.getString(R.string.about_no_browser), Toast.LENGTH_SHORT).show()
-                    }
+                    openLink(context, "https://square.link/u/AGu8oT10", context.getString(R.string.about_no_browser_address, "square.link/u/AGu8oT10"))
                 }
                 .heightIn(min = 48.dp)
                 .padding(vertical = 4.dp),
