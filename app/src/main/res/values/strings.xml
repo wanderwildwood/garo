@@ -110,6 +110,9 @@
     <string name="viewer_failed_denied">Gallery was not allowed to read this picture. Open it again from the app that sent it.</string>
     <string name="viewer_failed_gone">This picture is no longer there, or the app that sent it has taken it back.</string>
     <!-- Toast when nothing on the phone can receive a shared picture -->
+    <string name="share_title">Send with an app</string>
+    <string name="share_none">No app on this phone can take this picture.</string>
+    <string name="share_none_many">No app on this phone can take these pictures.</string>
     <string name="viewer_no_share">Nothing on this phone can take a picture.</string>
 
     <!-- Details dialog -->

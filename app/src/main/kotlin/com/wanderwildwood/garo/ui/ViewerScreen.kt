@@ -196,19 +196,15 @@ fun ViewerScreen(
         android.nfc.NfcAdapter.getDefaultAdapter(context) != null &&
             context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)
     }
+    var sharing by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var sharingType by rememberSaveable { mutableStateOf<String?>(null) }
     fun shareWithApp(uri: Uri = picture.uri, type: String? = null) {
-        val send = Intent(Intent.ACTION_SEND)
-            .setType(type ?: context.contentResolver.getType(uri) ?: "image/*")
-            .putExtra(Intent.EXTRA_STREAM, uri)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        // The grant travels on the clip as well as the stream: Android hands the
-        // read permission on through a chooser only from the clip.
-        send.clipData = ClipData.newRawUri(null, uri)
-        runCatching {
-            context.startActivity(Intent.createChooser(send, null))
-        }.onFailure {
-            Toast.makeText(context, R.string.viewer_no_share, Toast.LENGTH_SHORT).show()
-        }
+        sharingType = type ?: context.contentResolver.getType(uri)
+        sharing = listOf(uri.toString())
+    }
+    sharing?.let { list ->
+        ShareListScreen(list.map(Uri::parse), list.map { sharingType }, onClose = { sharing = null })
+        return
     }
     if (tapping) {
         ShareByTapScreen(picture, onClose = { tapping = false })
