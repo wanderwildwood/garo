@@ -2,8 +2,10 @@
 
 画廊 *garō*
 
-The pictures and videos on the phone, by folder, one at a time — on an E Ink phone, black on white,
-with nothing moving.
+The pictures and videos on the phone, by folder, one at a time, black on white, with nothing moving.
+A tap at either side of a picture turns the page, two fingers zoom, and Share by tap passes a picture
+to a phone beside it. If you run Immich or Nextcloud, its pictures sit below the phone's own, and
+either can take a backup of the camera's folders.
 
 Built for the [Mudita Kompakt](https://mudita.com/products/kompakt/), whose 4.3" panel has
 sixteen greys, a slow redraw, and is read outdoors as often as indoors.
