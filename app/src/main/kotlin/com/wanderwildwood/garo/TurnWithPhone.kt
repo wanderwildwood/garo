@@ -2,10 +2,13 @@ package com.wanderwildwood.garo
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.view.OrientationEventListener
 
 /**
  * Turns the screen with the phone by watching the accelerometer itself.
@@ -26,14 +29,18 @@ class TurnWithPhone(private val activity: Activity) {
     private var held = false
     private var resumed = false
     private var pending = NONE
-    private var last = OrientationEventListener.ORIENTATION_UNKNOWN
+    private var last = UNKNOWN
     private val handler = Handler(Looper.getMainLooper())
+
+    private val sensors by lazy { activity.getSystemService(SensorManager::class.java) }
+    private val accelerometer by lazy { sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
 
     // Made on first use: an activity has no system services until its onCreate has run, and
     // this is built as a property of the activity.
     private val listener by lazy {
-        object : OrientationEventListener(activity, SensorManager.SENSOR_DELAY_NORMAL) {
-            override fun onOrientationChanged(degrees: Int) = see(degrees)
+        object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) = see(degrees(event.values[0], event.values[1], event.values[2]))
+            override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
         }
     }
 
@@ -68,10 +75,10 @@ class TurnWithPhone(private val activity: Activity) {
     }
 
     private fun update() {
-        if (resumed && on && !held && listener.canDetectOrientation()) {
-            listener.enable()
+        if (resumed && on && !held && accelerometer != null) {
+            sensors?.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL)
         } else {
-            listener.disable()
+            sensors?.unregisterListener(listener)
             handler.removeCallbacks(settle)
             pending = NONE
         }
@@ -114,18 +121,36 @@ class TurnWithPhone(private val activity: Activity) {
 
     private fun wanted(degrees: Int): Int = when {
         // Flat on a table: no way is up, so nothing changes.
-        degrees == OrientationEventListener.ORIENTATION_UNKNOWN -> NONE
+        degrees == UNKNOWN -> NONE
         degrees >= 330 || degrees <= 30 -> PORTRAIT
         degrees in 60..120 -> REVERSE_LANDSCAPE
         degrees in 240..300 -> LANDSCAPE
         else -> NONE
     }
 
-    private companion object {
+    companion object {
         const val PORTRAIT = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         const val LANDSCAPE = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         const val REVERSE_LANDSCAPE = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
         const val NONE = -2
+        const val UNKNOWN = -1
+
+        /**
+         * The Kompakt's accelerometer is mounted turned: its x axis points out of the screen and
+         * its z axis down the long edge, so the stock orientation listener sees an upright phone
+         * as lying flat and never reports it. Read in the phone's own axes (x right, y up, z out
+         * of the screen) the angle is the same sum the stock listener does; flat reads as unknown.
+         */
+        private val MOUNTED_TURNED = Build.MANUFACTURER.equals("Mudita", ignoreCase = true)
+
+        fun degrees(sx: Float, sy: Float, sz: Float, turned: Boolean = MOUNTED_TURNED): Int {
+            val x = -(if (turned) -sy else sx)
+            val y = -(if (turned) -sz else sy)
+            val z = -(if (turned) sx else sz)
+            if ((x * x + y * y) * 4 < z * z) return UNKNOWN
+            val angle = 90 - Math.round(Math.atan2(-y.toDouble(), x.toDouble()) * 180 / Math.PI).toInt()
+            return ((angle % 360) + 360) % 360
+        }
         const val HOLD_MS = 600L
 
         /** Which way the screen is turned, kept for the process so a window built again starts the same way. */
