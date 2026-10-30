@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pictures</string>
+    <string name="app_name">Gallery</string>
 
     <!-- ============================================================ -->
     <!-- Folders: the first screen, every folder that holds a picture -->
@@ -107,7 +107,7 @@
     <string name="video_cd_pause">Pause</string>
     <string name="video_failed">This video cannot be played on this phone.</string>
     <string name="viewer_failed">This picture could not be opened. It may be in a format this phone cannot read, or no longer there.</string>
-    <string name="viewer_failed_denied">Pictures was not allowed to read this picture. Open it again from the app that sent it.</string>
+    <string name="viewer_failed_denied">Gallery was not allowed to read this picture. Open it again from the app that sent it.</string>
     <string name="viewer_failed_gone">This picture is no longer there, or the app that sent it has taken it back.</string>
     <!-- Toast when nothing on the phone can receive a shared picture -->
     <string name="share_title">Send with an app</string>
@@ -167,12 +167,12 @@
     <string name="order_name">By name</string>
     <!-- Folders hidden by hand, and the dialog that brings them back -->
     <string name="settings_opens">Opens pictures and videos</string>
-    <string name="opens_us">Pictures</string>
-    <string name="opens_asks">Android asks which app. Tap, then choose Pictures and Always</string>
+    <string name="opens_us">Gallery</string>
+    <string name="opens_asks">Android asks which app. Tap, then choose Gallery and Always</string>
     <string name="opens_other">%1$s, another app. Tap for how to change it</string>
     <string name="opens_other_note">Android opens them in another app, %1$s, without asking, because it was once chosen with Always. On the next page, tap Clear default preferences, then come back and tap this row again.</string>
     <string name="opens_other_open">Open that page</string>
-    <string name="opens_nothing_note">Pictures cannot see a picture on the phone yet to ask with. The first time one is opened from Files, an email or a message, Android asks which app: choose Pictures and Always.</string>
+    <string name="opens_nothing_note">Gallery cannot see a picture on the phone yet to ask with. The first time one is opened from Files, an email or a message, Android asks which app: choose Gallery and Always.</string>
     <string name="settings_hidden">Hidden folders</string>
     <plurals name="settings_hidden_count">
         <item quantity="one">%d folder</item>
@@ -213,9 +213,9 @@
     <string name="nextcloud_user">Login name</string>
     <string name="nextcloud_user_note">The name you sign in to Nextcloud with.</string>
     <string name="nextcloud_app_password">App password</string>
-    <string name="nextcloud_app_password_note">Type it, and Pictures signs in</string>
+    <string name="nextcloud_app_password_note">Type it, and Gallery signs in</string>
     <string name="nextcloud_app_password_how">Made in Nextcloud under Settings, Security, Devices and sessions: Create new app password. Not your Nextcloud password.</string>
-    <string name="nextcloud_plain_http">The address has to start https://. Pictures sends no pictures or passwords unencrypted.</string>
+    <string name="nextcloud_plain_http">The address has to start https://. Gallery sends no pictures or passwords unencrypted.</string>
     <string name="nextcloud_unreachable">Nextcloud could not be reached at that address.</string>
     <string name="nextcloud_refused">Nextcloud did not accept the sign-in.</string>
     <string name="nextcloud_no_browser">There is no browser on this phone to sign in with. Type an app password instead.</string>
@@ -289,9 +289,9 @@
     <!-- About dialog. Keep the names of the app, people, projects and licences as they are -->
 
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
-    <string name="about_title">Pictures %1$s</string>
+    <string name="about_title">Gallery %1$s</string>
     <string name="about_privacy_head">Privacy</string>
-    <string name="about_privacy">Pictures reads the pictures on this phone to show them. It goes online only to the servers you set up (Immich, for its albums; Nextcloud, to show the pictures in your own folders there; and either, to back up the folders you choose) and for Share by tap and Receive by tap, which pass one picture to a phone on the same Wi-Fi and nowhere else. Your sign-in details are kept on this phone. Browsing Nextcloud only reads: it changes and deletes nothing there, and keeps nothing but small copies in the app\'s cache, deleted on signing out. Nothing is sent to the app\'s maker. There are no ads, no analytics and no tracking. Backups and exports go only where you choose to save them.</string>
+    <string name="about_privacy">Gallery reads the pictures on this phone to show them. It goes online only to the servers you set up (Immich, for its albums; Nextcloud, to show the pictures in your own folders there; and either, to back up the folders you choose) and for Share by tap and Receive by tap, which pass one picture to a phone on the same Wi-Fi and nowhere else. Your sign-in details are kept on this phone. Browsing Nextcloud only reads: it changes and deletes nothing there, and keeps nothing but small copies in the app\'s cache, deleted on signing out. Nothing is sent to the app\'s maker. There are no ads, no analytics and no tracking. Backups and exports go only where you choose to save them.</string>
     <string name="about_terms_head">Terms</string>
     <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk.</string>
     <string name="about_contact">Questions and problems: email@wanderthe.dev</string>
@@ -306,7 +306,7 @@
     <string name="licences_source_heading">Source code</string>
     <string name="licences_source">Source: %1$s</string>
     <string name="licences_licence_heading">Licence</string>
-    <string name="licences_licence">Pictures is free software under the GNU General Public License, version 3 only. Copyright wander wildwood. The full text is below.</string>
+    <string name="licences_licence">Gallery is free software under the GNU General Public License, version 3 only. Copyright wander wildwood. The full text is below.</string>
     <string name="licences_built_heading">Built with</string>
     <string name="licences_gpl">GNU General Public License, version 3</string>
     <string name="licences_apache">Apache License, version 2.0</string>

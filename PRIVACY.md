@@ -1,6 +1,6 @@
 # Privacy
 
-Pictures reads the pictures on the phone to show them to you. If you give it an Immich server,
+Gallery reads the pictures on the phone to show them to you. If you give it an Immich server,
 it reads your albums and your timeline (every picture on your account) from that server. If you
 sign in to a Nextcloud, it reads the list of your folders and the pictures and videos in them,
 to show them, and it can send pictures there. If you turn backing up on, it sends the
@@ -49,7 +49,7 @@ There is **no all-files permission** (`MANAGE_EXTERNAL_STORAGE`), which the gall
 started from asks for so it can search the storage itself.
 
 **Deleting needs no permission of its own.** Every delete goes through Android's own
-question — "Allow Pictures to delete this photo?", or "…delete 3 photos?" when several are
+question — "Allow Gallery to delete this photo?", or "…delete 3 photos?" when several are
 marked — and only a yes deletes anything.
 
 **`NFC` is for Share by tap, and nothing else.** It is a normal permission, granted at install,
