@@ -30,9 +30,6 @@ object Secrets {
     private const val IV_BYTES = 12
     private const val TAG_BITS = 128
 
-    /** Whether [stored] is a sealed value, rather than text kept before sealing existed. */
-    fun isSealed(stored: String?): Boolean = stored?.startsWith(PREFIX) == true
-
     fun seal(plain: String?): String? {
         if (plain.isNullOrEmpty()) return null
         return try {
