@@ -12,7 +12,7 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
 
 | | | | |
 |---|---|---|---|
-| ![Folders](screenshots/01-folders.png) | ![A folder](screenshots/02-folder.png) | ![A picture](screenshots/03-picture.png) | ![Choosing for another app](screenshots/04-choose.png) |
+| ![Folders](screenshots/01-folders.png) | ![A folder](screenshots/02-folder.png) | ![A picture](screenshots/03-picture.png) | ![Editing a picture: crop, turn, draw](screenshots/04-edit.png) |
 
 ## What it does
 
