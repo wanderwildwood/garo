@@ -591,7 +591,7 @@ private fun BackupRow(backup: BackupState, destination: String, onBackup: (Boole
             .padding(vertical = 14.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            TextMMD(text = stringResource(R.string.settings_backup, destination), style = MaterialTheme.typography.bodyMedium)
+            TextMMD(text = stringResource(R.string.settings_backup, destination), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             TextMMD(text = status, style = MaterialTheme.typography.labelSmall)
         }
         Spacer(Modifier.width(12.dp))
@@ -759,7 +759,7 @@ private fun Setting(title: String, value: String, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
     ) {
-        TextMMD(text = title, style = MaterialTheme.typography.bodyMedium)
+        TextMMD(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         TextMMD(text = value, style = MaterialTheme.typography.labelSmall)
     }
 }
@@ -775,7 +775,7 @@ private fun SwitchSetting(title: String, on: Boolean, onChange: (Boolean) -> Uni
             .clickable { onChange(!on) }
             .padding(vertical = 12.dp),
     ) {
-        TextMMD(text = title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        TextMMD(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(16.dp))
         SwitchMMD(checked = on, onCheckedChange = null)
     }

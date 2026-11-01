@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -148,7 +149,7 @@ fun OpensRow() {
             }
             .padding(vertical = 12.dp),
     ) {
-        TextMMD(text = stringResource(R.string.settings_opens), style = MaterialTheme.typography.bodyMedium)
+        TextMMD(text = stringResource(R.string.settings_opens), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         TextMMD(
             text = when (shown) {
                 Opener.Us -> stringResource(R.string.opens_us)
