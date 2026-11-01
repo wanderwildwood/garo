@@ -155,7 +155,7 @@ showing Share by tap, and fetches the picture.
 
 ## Pictures another app hands over
 
-When Files, Email or Messaging opens a picture here, that app grants read access to that one
+When Cabinet, Mailbox or Messaging opens a picture here, that app grants read access to that one
 picture, for as long as it is on screen. It is shown and not kept.
 
 When you choose pictures for another app — an attachment, say — that app is granted read

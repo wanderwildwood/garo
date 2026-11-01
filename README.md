@@ -1,4 +1,4 @@
-# Gallery
+# Pictures
 
 画廊 *garō*
 
@@ -35,7 +35,7 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
   pixel to one screen pixel, at full detail, centred on the tap) and a second one returns to fitted.
 - **Turned sideways**, the picture takes the panel and Details, Share, Save and Back stand in a
   column at the right, in words. The phone's own settings never turn the Kompakt's screen, so
-  Gallery watches the phone itself; **Settings → Turn sideways with the phone** keeps it upright.
+  Pictures watches the phone itself; **Settings → Turn sideways with the phone** keeps it upright.
 - **Videos** sit in their folders beside the pictures, each marked with its length. Opened,
   a video shows its first frame with a play button; it plays here, with pause, ten seconds
   back and on, and where it is. It smears, as anything moving does on this panel, but it plays.
@@ -95,19 +95,19 @@ side of the same tag, `ReceiveUrl` the check on the link and `PhotoFetch` the do
 
 It is made to be the phone's picture app, not a room of its own.
 
-- **Opened from Files, Email or Messaging**, a picture is shown here. One that Files or the
+- **Opened from Cabinet, Mailbox or Messaging**, a picture is shown here. One that Cabinet or the
   camera hands over opens inside its own folder, so the pictures either side are a page-turn
   away; back returns to the app that sent it. Tap "3 of 80" at the top to go on into that
   folder, and from there the rest of the gallery.
 - **The camera's "last photo"** opens here, from any camera that sends Android's review
   request — Open Camera does.
-- **Attaching a picture** in Email, or anywhere that asks Android for one, offers this. Where
+- **Attaching a picture** in Mailbox, or anywhere that asks Android for one, offers this. Where
   the app takes several, a tap marks a picture with a bold edge and "Choose" sends them all.
 - **Show in Files** opens the picture's folder in the file manager.
 - **Share** reaches Wallet (札入 satsuire), which keeps a barcode in the picture as a card, and
   Translate (通訳 tsūyaku), which reads its words, when they are on the phone.
 - **Settings → Opens pictures and videos** says which app opens them. Where Android still asks,
-  a tap puts the question with one of the phone's own pictures: choose Gallery and *Always*.
+  a tap puts the question with one of the phone's own pictures: choose Pictures and *Always*.
   Where another app was chosen with *Always*, it opens that app's "Open by default" page, which
   the Kompakt's own settings leave out, to clear it.
 
@@ -141,7 +141,7 @@ permission to upload assets.
 
 ## Nextcloud
 
-Signed in to a [Nextcloud](https://nextcloud.com), the pictures already there show in Gallery,
+Signed in to a [Nextcloud](https://nextcloud.com), the pictures already there show in Pictures,
 and backing up can go there instead of Immich.
 
 - **Browsing.** A **Nextcloud** section on the main screen, below the phone's folders (and
@@ -163,8 +163,8 @@ Backing up goes to one place at a time, chosen under **Settings → Servers and 
 
 - **Signing in.** **Settings → Servers and backup → Nextcloud**, type the address
   (`https://cloud.example.com`), then **Sign in**: Nextcloud's own sign-in page opens in the
-  browser. Sign in there and grant access; Gallery notices by itself and receives an app
-  password made for this phone. Your Nextcloud password is never typed into Gallery. A phone
+  browser. Sign in there and grant access; Pictures notices by itself and receives an app
+  password made for this phone. Your Nextcloud password is never typed into Pictures. A phone
   without a browser can take a login name and an app password made in Nextcloud instead.
 - **Where pictures go.** Into a folder of your Nextcloud files, `Photos/Kompakt` unless you name
   another, each under its own folder's path on the phone: `Photos/Kompakt/DCIM/Camera/…`.

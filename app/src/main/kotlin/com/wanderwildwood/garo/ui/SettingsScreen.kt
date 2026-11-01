@@ -207,8 +207,8 @@ fun SettingsScreen(
         PagedColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp),
+                .padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 12.dp),
         ) {
             item { Spacer(Modifier.height(4.dp)) }
             item {
@@ -318,8 +318,8 @@ private fun SubPage(title: String, onBack: () -> Unit, rows: androidx.compose.fo
         PagedColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp),
+                .padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 12.dp),
         ) {
             item { Spacer(Modifier.height(12.dp)) }
             rows()
