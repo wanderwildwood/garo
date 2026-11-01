@@ -60,8 +60,7 @@ fun isRealBrowser(packageName: String?): Boolean =
 fun tryOpenLink(context: Context, url: String): Boolean {
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
     if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    val handler = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-    if (!isRealBrowser(handler?.activityInfo?.packageName)) return false
+    if (!browserAvailable(context, intent)) return false
     return try {
         context.startActivity(intent)
         true
