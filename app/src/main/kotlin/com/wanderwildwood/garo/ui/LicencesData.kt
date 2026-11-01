@@ -28,7 +28,7 @@ val LICENCE_RAW: List<Pair<String, Int>> = listOf(
 
 @Composable
 fun rememberLicencesData(): LicencesData = LicencesData(
-    appName = "Gallery",
+    appName = "Pictures",
     sourceUrl = SOURCE_URL,
     licenceLine = stringResource(R.string.licences_licence),
     components = LICENCE_COMPONENTS,
