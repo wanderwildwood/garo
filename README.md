@@ -224,6 +224,6 @@ For updates without doing this by hand, add this repository to
 ## Licence
 
 GNU General Public License v3.0 only. See [LICENSE](LICENSE). Settings → About → Licences in the app
-shows the source address, the full licence texts and what the app is built with.
+lists the app and every library it is built with; a row opens its author, website and full licence text, and the app's own page the source address.
 
 Copyright © wander wildwood.
