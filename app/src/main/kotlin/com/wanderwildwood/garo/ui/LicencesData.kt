@@ -9,7 +9,7 @@ const val SOURCE_URL = "https://github.com/wanderwildwood/garo"
 
 /** What the APK carries that is not this app's own code, and the licence each project declares. */
 val LICENCE_COMPONENTS: List<LicenceComponent> = listOf(
-    LicenceComponent("Fossify Gallery", "Fossify, whose ways of ordering folders and pictures this keeps", "GPL-3.0", "https://github.com/FossifyOrg/Gallery"),
+    LicenceComponent("Fossify Gallery", "Fossify", "GPL-3.0", "https://github.com/FossifyOrg/Gallery", note = "Fossify, whose ways of ordering folders and pictures this keeps."),
     LicenceComponent("Mudita Mindful Design (MMD)", "Mudita", "Apache-2.0", "https://github.com/mudita/MMD"),
     LicenceComponent("Lato typeface, inside MMD", "tyPoland Lukasz Dziedzic", "OFL-1.1", "https://www.latofonts.com"),
     LicenceComponent("Jetpack Compose (UI, Foundation, Material 3), Activity, Lifecycle, Core, WorkManager", "Google", "Apache-2.0", "https://developer.android.com/jetpack"),

@@ -298,9 +298,7 @@
     <string name="about_after">After Fossify Gallery, GPL 3.0, whose ways of ordering folders and pictures this keeps.</string>
     <string name="about_icons">Icons from Material Symbols, Apache 2.0</string>
     <!-- The donation link label, beside a drawing of a llama. A fixed phrase: a verb and an object, so the reader knows what pressing it does -->
-    <string name="about_feed_the_llamas">feed the llamas</string>
-    <!-- Toast when the donation link cannot be opened -->
-    <string name="about_no_browser">There is no browser on this phone to open that with.</string>
+    <string name="about_feed_the_llamas">Feed the llamas</string>
     <!-- Button that closes the About dialog -->
     <string name="licences_title">Licences</string>
     <string name="licences_source_head">Source code</string>
