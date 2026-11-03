@@ -8,7 +8,7 @@ to a phone beside it. If you run Immich or Nextcloud, its pictures sit below the
 either can take a backup of the camera's folders.
 
 Built for the [Mudita Kompakt](https://mudita.com/products/kompakt/), whose 4.3" panel has
-sixteen greys, a slow redraw, and is read outdoors as often as indoors.
+sixteen grays, a slow redraw, and is read outdoors as often as indoors.
 
 ## Screenshots
 
@@ -32,7 +32,7 @@ sixteen greys, a slow redraw, and is read outdoors as often as indoors.
 - **One picture** on the whole panel. A tap at either side turns the page, as an e-reader
   does, and so does a swipe; a tap in the middle shows or hides the bar. Two fingers zoom,
   and one finger then moves about the enlarged picture. A double tap jumps to 100% (one picture
-  pixel to one screen pixel, at full detail, centred on the tap) and a second one returns to fitted.
+  pixel to one screen pixel, at full detail, centered on the tap) and a second one returns to fitted.
 - **Turned sideways**, the picture takes the panel and Details, Share, Save and Back stand in a
   column at the right, in words. The phone's own settings never turn the Kompakt's screen, so
   Pictures watches the phone itself; **Settings → Turn sideways with the phone** keeps it upright.
@@ -221,9 +221,9 @@ For updates without doing this by hand, add this repository to
 
     https://github.com/wanderwildwood/garo
 
-## Licence
+## License
 
-GNU General Public License v3.0 only. See [LICENSE](LICENSE). Settings → About → Licences in the app
-lists the app and every library it is built with; a row opens its author, website and full licence text, and the app's own page the source address.
+GNU General Public License v3.0 only. See [LICENSE](LICENSE). Settings → About → Licenses in the app
+lists the app and every library it is built with; a row opens its author, website and full license text, and the app's own page the source address.
 
 Copyright © wander wildwood.
