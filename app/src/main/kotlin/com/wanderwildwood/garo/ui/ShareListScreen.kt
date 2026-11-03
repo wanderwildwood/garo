@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -47,7 +48,8 @@ fun ShareListScreen(uris: List<Uri>, types: List<String?>, onClose: () -> Unit) 
             }
         } else {
             PagedColumn(Modifier.fillMaxWidth().weight(1f)) {
-                items(targets, key = { it.packageName + "/" + it.className }) { t ->
+                itemsIndexed(targets, key = { _, it -> it.packageName + "/" + it.className }) { i, t ->
+                    Column {
                     Box(
                         Modifier.fillMaxWidth().heightIn(min = 56.dp)
                             .clickable {
@@ -59,6 +61,8 @@ fun ShareListScreen(uris: List<Uri>, types: List<String?>, onClose: () -> Unit) 
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         TextMMD(text = t.label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    if (i < targets.lastIndex) DottedRule(start = 20.dp)
                     }
                 }
             }

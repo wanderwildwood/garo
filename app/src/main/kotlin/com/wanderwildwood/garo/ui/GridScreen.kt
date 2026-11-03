@@ -98,7 +98,10 @@ fun GridScreen(
                 onPullAtTop = onPullAtTop,
             ) {
                 items(subfolders, key = { "sub-" + it.path }) { sub ->
-                    CloudRow(sub.name, onClick = { onSubfolder(sub) }, modifier = Modifier.padding(start = 16.dp))
+                    Column {
+                        CloudRow(sub.name, onClick = { onSubfolder(sub) }, modifier = Modifier.padding(start = 16.dp))
+                        DottedRule(start = 52.dp, end = 16.dp)
+                    }
                 }
                 items(rows.size, key = { rows[it].first().id }) { r ->
                     Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -158,7 +159,12 @@ private fun FolderList(
         if (withServer && state.folders.isEmpty()) {
             item(key = "none-phone") { Note(stringResource(R.string.folders_none)) }
         }
-        items(state.folders, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen, onHide) }
+        itemsIndexed(state.folders, key = { _, it -> it.key }) { i, it ->
+            Column {
+                FolderRow(it, decoder, coverPx, onOpen, onHide)
+                if (i < state.folders.lastIndex) DottedRule(start = COVER + 16.dp, end = 20.dp)
+            }
+        }
 
         if (withImmich) {
             item(key = "h-immich") { Heading(stringResource(R.string.folders_immich)) }
@@ -171,7 +177,12 @@ private fun FolderList(
                 else -> if (state.albums.isEmpty()) R.string.immich_no_albums else null
             }
             if (note != null) item(key = "immich-note") { Note(stringResource(note)) }
-            items(state.albums, key = { it.key }) { FolderRow(it, decoder, coverPx, onOpen) }
+            itemsIndexed(state.albums, key = { _, it -> it.key }) { i, it ->
+                Column {
+                    FolderRow(it, decoder, coverPx, onOpen)
+                    if (i < state.albums.lastIndex) DottedRule(start = COVER + 16.dp, end = 20.dp)
+                }
+            }
         }
 
         if (cloud.on) {
@@ -184,7 +195,12 @@ private fun FolderList(
                 else -> null
             }
             if (note != null) item(key = "nextcloud-note") { Note(stringResource(note)) }
-            items(cloud.top, key = { "nextcloud-" + it.path }) { CloudRow(it.name, onClick = { onOpenCloud(it.path) }) }
+            items(cloud.top, key = { "nextcloud-" + it.path }) {
+                Column {
+                    CloudRow(it.name, onClick = { onOpenCloud(it.path) })
+                    DottedRule(start = 36.dp, end = 20.dp)
+                }
+            }
             item(key = "nextcloud-all") { CloudRow(stringResource(R.string.cloud_all_files), onClick = { onOpenCloud("") }) }
         }
     }
