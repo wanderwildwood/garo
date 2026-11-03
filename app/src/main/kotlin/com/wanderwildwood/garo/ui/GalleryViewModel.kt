@@ -17,7 +17,10 @@ import com.wanderwildwood.garo.media.Conditions
 import com.wanderwildwood.garo.media.DEFAULT_NEXTCLOUD_FOLDER
 import com.wanderwildwood.garo.media.Destination
 import com.wanderwildwood.garo.backup.Account
+import com.wanderwildwood.garo.backup.CheckResult
 import com.wanderwildwood.garo.backup.LoginFlow
+import com.wanderwildwood.garo.backup.NextcloudCheck
+import com.wanderwildwood.garo.backup.Problem
 import com.wanderwildwood.garo.backup.PhotoFolder
 import com.wanderwildwood.garo.backup.Refused
 import com.wanderwildwood.garo.backup.Remote
@@ -122,8 +125,6 @@ data class NextcloudState(
     val typed: String = "",
     val signIn: SignIn = SignIn.IDLE,
     val problem: NextcloudProblem? = null,
-    /** No browser to open the sign-in page in: an app password is typed instead. */
-    val byHand: Boolean = false,
 )
 
 enum class SignIn {
@@ -134,7 +135,12 @@ enum class SignIn {
     CHECKING,
 }
 
-enum class NextcloudProblem { PLAIN_HTTP, UNREACHABLE, REFUSED, NO_BROWSER, NOT_KEPT, TIMED_OUT }
+enum class NextcloudProblem {
+    PLAIN_HTTP, UNREACHABLE, REFUSED, NO_BROWSER, NOT_KEPT, TIMED_OUT,
+    BAD_ADDRESS, NOT_FOUND, CERTIFICATE, NOT_NEXTCLOUD, WRONG_PASSWORD, OTHER,
+    /** Not a problem: a Test that worked. */
+    TEST_GOOD,
+}
 
 /** What the backup rows say. */
 data class BackupState(
@@ -436,7 +442,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             val app = getApplication<Application>()
             val opened = tryOpenLink(app, started.loginUrl)
             if (!opened) {
-                nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.NO_BROWSER, byHand = true) }
+                nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.NO_BROWSER) }
                 return@launch
             }
             repeat(600) {
@@ -463,20 +469,25 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         nextcloud { it.copy(signIn = SignIn.IDLE) }
     }
 
-    /** For a phone with no browser: a login name and an app password made on the server by hand. */
-    override fun signInNextcloudByHand(user: String, appPassword: String) {
+    /**
+     * The typed sign-in, the first choice: the address already typed, a login name and an app
+     * password made on the server. The server is asked once; with [keep] false that is all (the
+     * Test button), otherwise a good answer goes on to be kept.
+     */
+    override fun signInNextcloudTyped(user: String, appPassword: String, keep: Boolean) {
         val typed = _state.value.nextcloud.typed
+        if (signingIn?.isActive == true) return
         if (typed.isBlank() || user.isBlank() || appPassword.isBlank()) return
-        if (LoginFlow.isPlain(typed)) {
-            nextcloud { it.copy(problem = NextcloudProblem.PLAIN_HTTP) }
-            return
-        }
+        nextcloud { it.copy(signIn = SignIn.CHECKING, problem = null) }
         signingIn = viewModelScope.launch {
-            keepNextcloud(Account(LoginFlow.normalise(typed), user.trim(), appPassword.trim()))
+            val result = withContext(Dispatchers.IO) { NextcloudCheck.run(typed, user, appPassword) }
+            when (result) {
+                is CheckResult.Good -> if (keep) keepNextcloud(result.account) else
+                    nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.TEST_GOOD) }
+                is CheckResult.Bad -> nextcloud { it.copy(signIn = SignIn.IDLE, problem = problemFor(result.problem)) }
+            }
         }
     }
-
-    override fun nextcloudByHand(on: Boolean) = nextcloud { it.copy(byHand = on, problem = null) }
 
     private suspend fun keepNextcloud(account: Account) {
         nextcloud { it.copy(signIn = SignIn.CHECKING, problem = null) }
@@ -496,7 +507,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         // The first place set up is where backing up goes; with Immich already there, it stays
         // the choice until changed on the backup page.
         if (settings.immich() == null) settings.writeBackupTo(Destination.NEXTCLOUD)
-        nextcloud { it.copy(user = account.user, server = account.server, signIn = SignIn.IDLE, byHand = false, typed = "") }
+        nextcloud { it.copy(user = account.user, server = account.server, signIn = SignIn.IDLE, typed = "") }
         decoder.forgetCloud()
         decoder.cloud = CloudFiles(account)
         _state.update { it.copy(cloud = CloudState(on = true, backupFolder = settings.nextcloudFolder())) }
@@ -623,6 +634,17 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
 
     private fun cloud(change: (CloudState) -> CloudState) {
         _state.update { it.copy(cloud = change(it.cloud)) }
+    }
+
+    private fun problemFor(p: Problem) = when (p) {
+        Problem.BAD_ADDRESS -> NextcloudProblem.BAD_ADDRESS
+        Problem.PLAIN_HTTP -> NextcloudProblem.PLAIN_HTTP
+        Problem.NOT_FOUND -> NextcloudProblem.NOT_FOUND
+        Problem.UNREACHABLE -> NextcloudProblem.UNREACHABLE
+        Problem.CERTIFICATE -> NextcloudProblem.CERTIFICATE
+        Problem.NOT_NEXTCLOUD -> NextcloudProblem.NOT_NEXTCLOUD
+        Problem.WRONG_PASSWORD -> NextcloudProblem.WRONG_PASSWORD
+        Problem.OTHER -> NextcloudProblem.OTHER
     }
 
     private fun nextcloud(change: (NextcloudState) -> NextcloudState) {

@@ -112,4 +112,5 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.json)
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

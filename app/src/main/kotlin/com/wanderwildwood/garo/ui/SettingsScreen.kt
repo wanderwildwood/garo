@@ -68,8 +68,7 @@ interface NextcloudActions {
     fun setNextcloudAddress(typed: String)
     fun startNextcloudSignIn()
     fun cancelNextcloudSignIn()
-    fun signInNextcloudByHand(user: String, appPassword: String)
-    fun nextcloudByHand(on: Boolean)
+    fun signInNextcloudTyped(user: String, appPassword: String, keep: Boolean)
     fun signOutNextcloud()
     fun setNextcloudFolder(typed: String)
 }
@@ -785,13 +784,15 @@ private fun SwitchSetting(title: String, on: Boolean, onChange: (Boolean) -> Uni
 private fun host(server: String?): String = server.orEmpty().substringAfter("://").trimEnd('/')
 
 /**
- * Nextcloud: signing in through its own page in the browser, and once in, the folder pictures go
- * to and signing out. A phone with no browser takes an app password made on the server instead.
+ * Nextcloud: signing in by typing the address, the login name and an app password (the first
+ * choice, with a Test beside it), or through Nextcloud's own page in the browser (the second),
+ * and once in, the folder pictures go to and signing out.
  */
 @Composable
 private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBack: () -> Unit) {
     var editing by remember { mutableStateOf<NcEntry?>(null) }
     var user by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     SubPage(stringResource(R.string.nextcloud_name), onBack) {
         if (state.user != null) {
             item {
@@ -827,48 +828,21 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
                     onClick = { editing = NcEntry.ADDRESS },
                 )
             }
-            if (state.byHand) {
-                item {
-                    Setting(
-                        title = stringResource(R.string.nextcloud_user),
-                        value = user.ifEmpty { stringResource(R.string.settings_not_set) },
-                        onClick = { editing = NcEntry.USER },
-                    )
-                }
-                item {
-                    Setting(
-                        title = stringResource(R.string.nextcloud_app_password),
-                        value = stringResource(R.string.nextcloud_app_password_note),
-                        onClick = { editing = NcEntry.PASSWORD },
-                    )
-                }
-            } else if (state.typed.isNotEmpty()) {
-                item {
-                    Setting(
-                        title = stringResource(
-                            when (state.signIn) {
-                                SignIn.IDLE -> R.string.nextcloud_sign_in
-                                SignIn.WAITING -> R.string.nextcloud_waiting
-                                SignIn.CHECKING -> R.string.nextcloud_checking
-                            },
-                        ),
-                        value = stringResource(
-                            when (state.signIn) {
-                                SignIn.IDLE -> R.string.nextcloud_sign_in_note
-                                SignIn.WAITING -> R.string.nextcloud_waiting_note
-                                SignIn.CHECKING -> R.string.nextcloud_checking_note
-                            },
-                        ),
-                        onClick = {
-                            when (state.signIn) {
-                                SignIn.IDLE -> actions.startNextcloudSignIn()
-                                SignIn.WAITING -> actions.cancelNextcloudSignIn()
-                                SignIn.CHECKING -> Unit
-                            }
-                        },
-                    )
-                }
+            item {
+                Setting(
+                    title = stringResource(R.string.nextcloud_user),
+                    value = user.ifEmpty { stringResource(R.string.settings_not_set) },
+                    onClick = { editing = NcEntry.USER },
+                )
             }
+            item {
+                Setting(
+                    title = stringResource(R.string.nextcloud_app_password),
+                    value = stringResource(if (password.isEmpty()) R.string.settings_not_set else R.string.nextcloud_password_typed),
+                    onClick = { editing = NcEntry.PASSWORD },
+                )
+            }
+            val ready = state.typed.isNotEmpty() && user.isNotBlank() && password.isNotEmpty() && state.signIn == SignIn.IDLE
             state.problem?.let { p ->
                 item {
                     Note(
@@ -880,17 +854,40 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
                                 NextcloudProblem.NO_BROWSER -> R.string.nextcloud_no_browser
                                 NextcloudProblem.NOT_KEPT -> R.string.nextcloud_not_kept
                                 NextcloudProblem.TIMED_OUT -> R.string.nextcloud_timed_out
+                                NextcloudProblem.BAD_ADDRESS -> R.string.nextcloud_bad_address
+                                NextcloudProblem.NOT_FOUND -> R.string.nextcloud_not_found
+                                NextcloudProblem.CERTIFICATE -> R.string.nextcloud_certificate
+                                NextcloudProblem.NOT_NEXTCLOUD -> R.string.nextcloud_not_nextcloud
+                                NextcloudProblem.WRONG_PASSWORD -> R.string.nextcloud_wrong_password
+                                NextcloudProblem.OTHER -> R.string.nextcloud_other
+                                NextcloudProblem.TEST_GOOD -> R.string.nextcloud_test_good
                             },
                         ),
                     )
                 }
             }
-            if (!state.byHand) {
+            item {
+                Setting(
+                    title = stringResource(if (state.signIn == SignIn.CHECKING) R.string.nextcloud_checking else R.string.nextcloud_sign_in),
+                    value = stringResource(if (state.signIn == SignIn.CHECKING) R.string.nextcloud_checking_note else R.string.nextcloud_sign_in_note),
+                    onClick = { if (ready) actions.signInNextcloudTyped(user, password, keep = true) },
+                )
+            }
+            item {
+                Setting(
+                    title = stringResource(R.string.nextcloud_test),
+                    value = stringResource(R.string.nextcloud_test_note),
+                    onClick = { if (ready) actions.signInNextcloudTyped(user, password, keep = false) },
+                )
+            }
+            if (state.typed.isNotEmpty() && state.signIn != SignIn.CHECKING) {
                 item {
                     Setting(
-                        title = stringResource(R.string.nextcloud_by_hand),
-                        value = stringResource(R.string.nextcloud_by_hand_note),
-                        onClick = { actions.cancelNextcloudSignIn(); actions.nextcloudByHand(true) },
+                        title = stringResource(if (state.signIn == SignIn.WAITING) R.string.nextcloud_waiting else R.string.nextcloud_browser),
+                        value = stringResource(if (state.signIn == SignIn.WAITING) R.string.nextcloud_waiting_note else R.string.nextcloud_browser_note),
+                        onClick = {
+                            if (state.signIn == SignIn.WAITING) actions.cancelNextcloudSignIn() else actions.startNextcloudSignIn()
+                        },
                     )
                 }
             }
@@ -919,7 +916,7 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
             note = stringResource(R.string.nextcloud_app_password_how),
             initial = "",
             secret = true,
-            onDone = { actions.signInNextcloudByHand(user, it) },
+            onDone = { password = it.trim() },
             onDismiss = { editing = null },
         )
         NcEntry.FOLDER -> EntryDialog(
