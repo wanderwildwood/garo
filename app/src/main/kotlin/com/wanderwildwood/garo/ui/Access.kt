@@ -1,16 +1,15 @@
 package com.wanderwildwood.garo.ui
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -22,7 +21,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
  */
 @Composable
 internal fun rememberAsk(viewModel: GalleryViewModel): () -> Unit {
-    val activity = LocalContext.current as Activity
+    val activity = checkNotNull(LocalActivity.current) { "rememberAsk needs an Activity" }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val mayAskAgain = ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_EXTERNAL_STORAGE)
         viewModel.permissionAnswered(granted, mayAskAgain)
