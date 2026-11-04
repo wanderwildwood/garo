@@ -1,0 +1,7 @@
+{
+  "uniqueId": "com.squareup.okhttp3:okhttp",
+  "licenses": [
+    "Apache-2.0",
+    "okhttp-notice"
+  ]
+}

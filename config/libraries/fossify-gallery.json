@@ -1,0 +1,8 @@
+{
+  "uniqueId": "fossify-gallery",
+  "name": "Fossify Gallery",
+  "description": "The gallery this app started from, whose ways of ordering folders and pictures it keeps.",
+  "developers": [{ "name": "Fossify" }],
+  "website": "https://github.com/FossifyOrg/Gallery",
+  "licenses": ["GPL-3.0"]
+}

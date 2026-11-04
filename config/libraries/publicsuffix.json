@@ -1,0 +1,8 @@
+{
+  "uniqueId": "public-suffix-list",
+  "developers": [{ "name": "Mozilla Foundation and contributors" }],
+  "description": "The list of internet domain suffixes, bundled with OkHttp (publicsuffixes.gz).",
+  "name": "Public Suffix List",
+  "website": "https://publicsuffix.org/",
+  "licenses": ["MPL-2.0"]
+}

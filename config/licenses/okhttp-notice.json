@@ -1,0 +1,5 @@
+{
+  "hash": "okhttp-notice",
+  "name": "NOTICE (com.squareup.okhttp3:okhttp)",
+  "content": "Note that publicsuffixes.gz is compiled from The Public Suffix List:\nhttps://publicsuffix.org/list/public_suffix_list.dat\n\nIt is subject to the terms of the Mozilla Public License, v. 2.0:\nhttps://mozilla.org/MPL/2.0/\n"
+}
