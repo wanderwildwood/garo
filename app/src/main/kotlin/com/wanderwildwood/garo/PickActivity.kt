@@ -34,6 +34,7 @@ import com.wanderwildwood.garo.ui.GridScreen
 import com.wanderwildwood.garo.ui.RefreshOnResume
 import com.wanderwildwood.garo.ui.CloudState
 import com.wanderwildwood.garo.ui.Server
+import com.wanderwildwood.garo.ui.houseTypography
 import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.openAppSettings
 import com.wanderwildwood.garo.ui.rememberAsk
@@ -57,7 +58,7 @@ class PickActivity : ComponentActivity() {
         val several = intent?.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false) == true
 
         setContent {
-            ThemeMMD(colorScheme = monochrome) {
+            ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
                 ArmedScope {
                     Pick(wanted, several, onAnswer = ::answer, onCancel = {
                         setResult(Activity.RESULT_CANCELED)

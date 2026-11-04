@@ -46,6 +46,7 @@ import com.wanderwildwood.garo.ui.GalleryViewModel
 import com.wanderwildwood.garo.ui.GridScreen
 import com.wanderwildwood.garo.ui.PullFrom
 import com.wanderwildwood.garo.ui.RefreshOnResume
+import com.wanderwildwood.garo.ui.houseTypography
 import com.wanderwildwood.garo.ui.rememberPull
 import com.wanderwildwood.garo.ui.Server
 import com.wanderwildwood.garo.ui.ReceiveByTapScreen
@@ -79,7 +80,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(choices.choices.turnWithPhone) { turner.set(choices.choices.turnWithPhone) }
             // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
-                ThemeMMD(colorScheme = monochrome) {
+                ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
                     ArmedScope {
                         when {
                             handed == null -> Gallery()

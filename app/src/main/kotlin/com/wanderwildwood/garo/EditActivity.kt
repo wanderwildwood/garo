@@ -11,6 +11,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalCursorBlinkEnabled
 import com.mudita.mmd.ThemeMMD
 import com.wanderwildwood.garo.ui.EditScreen
+import com.wanderwildwood.garo.ui.houseTypography
 import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.ArmedScope
 
@@ -32,7 +33,7 @@ class EditActivity : ComponentActivity() {
         setContent {
             // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
-                ThemeMMD(colorScheme = monochrome) {
+                ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
                     ArmedScope {
                         EditScreen(
                             uri = uri,
