@@ -182,7 +182,7 @@ The address has to be `https://`. The app password is kept sealed by the phone's
 
 ## What it does not do
 
-No editor, no slideshow, no wallpapers, no themes.
+No slideshow, no wallpapers, no themes. The editor is kept small: crop, turn and draw.
 It reads Android's own index of pictures rather than searching the storage itself, so a
 folder holding a `.nomedia` file — a folder asking not to be shown — is not shown.
 
