@@ -25,10 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -208,19 +205,13 @@ private fun FolderList(
 
 /**
  * A folder: its newest picture, its name, how many. Held, it offers to hide itself, the way a
- * row in this shop asks — it says what a second tap will do, and forgets the offer after six
- * seconds, so a stray hold leaves nothing live.
+ * row in this shop asks — it says what a second tap will do, and stays armed, with no timer,
+ * until the next other touch, Back or leaving, so a stray hold leaves nothing live.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FolderRow(folder: Folder, decoder: Decoder, coverPx: Int, onOpen: (Folder) -> Unit, onHide: ((Folder) -> Unit)? = null) {
-    var armed by remember(folder.key) { mutableStateOf(false) }
-    LaunchedEffect(armed) {
-        if (armed) {
-            delay(6_000)
-            armed = false
-        }
-    }
+    var armed by rememberArmedFlag(folder.key)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

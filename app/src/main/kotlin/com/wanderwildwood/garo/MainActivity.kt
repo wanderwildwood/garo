@@ -54,6 +54,7 @@ import com.wanderwildwood.garo.ui.ViewerScreen
 import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.openAppSettings
 import com.wanderwildwood.garo.ui.rememberAsk
+import com.wanderwildwood.garo.ui.ArmedScope
 
 class MainActivity : ComponentActivity() {
     private val turner = TurnWithPhone(this)
@@ -79,13 +80,15 @@ class MainActivity : ComponentActivity() {
             // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
                 ThemeMMD(colorScheme = monochrome) {
-                    when {
-                        handed == null -> Gallery()
-                        // One the phone's index knows — the camera's, or a file from Files — is opened
-                        // in its own folder, so the pictures either side are a page-turn away.
-                        lookFor != null -> Gallery(lookFor = lookFor, handed = handed, onLeave = ::finish)
-                        // Anyone else's — an attachment, a file in a message — can only be shown alone.
-                        else -> Outside(handed, onBack = ::finish)
+                    ArmedScope {
+                        when {
+                            handed == null -> Gallery()
+                            // One the phone's index knows — the camera's, or a file from Files — is opened
+                            // in its own folder, so the pictures either side are a page-turn away.
+                            lookFor != null -> Gallery(lookFor = lookFor, handed = handed, onLeave = ::finish)
+                            // Anyone else's — an attachment, a file in a message — can only be shown alone.
+                            else -> Outside(handed, onBack = ::finish)
+                        }
                     }
                 }
             }

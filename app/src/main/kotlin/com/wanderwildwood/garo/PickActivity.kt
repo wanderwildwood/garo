@@ -37,6 +37,7 @@ import com.wanderwildwood.garo.ui.Server
 import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.openAppSettings
 import com.wanderwildwood.garo.ui.rememberAsk
+import com.wanderwildwood.garo.ui.ArmedScope
 
 /**
  * Another app asking for a picture: Email attaching one, Messaging sending one.
@@ -57,10 +58,12 @@ class PickActivity : ComponentActivity() {
 
         setContent {
             ThemeMMD(colorScheme = monochrome) {
-                Pick(wanted, several, onAnswer = ::answer, onCancel = {
-                    setResult(Activity.RESULT_CANCELED)
-                    finish()
-                })
+                ArmedScope {
+                    Pick(wanted, several, onAnswer = ::answer, onCancel = {
+                        setResult(Activity.RESULT_CANCELED)
+                        finish()
+                    })
+                }
             }
         }
     }

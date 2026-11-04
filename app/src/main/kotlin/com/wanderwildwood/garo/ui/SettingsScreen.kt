@@ -28,7 +28,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
-import kotlinx.coroutines.delay
 import android.text.format.DateFormat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -639,16 +638,10 @@ private fun backupLine(line: BackupStatus.Line, destination: String, to: Destina
     }
 }
 
-/** "Forget the server — tap again", disarming itself after six seconds, as every armed row does. */
+/** "Forget the server — tap again", armed until the next other touch, Back or leaving, as every armed row is. */
 @Composable
 private fun ForgetRow(onForget: () -> Unit) {
-    var armed by remember { mutableStateOf(false) }
-    LaunchedEffect(armed) {
-        if (armed) {
-            delay(6_000)
-            armed = false
-        }
-    }
+    var armed by rememberArmedFlag()
     Setting(
         title = stringResource(if (armed) R.string.settings_forget_server_armed else R.string.settings_forget_server),
         value = stringResource(R.string.settings_forget_server_note),
@@ -934,16 +927,10 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
 
 private enum class NcEntry { ADDRESS, USER, PASSWORD, FOLDER }
 
-/** A row that asks for a second tap before it acts, and forgets the first after six seconds. */
+/** A row that asks for a second tap before it acts; it stays armed until the next other touch, Back or leaving. */
 @Composable
 private fun ArmedRow(title: String, armedTitle: String, note: String, onConfirm: () -> Unit) {
-    var armed by remember { mutableStateOf(false) }
-    LaunchedEffect(armed) {
-        if (armed) {
-            delay(6_000)
-            armed = false
-        }
-    }
+    var armed by rememberArmedFlag()
     Setting(
         title = if (armed) armedTitle else title,
         value = note,
