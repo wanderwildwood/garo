@@ -224,7 +224,7 @@ The same text in short is in the app, under Settings → About, with these terms
 <!-- shared-about privacy section -->
 ## Who we are
 
-Pictures is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. Pictures keeps what you put in it on your phone and sends nothing to the developer, so the developer holds no data about you.
+Pictures is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. What you put in Pictures stays on your phone. The only things that go out are the requests described above: to your own Immich or Nextcloud server, asking for the list of your albums or folders and their pictures, carrying your API key or app password, and, if you turn backing up on, the pictures in the folders you choose with their checksums; and, for Share by tap, one picture to a phone on the same Wi-Fi. The developer receives nothing, so the developer holds no data about you.
 
 ## How to contact us
 
