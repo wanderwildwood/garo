@@ -299,6 +299,7 @@
 
     <!-- Heading. %1$s is the version number, e.g. 0.1.0 -->
     <string name="about_title">Pictures %1$s</string>
+    <string name="about_what">The pictures on the phone, by folder, a page at a time, to crop, turn or write on. With your own Immich or Nextcloud server, its pictures too, and the camera backed up there.</string>
     <string name="about_privacy_head">Privacy</string>
     <string name="about_privacy">Pictures reads the pictures on this phone to show them. It goes online only to the servers you set up (Immich, for its albums; Nextcloud, to show the pictures in your own folders there; and either, to back up the folders you choose) and for Share by tap and Receive by tap, which pass one picture to a phone on the same Wi-Fi and nowhere else. Your sign-in details are kept on this phone. Browsing Nextcloud only reads: it changes and deletes nothing there, and keeps nothing but small copies in the app\'s cache, deleted on signing out. Nothing is sent to the app\'s maker. There are no ads, no analytics and no tracking. Backups and exports go only where you choose to save them.</string>
     <string name="about_terms_head">Terms</string>
@@ -412,6 +413,12 @@
     <!-- shared-about: contact row + privacy section (edit in /opt/projects/shared-about) -->
     <string name="about_write_to">Write to %1$s</string>
     <string name="about_no_mail_app">No email app is installed. The address is %1$s.</string>
+    <!-- shared-about: what a screen reader says for an About drawer, the heading passed in -->
+    <string name="about_open_drawer">Open %1$s</string>
+    <string name="about_close_drawer">Close %1$s</string>
+    <string name="about_intro_head">What it does</string>
+    <string name="about_contact_head">Contact</string>
+    <string name="about_links_head">Links</string>
     <string name="privacy_who_title">Who we are</string>
     <string name="privacy_who">This app is made by wander wildwood, an independent developer: one person, not a company. That makes wander wildwood the data controller for anything the app itself handles, and that is very little. What you put in stays on this phone. The only things that go out are the requests described above: to your own Immich or Nextcloud server, for the list of your albums or folders and their pictures, and, if you turn backing up on, the pictures in the folders you choose; and, for Share by tap, one picture to a phone on the same Wi-Fi. Nothing comes to the developer.</string>
     <string name="privacy_contact_title">How to contact us</string>
