@@ -6,18 +6,22 @@ import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContract
 
 /**
- * Android's own "save as" screen for one file, whose type and suggested name are given when it is
- * opened. A picture is written only where the reader chooses here; this app never writes a file
+ * The "save as" screen for one file (Files' own when it is installed, else Android's), whose type
+ * and suggested name are given when it is opened. A picture is written only where the reader chooses here; this app never writes a file
  * into a shared folder on its own.
  */
 class SaveAs : ActivityResultContract<SaveAs.Ask, Uri?>() {
     class Ask(val name: String, val mime: String)
 
     override fun createIntent(context: Context, input: Ask): Intent =
-        Intent(Intent.ACTION_CREATE_DOCUMENT)
-            .addCategory(Intent.CATEGORY_OPENABLE)
-            .setType(input.mime)
-            .putExtra(Intent.EXTRA_TITLE, input.name)
+        FilesPicker.aim(
+            context,
+            Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType(input.mime)
+                .putExtra(Intent.EXTRA_TITLE, input.name),
+            writable = true,
+        )
 
     override fun parseResult(resultCode: Int, intent: Intent?): Uri? =
         if (resultCode == android.app.Activity.RESULT_OK) intent?.data else null
