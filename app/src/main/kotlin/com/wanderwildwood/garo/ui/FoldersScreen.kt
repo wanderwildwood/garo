@@ -151,6 +151,7 @@ private fun FolderList(
         state = listState,
         modifier = Modifier.fillMaxSize().padding(start = 20.dp),
         onPullAtTop = onPullAtTop,
+        showCutRow = true,
     ) {
         if (withServer) item(key = "h-phone") { Heading(stringResource(R.string.folders_on_phone)) }
         if (withServer && state.folders.isEmpty()) {

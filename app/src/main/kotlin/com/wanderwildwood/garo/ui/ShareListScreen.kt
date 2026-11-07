@@ -47,7 +47,7 @@ fun ShareListScreen(uris: List<Uri>, types: List<String?>, onClose: () -> Unit) 
                 )
             }
         } else {
-            PagedColumn(Modifier.fillMaxWidth().weight(1f)) {
+            PagedColumn(Modifier.fillMaxWidth().weight(1f), showCutRow = true) {
                 itemsIndexed(targets, key = { _, it -> it.packageName + "/" + it.className }) { i, t ->
                     Column {
                     Box(

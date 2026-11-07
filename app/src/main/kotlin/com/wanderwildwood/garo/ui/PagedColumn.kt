@@ -70,6 +70,13 @@ import kotlin.math.max
  *
  * A row taller than the whole page is read a page at a time within it.
  *
+ * [showCutRow] is for lists of tall rows (an inbox, conversations, articles, notes, books; decided
+ * 5 Nov 2026): the row the foot cuts through is drawn and can be pressed, so a page has no blank
+ * band at its foot, and a turn forward still brings that row to the top, whole, so nothing is
+ * skipped. There is no blank tail: the last page ends flush and may open part-way down a row the
+ * page before already showed. A turn back goes one page back and lands on a row, as it does
+ * without it. Off by default; every other list keeps whole-row pages.
+ *
  * The bar is drawn as MMD's `VerticalScrollbar` draws it (MMD 1.0.2, `LazyMMD.kt`, Apache-2.0,
  * Copyright 2025 The Android Open Source Project, modified by Mudita Sp. z o.o.), with its own
  * chevron drawables; only where a turn lands is ours.
@@ -96,6 +103,7 @@ fun PagedColumn(
     onPullAtTop: (() -> Unit)? = null,
     @Suppress("UNUSED_PARAMETER") rowStep: (() -> Float?)? = null,
     @Suppress("UNUSED_PARAMETER") folio: Boolean = false,
+    showCutRow: Boolean = false,
     content: LazyListScope.() -> Unit,
 ) {
     // The gesture below is set up once for the list; read the caller's latest action, not the
@@ -131,8 +139,9 @@ fun PagedColumn(
     } else {
         Modifier
     }
-    val shown by remember(state) { derivedStateOf { state.layoutInfo.totalItemsCount > 1 } }
-    val pages by remember(state) { derivedStateOf { state.layoutInfo.view().pages } }
+    val cutRow by rememberUpdatedState(showCutRow)
+    val shown by remember(state) { derivedStateOf { state.layoutInfo.totalItemsCount > if (cutRow) 0 else 1 } }
+    val pages by remember(state) { derivedStateOf { state.layoutInfo.view(cutRow).pages } }
     Row(
         modifier = (if (onPullAtTop == null) modifier else modifier.pullAtTop(state) { pull?.invoke(); Unit })
             .then(widen)
@@ -149,7 +158,7 @@ fun PagedColumn(
                         detectVerticalDragGestures(onDragStart = { turned = false }) { _, drag ->
                             if (!turned && drag != 0f) {
                                 turned = true
-                                scope.launch { if (drag < 0f) state.turnForward() else state.turnBack() }
+                                scope.launch { if (drag < 0f) state.turnForward(cutRow) else state.turnBack(cutRow) }
                             }
                         }
                     }
@@ -157,13 +166,13 @@ fun PagedColumn(
                     .pointerInput(state) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                            val foot = state.layoutInfo.view().foot
+                            val foot = state.layoutInfo.view(cutRow).foot
                             if (foot != null && down.position.y >= foot) down.consume()
                         }
                     }
                     .drawWithContent {
                         // Read here, while drawing, so a page turn redraws without composing anything.
-                        val foot = state.layoutInfo.view().foot
+                        val foot = state.layoutInfo.view(cutRow).foot
                         if (foot == null) drawContent() else clipRect(bottom = foot.toFloat()) { this@drawWithContent.drawContent() }
                     },
                 state = state,
@@ -174,16 +183,18 @@ fun PagedColumn(
                 userScrollEnabled = false,
             ) {
                 content()
-                item(key = TAIL, contentType = TAIL) { Spacer(Modifier.height(tail)) }
+                // With the cut row shown there is no tail: the last page ends flush.
+                if (!showCutRow) item(key = TAIL, contentType = TAIL) { Spacer(Modifier.height(tail)) }
             }
         }
         if (pages && isScrollbarVisible) {
             PageBar(
                 state = state,
-                onBack = { scope.launch { state.turnBack() } },
-                onForward = { scope.launch { state.turnForward() } },
+                cutRow = showCutRow,
+                onBack = { scope.launch { state.turnBack(showCutRow) } },
+                onForward = { scope.launch { state.turnForward(showCutRow) } },
                 onFirst = { scope.launch { state.scrollToItem(0) } },
-                onLast = { scope.launch { state.scrollToItem(state.lastPageStart()) } },
+                onLast = { scope.launch { state.scrollToItem(state.lastPageStart(showCutRow)) } },
                 onJump = { index -> scope.launch { state.scrollToItem(index) } },
             )
         }
@@ -203,15 +214,16 @@ internal data class RowSpan(val index: Int, val top: Int, val bottom: Int)
 
 /**
  * A page as laid out: its [rows] (the tail left out), the [height] rows may fill, and how many
- * rows the list has, [count].
+ * rows the list has, [count]. [showsCut]: the row cut at the foot is drawn (see [PagedColumn]).
  */
-internal data class PageView(val rows: List<RowSpan>, val height: Int, val count: Int) {
+internal data class PageView(val rows: List<RowSpan>, val height: Int, val count: Int, val showsCut: Boolean = false) {
     /** The first row that runs past the foot, if any (a row taller than the page included). */
     private val cut: RowSpan? get() = rows.firstOrNull { it.bottom > height }
 
     /** Where drawing stops: the top of a row cut at the foot, or null to draw it all. */
     val foot: Int?
         get() {
+            if (showsCut) return null
             val c = cut ?: return null
             // A row taller than the page, alone on it, is shown as far as it goes.
             return if (c == rows.first() || c.top <= 0) null else c.top
@@ -246,9 +258,8 @@ internal fun forward(page: PageView): Turn {
     val cut = page.rows.firstOrNull { it.bottom > page.height }
         ?: return Turn.To(page.rows.last().index + 1)
     // The row that does not fit is the one the page opens with: it is taller than a page, so the
-    // next page is the next part of it.
-    // "Opens with", not "starts at the top": a list with padding above its first row has that
-    // row start below 0, and it still must be read through.
+    // next page is the next part of it. "Opens with", not "starts at the top": a list with
+    // padding above its first row has that row start below 0, and it still must be read through.
     if (cut.index == page.rows.first().index) return Turn.By(minOf(page.height, cut.bottom - page.height).coerceAtLeast(1))
     return Turn.To(cut.index)
 }
@@ -265,43 +276,49 @@ internal fun backSnap(page: PageView): Int? {
     return page.rows.getOrNull(1)?.index
 }
 
-private fun LazyListLayoutInfo.view(): PageView {
+private fun LazyListLayoutInfo.view(cutRow: Boolean = false): PageView {
     val items = visibleItemsInfo.filter { it.key != TAIL }
     val rows = items.map { RowSpan(it.index, it.offset - viewportStartOffset, it.offset - viewportStartOffset + it.size) }
-    val count = (totalItemsCount - 1).coerceAtLeast(0)
-    return PageView(rows, viewportSize.height - afterContentPadding, count)
+    // Without the cut row the list ends in the tail, which is not a row.
+    val count = (totalItemsCount - if (cutRow) 0 else 1).coerceAtLeast(0)
+    return PageView(rows, viewportSize.height - afterContentPadding, count, cutRow)
 }
 
-private suspend fun LazyListState.turnForward() {
-    when (val t = forward(layoutInfo.view())) {
+private suspend fun LazyListState.turnForward(cutRow: Boolean = false) {
+    when (val t = forward(layoutInfo.view(cutRow))) {
         is Turn.To -> scrollToItem(t.index)
         is Turn.By -> scrollBy(t.px.toFloat())
         Turn.None -> Unit
     }
 }
 
-private suspend fun LazyListState.turnBack() {
-    val page = layoutInfo.view()
+private suspend fun LazyListState.turnBack(cutRow: Boolean = false) {
+    val page = layoutInfo.view(cutRow)
     if (page.atStart) return
     scrollBy(-page.height.toFloat())
-    backSnap(layoutInfo.view())?.let { scrollToItem(it) }
+    backSnap(layoutInfo.view(cutRow))?.let { scrollToItem(it) }
 }
 
-/** The last row, which opens the last page: the tail under it leaves it at the top. */
-private fun LazyListState.lastPageStart(): Int = (layoutInfo.totalItemsCount - 2).coerceAtLeast(0)
+/**
+ * The last row, which opens the last page: the tail under it leaves it at the top. With the cut
+ * row shown there is no tail, and the list stops the last row flush with the foot.
+ */
+private fun LazyListState.lastPageStart(cutRow: Boolean = false): Int =
+    (layoutInfo.totalItemsCount - if (cutRow) 1 else 2).coerceAtLeast(0)
 
 /** MMD's scrollbar, as it draws it; see [PagedColumn]. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PageBar(
     state: LazyListState,
+    cutRow: Boolean,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onFirst: () -> Unit,
     onLast: () -> Unit,
     onJump: (Int) -> Unit,
 ) {
-    val page = state.layoutInfo.view()
+    val page = state.layoutInfo.view(cutRow)
     if (page.count == 0) return
     val containerColor = MaterialTheme.colorScheme.onPrimary
     val sliderColor = MaterialTheme.colorScheme.primary

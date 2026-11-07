@@ -96,6 +96,7 @@ fun GridScreen(
                 verticalArrangement = Arrangement.spacedBy(GAP),
                 modifier = Modifier.fillMaxSize().padding(start = GAP, end = GAP, top = GAP),
                 onPullAtTop = onPullAtTop,
+                showCutRow = true,
             ) {
                 items(subfolders, key = { "sub-" + it.path }) { sub ->
                     Column {
