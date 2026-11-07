@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,6 +57,10 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit, headers: Map<String, String>? = n
     var position by remember { mutableIntStateOf(0) }
     var length by remember { mutableIntStateOf(0) }
     var failed by remember { mutableStateOf(false) }
+    // The picture's own shape, once the player knows it. Without it the view took the full width
+    // and was cut short in height, and VideoView, told only that its height may not exceed what
+    // is left, shortens the picture without narrowing it: an upright video played squashed.
+    var aspect by remember { mutableStateOf<Float?>(null) }
 
     LaunchedEffect(playing) {
         // The end is said by the completion listener. Asking the view whether it is playing here
@@ -73,7 +78,10 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit, headers: Map<String, String>? = n
             AndroidView(
                 factory = { context ->
                     VideoView(context).apply {
-                        setOnPreparedListener {
+                        setOnPreparedListener { player ->
+                            // The size the player reports is the one it shows: turned as the
+                            // video asks to be turned, and with its pixels' own shape.
+                            aspect = videoAspect(player.videoWidth, player.videoHeight)
                             length = duration
                             start()
                             playing = true
@@ -92,7 +100,7 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit, headers: Map<String, String>? = n
                         view = this
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = aspect?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxWidth(),
             )
             if (failed) Explain(text = stringResource(R.string.video_failed))
         }
@@ -155,3 +163,7 @@ fun VideoPlayer(uri: Uri, onClose: () -> Unit, headers: Map<String, String>? = n
         }
     }
 }
+
+/** Width over height, or null while the player does not yet know the picture's size. */
+internal fun videoAspect(width: Int, height: Int): Float? =
+    if (width > 0 && height > 0) width.toFloat() / height else null
