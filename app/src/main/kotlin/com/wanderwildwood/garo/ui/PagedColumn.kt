@@ -184,7 +184,10 @@ fun PagedColumn(
             ) {
                 content()
                 // With the cut row shown there is no tail: the last page ends flush.
-                if (!showCutRow) item(key = TAIL, contentType = TAIL) { Spacer(Modifier.height(tail)) }
+                // The tail has no key of its own (8 Nov 2026): a list keeps its place on the key of its
+                // first row, so a list that opened empty (its rows still loading) and so on the tail alone
+                // would stay on the tail when the rows came in above it, a blank page. Known by its type.
+                if (!showCutRow) item(contentType = TAIL) { Spacer(Modifier.height(tail)) }
             }
         }
         if (pages && isScrollbarVisible) {
@@ -277,7 +280,7 @@ internal fun backSnap(page: PageView): Int? {
 }
 
 private fun LazyListLayoutInfo.view(cutRow: Boolean = false): PageView {
-    val items = visibleItemsInfo.filter { it.key != TAIL }
+    val items = visibleItemsInfo.filter { it.contentType != TAIL }
     val rows = items.map { RowSpan(it.index, it.offset - viewportStartOffset, it.offset - viewportStartOffset + it.size) }
     // Without the cut row the list ends in the tail, which is not a row.
     val count = (totalItemsCount - if (cutRow) 0 else 1).coerceAtLeast(0)
