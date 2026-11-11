@@ -51,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -84,6 +85,11 @@ import kotlin.math.max
  * Called as `LazyColumnMMD` was. [isScrollbarVisible] is on by default; a list that must not show
  * one passes false. [folio] and [rowStep] are kept so every existing call compiles.
  *
+ * [barClearBelow] is for a screen with a floating button in the corner under the bar (11 Nov 2026):
+ * the bar ends that far above the foot of the list, so the button keeps its corner and the lower
+ * chevron stands over it instead of under it, where a press meant for the next page pressed the
+ * button. One 56 dp button on its 16 dp margin is 72 dp. The rows are not moved.
+ *
  * [onPullAtTop], when given, is called when a swipe down starts on the first page of the rows: the
  * list asks for them again. It asks for nothing otherwise, and does not take the swipe from the
  * list. Saying what the pull set going is the caller's, in words.
@@ -104,6 +110,7 @@ fun PagedColumn(
     @Suppress("UNUSED_PARAMETER") rowStep: (() -> Float?)? = null,
     @Suppress("UNUSED_PARAMETER") folio: Boolean = false,
     showCutRow: Boolean = false,
+    barClearBelow: Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) {
     // The gesture below is set up once for the list; read the caller's latest action, not the
@@ -194,6 +201,7 @@ fun PagedColumn(
             PageBar(
                 state = state,
                 cutRow = showCutRow,
+                clearBelow = barClearBelow,
                 onBack = { scope.launch { state.turnBack(showCutRow) } },
                 onForward = { scope.launch { state.turnForward(showCutRow) } },
                 onFirst = { scope.launch { state.scrollToItem(0) } },
@@ -315,6 +323,7 @@ private fun LazyListState.lastPageStart(cutRow: Boolean = false): Int =
 private fun PageBar(
     state: LazyListState,
     cutRow: Boolean,
+    clearBelow: Dp,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onFirst: () -> Unit,
@@ -326,7 +335,7 @@ private fun PageBar(
     val containerColor = MaterialTheme.colorScheme.onPrimary
     val sliderColor = MaterialTheme.colorScheme.primary
     Column(
-        modifier = Modifier.fillMaxHeight().padding(horizontal = 8.dp),
+        modifier = Modifier.fillMaxHeight().padding(start = 8.dp, end = 8.dp, bottom = clearBelow),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
