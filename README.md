@@ -1,6 +1,4 @@
-# Pictures
-
-画廊 *garō*
+# 画廊 garō — Pictures
 
 The pictures and videos on the phone, by folder, one at a time, black on white, with nothing moving.
 A tap at either side of a picture turns the page, two fingers zoom, and Share by tap passes a picture
