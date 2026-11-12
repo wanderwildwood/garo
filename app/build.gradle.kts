@@ -47,6 +47,8 @@ android {
             realSigningConfig?.let { signingConfig = it }
         }
         getByName("release") {
+            // Release APKs carry arm64-v8a only: every device this app is for is arm64. Debug builds keep the emulator's.
+            ndk { abiFilters += listOf("arm64-v8a") }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
