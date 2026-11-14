@@ -634,13 +634,14 @@ private fun Zoomable(
                         scaleY = scale
                         translationX = offset.x
                         translationY = offset.y
-                    },
+                    }
+                    .keepColors(),
             )
             // The sharp window, placed on the panel by the same arithmetic, in whole pixels so
             // that at 1:1 each picture pixel lands on one screen pixel.
             val s = sharp
             if (s != null && scale > 1f) {
-                Canvas(Modifier.fillMaxSize()) {
+                Canvas(Modifier.fillMaxSize().keepColors()) {
                     val per = scale * fitFull
                     val x = boxW / 2 + offset.x + (s.area.left - fullW / 2f) * per
                     val y = boxH / 2 + offset.y + (s.area.top - fullH / 2f) * per

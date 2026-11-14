@@ -253,6 +253,15 @@ fun SettingsScreen(
                 )
             }
 
+            item {
+                val context = LocalContext.current
+                SwitchSetting(
+                    title = stringResource(R.string.settings_dark),
+                    on = DarkMode.on,
+                    onChange = { DarkMode.set(context, it) },
+                )
+            }
+
             item { OpensRow() }
 
             // Only on a phone that has NFC; elsewhere the row could do nothing.

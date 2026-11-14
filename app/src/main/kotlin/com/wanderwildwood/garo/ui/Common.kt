@@ -60,7 +60,7 @@ internal fun Thumbnail(decoder: Decoder, picture: Picture, px: Int, modifier: Mo
                 bitmap = remember(it) { it.asImageBitmap() },
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.matchParentSize().keepColors(),
             )
         }
     }

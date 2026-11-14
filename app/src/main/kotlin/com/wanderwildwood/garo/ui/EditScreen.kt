@@ -378,7 +378,7 @@ private fun Picture(
         Tool.SIZE -> Modifier
     }
 
-    Canvas(Modifier.fillMaxSize().onSizeChanged { size = it.toSize() }.then(gestures)) {
+    Canvas(Modifier.fillMaxSize().onSizeChanged { size = it.toSize() }.then(gestures).keepColors()) {
         val fit = Fit(this.size, picture, window)
         val src = IntOffset((window.left * picture.width).roundToInt(), (window.top * picture.height).roundToInt())
         val srcSize = IntSize(
