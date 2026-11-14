@@ -426,4 +426,6 @@
     <string name="privacy_rights_title">Your rights</string>
     <string name="privacy_rights">Under the GDPR you can ask to see the data held about you, to have it corrected or deleted, to limit or object to its use, to take a copy with you, to withdraw consent, and to complain to a data protection authority. Since the app keeps what it stores only on your phone, you can do most of this yourself: forget the Immich server or sign out of Nextcloud in Settings, which deletes what was fetched from them, clear the app\'s data in Android\'s settings, or uninstall the app. A server of your own is yours: what it keeps is up to you.</string>
     <!-- /shared-about -->
+    <string name="settings_dark">Dark mode</string>
+    <string name="settings_dark_note">White on black, in this app. Home has one switch for every app.</string>
 </resources>

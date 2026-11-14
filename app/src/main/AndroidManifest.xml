@@ -30,6 +30,8 @@
     <!-- Android 11 and later hide other apps unless asked for by what they do: Files, to show a
          folder in, and whatever takes a shared picture. -->
     <queries>
+        <!-- Home, whose dark mode switch this app follows when Home is installed. -->
+        <package android:name="com.wanderwildwood.iori" />
         <!-- Which app opens a picture or a video, for the "Opens pictures and videos" row.
              Without these Android 11 and later would only ever answer "this one". -->
         <intent>
@@ -74,6 +76,12 @@
         android:roundIcon="@drawable/ic_launcher_mudita"
         android:supportsRtl="true"
         android:theme="@style/Theme.App">
+        <!-- Starts dark mode before the first screen is drawn. Holds no data. -->
+        <provider
+            android:name="com.wanderwildwood.garo.ui.DarkModeInit"
+            android:authorities="${applicationId}.darkmodeinit"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
