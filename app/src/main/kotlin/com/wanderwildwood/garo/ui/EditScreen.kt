@@ -81,6 +81,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 
 private enum class Tool { CROP, DRAW, SIZE }
 
@@ -615,6 +618,7 @@ private fun Choice(text: String, chosen: Boolean, modifier: Modifier = Modifier,
             .height(48.dp)
             .border(2.dp, ink, shape)
             .background(if (chosen) ink else MaterialTheme.colorScheme.surface, shape)
+            .semantics { role = Role.RadioButton; selected = chosen }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
