@@ -74,6 +74,13 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
 
 private enum class Tool { CROP, DRAW, SIZE }
 
@@ -632,10 +639,27 @@ private fun Tabs(chosen: Int, labels: List<String>, onTab: (Int) -> Unit) {
 @Composable
 private fun WordsDialog(onPlace: (String) -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf("") }
+    val field = remember { FocusRequester() }
     EInkDialog(onDismiss = onDismiss) {
+        // The field is what the dialog is for: it takes the focus as it opens and the keyboard
+        // comes up. Asked from inside the dialog, a frame after it is drawn: the field lives in
+        // the dialog's own window, which a request from the screen beneath does not reach.
+        val keyboardNow = LocalSoftwareKeyboardController.current
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            runCatching { field.requestFocus() }
+            keyboardNow?.show()
+        }
         TextMMD(text = stringResource(R.string.edit_words_title), style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(12.dp))
-        TextFieldMMD(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth())
+        TextFieldMMD(
+            value = text,
+            onValueChange = { text = it },
+            modifier = Modifier.fillMaxWidth().focusRequester(field),
+            // Done on the keyboard is Place.
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onPlace(text) }),
+        )
         Spacer(Modifier.height(18.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButtonMMD(onClick = onDismiss, modifier = Modifier.weight(1f).height(48.dp)) {

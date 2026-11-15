@@ -55,6 +55,8 @@ import com.wanderwildwood.garo.R
 import com.wanderwildwood.garo.media.Choices
 import com.wanderwildwood.garo.media.FolderOrder
 import com.wanderwildwood.garo.media.PictureOrder
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
 /**
  * The settings pages: the main one, and under "Servers and backup" the pages the server rows
@@ -685,7 +687,6 @@ private fun EntryDialog(
     // this phone, from a screen elsewhere, and the only way to find a slip is to read it back.
     var shown by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
     // Save with nothing typed changes nothing: an empty field is not a request to remove the key,
     // which only "Forget the Immich server" does, and asks first.
     val filled = value.text.isNotBlank() && value.text.trim() != "https://"
@@ -694,6 +695,15 @@ private fun EntryDialog(
         onDismiss()
     }
     EInkDialog(onDismiss = onDismiss) {
+        // The field is what the dialog is for: it takes the focus as it opens and the keyboard
+        // comes up. Asked from inside the dialog, a frame after it is drawn: the field lives in
+        // the dialog's own window, which a request from the screen beneath does not reach.
+        val keyboardNow = LocalSoftwareKeyboardController.current
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            runCatching { focus.requestFocus() }
+            keyboardNow?.show()
+        }
         TextMMD(text = title, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(6.dp))
         TextMMD(text = note, style = MaterialTheme.typography.labelSmall)
