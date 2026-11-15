@@ -13,6 +13,3 @@ fun pulledAfter(server: Server): Pulled = when (server) {
     // Forgotten while it was asked, or another ask still out: nothing the pull went wrong on.
     Server.OK, Server.NONE, Server.ASKING -> Pulled.UP_TO_DATE
 }
-
-/** How long the line stays after a pull, in milliseconds. */
-const val PULLED_LINE_MS = 3_000L

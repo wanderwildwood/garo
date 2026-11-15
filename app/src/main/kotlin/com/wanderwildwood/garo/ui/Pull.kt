@@ -20,7 +20,6 @@ import com.mudita.mmd.components.text.TextMMD
 import com.wanderwildwood.garo.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -42,7 +41,9 @@ class PullState internal constructor(
             Log.i("garo", "pulled at the top of a list: asking the server")
             pulled = Pulled.ASKING
             pulled = pulledAfter(run.value())
-            delay(PULLED_LINE_MS)
+            // What the server said stays until the next press: on this panel a line on a timer
+            // could be gone before it had been read, and "could not reach" most of all.
+            NextPress.await()
             pulled = null
         }
     }
