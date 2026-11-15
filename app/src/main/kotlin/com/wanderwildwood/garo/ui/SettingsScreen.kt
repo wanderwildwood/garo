@@ -57,6 +57,11 @@ import com.wanderwildwood.garo.media.FolderOrder
 import com.wanderwildwood.garo.media.PictureOrder
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
 
 /**
  * The settings pages: the main one, and under "Servers and backup" the pages the server rows
@@ -501,6 +506,7 @@ private fun FoldersDialog(choosable: List<String>, chosen: Set<String>, onDone: 
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
+                    .semantics { role = Role.Switch; toggleableState = ToggleableState(on) }
                     .clickable {
                         val next = if (on) picked.filterNot { it.equals(path, ignoreCase = true) }.toSet() else picked + path
                         if (next.isNotEmpty()) picked = next
@@ -596,6 +602,7 @@ private fun BackupRow(backup: BackupState, destination: String, onBackup: (Boole
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .semantics { role = Role.Switch; toggleableState = ToggleableState(backup.on) }
             .clickable { onBackup(!backup.on) }
             .padding(vertical = 14.dp),
     ) {
@@ -783,6 +790,7 @@ private fun SwitchSetting(title: String, on: Boolean, onChange: (Boolean) -> Uni
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
+            .semantics { role = Role.Switch; toggleableState = ToggleableState(on) }
             .clickable { onChange(!on) }
             .padding(vertical = 12.dp),
     ) {
