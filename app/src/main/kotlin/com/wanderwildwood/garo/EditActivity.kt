@@ -38,7 +38,13 @@ class EditActivity : ComponentActivity() {
                         EditScreen(
                             uri = uri,
                             onSaved = { saved ->
-                                Toast.makeText(this, R.string.edit_saved, Toast.LENGTH_SHORT).show()
+                                // This app's own viewer says "Saved" at its foot until the next
+                                // press. Another app's Edit (Files, Messaging) gets the picture
+                                // back on a screen of its own, where nothing of this app's is
+                                // left to say it: there a toast is the only way to tell.
+                                if (callingActivity?.packageName != packageName) {
+                                    Toast.makeText(this, R.string.edit_saved, Toast.LENGTH_SHORT).show()
+                                }
                                 val answer = Intent().setData(saved).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 answer.clipData = ClipData.newRawUri(null, saved)
                                 setResult(Activity.RESULT_OK, answer)

@@ -19,7 +19,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Rect
-import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -70,6 +69,9 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
@@ -148,10 +150,20 @@ fun ViewerScreen(
         if (picture.id == savedId) savedId = null
         onIndex(index)
     }
+    // What a save or a share did, in words at the foot, until the next press: on this panel a
+    // message on a timer could be gone before it had been read.
+    var notice by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            NextPress.await()
+            notice = null
+        }
+    }
     val edit = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val saved = result.data?.data
         if (result.resultCode == Activity.RESULT_OK && saved != null) {
             savedId = runCatching { ContentUris.parseId(saved) }.getOrNull()?.takeIf { it >= 0 }
+            notice = R.string.edit_saved
         }
     }
 
@@ -223,7 +235,7 @@ fun ViewerScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                Toast.makeText(context, R.string.cloud_fetch_failed, Toast.LENGTH_SHORT).show()
+                notice = R.string.cloud_fetch_failed
                 null
             }
             if (file != null) then(file)
@@ -233,7 +245,7 @@ fun ViewerScreen(
     fun shareFromCloud(item: CloudItem) = withOriginal(item) { file ->
         val copy = runCatching { withContext(Dispatchers.IO) { Copies.forSharing(context, file, item) } }.getOrNull()
         if (copy == null) {
-            Toast.makeText(context, R.string.cloud_fetch_failed, Toast.LENGTH_SHORT).show()
+            notice = R.string.cloud_fetch_failed
         } else {
             shareWithApp(FileProvider.getUriForFile(context, context.packageName + ".files", copy), Copies.type(item))
         }
@@ -248,7 +260,7 @@ fun ViewerScreen(
                 val saved = runCatching {
                     withContext(Dispatchers.IO) { Copies.saveTo(context, held.first, destination) }
                 }.isSuccess
-                Toast.makeText(context, if (saved) R.string.cloud_saved else R.string.cloud_save_failed, Toast.LENGTH_SHORT).show()
+                notice = if (saved) R.string.cloud_saved else R.string.cloud_save_failed
                 if (saved) onSaved()
             }
         }
@@ -258,7 +270,7 @@ fun ViewerScreen(
         val ask = SaveAs.Ask(Copies.suggestedName(item), Copies.type(item))
         if (runCatching { chooseWhere.launch(ask) }.isFailure) {
             waiting = null
-            Toast.makeText(context, R.string.cloud_save_failed, Toast.LENGTH_SHORT).show()
+            notice = R.string.cloud_save_failed
         }
     }
 
@@ -417,15 +429,17 @@ fun ViewerScreen(
         }
     }
 
-    if (fetching != null) {
+    val foot = if (fetching != null) R.string.cloud_fetching else notice
+    if (foot != null) {
         Box(Modifier.fillMaxSize()) {
             TextMMD(
-                text = stringResource(R.string.cloud_fetching),
+                text = stringResource(foot),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
+                    .semantics { liveRegion = LiveRegionMode.Polite }
                     .padding(horizontal = 20.dp, vertical = 14.dp),
             )
         }
