@@ -74,6 +74,9 @@ class MainActivity : ComponentActivity() {
                 ?: MediaIndex.tanaPath(uri)?.let { path -> { p: Picture -> "${p.folderPath}/${p.name}" == path } }
         }
 
+        // The camera's gallery button, set to "All pictures": every picture in one pile, newest first.
+        val everything = handed == null && intent?.action == ALL_PICTURES
+
         setContent {
             // The switch in Settings takes effect at once.
             val choices by viewModel<GalleryViewModel>().state.collectAsStateWithLifecycle()
@@ -83,6 +86,7 @@ class MainActivity : ComponentActivity() {
                 ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
                     ArmedScope {
                         when {
+                            everything -> Gallery(everything = true, onLeave = ::finish)
                             handed == null -> Gallery()
                             // One the phone's index knows — the camera's, or a file from Files — is opened
                             // in its own folder, so the pictures either side are a page-turn away.
@@ -114,6 +118,9 @@ class MainActivity : ComponentActivity() {
             "com.android.camera.action.REVIEW",
             MediaStore.ACTION_REVIEW,
         )
+
+        /** Asked by Lens: open on every picture on the phone in one pile, newest first. */
+        const val ALL_PICTURES = "com.wanderwildwood.garo.action.ALL_PICTURES"
     }
 }
 
@@ -136,11 +143,16 @@ private fun Outside(uri: Uri, onBack: () -> Unit, viewModel: GalleryViewModel = 
  *
  * With [lookFor] set it was opened on a particular picture by another app, and goes straight to
  * that picture inside its folder; [onLeave] then takes the place of going back up the folders.
+ *
+ * With [everything] set it was opened by the camera on all the pictures at once: one pile of
+ * every folder shown here, newest first whatever order the folders keep, and back from the pile
+ * is [onLeave], back to the camera.
  */
 @Composable
 private fun Gallery(
     lookFor: ((Picture) -> Boolean)? = null,
     handed: Uri? = null,
+    everything: Boolean = false,
     onLeave: () -> Unit = {},
     viewModel: GalleryViewModel = viewModel(),
 ) {
@@ -151,7 +163,7 @@ private fun Gallery(
 
     // Where the reader is. Kept as plain keys so a turn of the phone or a trip to the share
     // sheet brings them back to the same picture rather than the top of the app.
-    var folderKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var folderKey by rememberSaveable { mutableStateOf<String?>(if (everything) Arrange.EVERYTHING else null) }
     var viewing by rememberSaveable { mutableStateOf<Int?>(null) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var receiving by rememberSaveable { mutableStateOf(false) }
@@ -228,7 +240,14 @@ private fun Gallery(
     val cloudFolder = remember(cloudPath, cloudListing, state.choices.pictureOrder, state.cloud.on) {
         if (cloudPath != null && state.cloud.on) viewModel.cloudFolder(cloudPath, cloudRoot) else null
     }
-    val folder = state.folders.firstOrNull { it.key == folderKey }
+    // The camera's pile: made here rather than taken from the list, where the all-pictures row
+    // may be hidden, is left out with one folder, and follows the order chosen in settings.
+    val pileLabel = stringResource(R.string.folders_all)
+    val pile = remember(everything, state.folders) {
+        if (!everything) null else Arrange.everything(state.folders, pileLabel)
+    }
+    val folder = pile?.takeIf { folderKey == Arrange.EVERYTHING && state.access == Access.GRANTED }
+        ?: state.folders.firstOrNull { it.key == folderKey }
         ?: state.albums.firstOrNull { it.key == folderKey }
         ?: cloudFolder?.folder
     // Rows above the pictures in the grid: a Nextcloud folder's own folders.
@@ -254,7 +273,7 @@ private fun Gallery(
     // one from before it, which would undo the search as soon as it succeeded.
     LaunchedEffect(folderKey, folder, state.reading) {
         val key = folderKey
-        if (key != null && !state.reading && found && state.folders.none { it.key == key } && state.albums.none { it.key == key } &&
+        if (key != null && key != Arrange.EVERYTHING && !state.reading && found && state.folders.none { it.key == key } && state.albums.none { it.key == key } &&
             // A Nextcloud folder stays open until signing out takes it away.
             (Cloud.pathOf(key) == null || !state.cloud.on)
         ) {
@@ -337,6 +356,7 @@ private fun Gallery(
                         folderKey = Cloud.folderKey(Cloud.parentOf(cloudPath))
                         gridList.requestScrollToItem(0)
                     }
+                    folderKey == Arrange.EVERYTHING -> onLeave()
                     else -> folderKey = null
                 }
             }

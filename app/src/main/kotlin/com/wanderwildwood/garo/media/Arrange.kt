@@ -55,6 +55,14 @@ object Arrange {
         return Folder(key = ALL, label = label, pictures = sort(pictures, if (order == PictureOrder.OLDEST) PictureOrder.OLDEST else PictureOrder.NEWEST))
     }
 
+    /**
+     * Every picture of [folders] in one pile, newest first, for the camera's gallery button.
+     * Unlike [all] it is there with one folder or none, and never oldest first: the button is
+     * for the picture just taken and the ones before it.
+     */
+    fun everything(folders: List<Folder>, label: String): Folder =
+        Folder(key = EVERYTHING, label = label, pictures = sort(folders.filter { it.key != ALL }.flatMap { it.pictures }, PictureOrder.NEWEST))
+
     fun sort(pictures: List<Picture>, order: PictureOrder): List<Picture> = when (order) {
         // Ties broken by id so two pictures from the same second keep one order between loads,
         // rather than swapping places under the reader's thumb when the list is read again.
@@ -129,4 +137,7 @@ object Arrange {
 
     /** The key of the all-pictures row; no bucket id is a word. */
     const val ALL = "all"
+
+    /** The key of the pile the camera opens; not a row in the list. */
+    const val EVERYTHING = "everything"
 }

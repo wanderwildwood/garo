@@ -113,4 +113,23 @@ class ArrangeTest {
         val one = Arrange.folders(pictures.take(2), FolderOrder.NAME, PictureOrder.NEWEST, "card")
         assertEquals(null, Arrange.all(one, PictureOrder.NEWEST, "All"))
     }
+
+    @Test
+    fun `the camera's pile is every picture once, newest first, even with one folder`() {
+        val pictures = listOf(
+            pic(1, folder = "a", folderName = "Alpha", taken = 100L),
+            pic(2, folder = "a", folderName = "Alpha", taken = 900L),
+            pic(3, folder = "b", folderName = "Beta", taken = 500L),
+        )
+        val folders = Arrange.folders(pictures, FolderOrder.NAME, PictureOrder.OLDEST, "card")
+        // The list's own all-pictures row is not counted a second time.
+        val listed = listOfNotNull(Arrange.all(folders, PictureOrder.OLDEST, "All")) + folders
+        val pile = Arrange.everything(listed, "All")
+        assertEquals(Arrange.EVERYTHING, pile.key)
+        assertEquals(listOf(2L, 3L, 1L), pile.pictures.map { it.id })
+
+        val one = Arrange.folders(pictures.take(2), FolderOrder.NAME, PictureOrder.OLDEST, "card")
+        assertEquals(listOf(2L, 1L), Arrange.everything(one, "All").pictures.map { it.id })
+        assertEquals(emptyList<Long>(), Arrange.everything(emptyList(), "All").pictures.map { it.id })
+    }
 }

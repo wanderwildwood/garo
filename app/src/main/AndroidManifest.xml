@@ -98,6 +98,12 @@
                 <category android:name="android.intent.category.APP_GALLERY" />
             </intent-filter>
 
+            <!-- Lens's gallery button set to "All pictures": every picture in one pile, newest first. -->
+            <intent-filter>
+                <action android:name="com.wanderwildwood.garo.action.ALL_PICTURES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
             <!-- So a picture or a video opened from Files, Email or Messaging is shown here. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
