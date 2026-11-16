@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    No cleartext anywhere. Immich and Nextcloud are reached over https only (the settings refuse
+    an http:// address before anything is sent). Share by tap and Receive by tap carry one picture
+    over the local Wi-Fi in plain HTTP, but on a plain socket of their own (tap/OneShotServer.kt,
+    tap/Receive.kt) and only to a private address with a one-time token, so nothing here needs it.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

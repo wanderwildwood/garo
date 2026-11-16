@@ -162,6 +162,10 @@ class Immich(server: String, private val key: String) {
             (URL(base + path).openConnection() as HttpURLConnection).apply {
                 connectTimeout = TIMEOUT
                 readTimeout = TIMEOUT
+                // Never followed: Android drops only an Authorization header when a redirect
+                // goes to another host, so the key in x-api-key would go along to wherever the
+                // server pointed. Immich's API does not redirect; a 3xx is said as unreachable.
+                instanceFollowRedirects = false
                 setRequestProperty("x-api-key", key)
                 setRequestProperty("Accept", "application/json")
             }
