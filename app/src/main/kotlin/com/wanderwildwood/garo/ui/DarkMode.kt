@@ -20,7 +20,10 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowInsetsController
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -326,6 +330,19 @@ private val keepPaint = androidx.compose.ui.graphics.Paint().apply {
         )
     )
 }
+
+/**
+ * Text-selection handles and the cursor's handle are drawn in a small window of their own,
+ * which the filter does not reach: black on the black page, they could not be seen. Put this
+ * just inside the app's ThemeMMD; the handles are then white while dark mode is on. The
+ * highlight is drawn in the page and turned with it, so it stays the same.
+ */
+@Composable
+fun DarkSelection(content: @Composable () -> Unit) =
+    CompositionLocalProvider(LocalTextSelectionColors provides if (DarkMode.on) darkHandles else lightHandles, content = content)
+
+private val lightHandles = TextSelectionColors(handleColor = Color.Black, backgroundColor = Color.Black.copy(alpha = 0.4f))
+private val darkHandles = TextSelectionColors(handleColor = Color.White, backgroundColor = Color.Black.copy(alpha = 0.4f))
 
 /** Starts [DarkMode] before the app's first screen. Declared in the manifest; holds no data. */
 class DarkModeInit : ContentProvider() {

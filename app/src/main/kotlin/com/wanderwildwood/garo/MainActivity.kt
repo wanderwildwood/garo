@@ -56,6 +56,7 @@ import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.openAppSettings
 import com.wanderwildwood.garo.ui.rememberAsk
 import com.wanderwildwood.garo.ui.ArmedScope
+import com.wanderwildwood.garo.ui.DarkSelection
 
 class MainActivity : ComponentActivity() {
     // A notice stays until the next press; see NextPress.
@@ -94,7 +95,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(choices.choices.turnWithPhone) { turner.set(choices.choices.turnWithPhone) }
             // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
-                ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
+                ThemeMMD(colorScheme = monochrome, typography = houseTypography) { DarkSelection {
                     ArmedScope {
                         when {
                             everything -> Gallery(everything = true, onLeave = ::finish)
@@ -106,7 +107,7 @@ class MainActivity : ComponentActivity() {
                             else -> Outside(handed, onBack = ::finish)
                         }
                     }
-                }
+                } }
             }
         }
     }

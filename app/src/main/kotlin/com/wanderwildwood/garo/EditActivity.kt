@@ -14,6 +14,7 @@ import com.wanderwildwood.garo.ui.EditScreen
 import com.wanderwildwood.garo.ui.houseTypography
 import com.wanderwildwood.garo.ui.monochrome
 import com.wanderwildwood.garo.ui.ArmedScope
+import com.wanderwildwood.garo.ui.DarkSelection
 
 /**
  * Editing a picture, for this app's own viewer and for any other app's Edit — Files' share
@@ -33,7 +34,7 @@ class EditActivity : ComponentActivity() {
         setContent {
             // A blinking cursor is a repaint twice a second on an e-ink panel, for nothing.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
-                ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
+                ThemeMMD(colorScheme = monochrome, typography = houseTypography) { DarkSelection {
                     ArmedScope {
                         EditScreen(
                             uri = uri,
@@ -56,7 +57,7 @@ class EditActivity : ComponentActivity() {
                             },
                         )
                     }
-                }
+                } }
             }
         }
     }
