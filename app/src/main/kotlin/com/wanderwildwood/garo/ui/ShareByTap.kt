@@ -134,7 +134,7 @@ fun ShareByTapScreen(picture: Picture, onClose: () -> Unit) {
                     // The same link as a picture, for a phone whose tap does not work: any camera reads it.
                     s.link?.let {
                         Line(stringResource(R.string.tap_qr_label), small = true)
-                        QrCode(it, Modifier.fillMaxWidth().weight(1f))
+                        QrCode(it, Modifier.fillMaxWidth().weight(1f).keepColors())
                     }
                     Line(stringResource(R.string.tap_limits), small = true)
                     Press(R.string.tap_stop) { share.stop() }
