@@ -197,7 +197,7 @@ fun ReceiveByTapScreen(onClose: () -> Unit) {
             scope.launch {
                 val ok = runCatching {
                     withContext(Dispatchers.IO) {
-                        context.contentResolver.openOutputStream(destination)!!.use { out ->
+                        context.contentResolver.openOutputStream(destination, "wt")!!.use { out ->
                             ready.file.inputStream().use { it.copyTo(out) }
                         }
                     }

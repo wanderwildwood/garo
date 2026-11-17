@@ -21,7 +21,7 @@ object Copies {
     fun saveTo(context: Context, file: File, destination: Uri) {
         val resolver = context.contentResolver
         try {
-            resolver.openOutputStream(destination)!!.use { out -> file.inputStream().use { it.copyTo(out, 64 * 1024) } }
+            resolver.openOutputStream(destination, "wt")!!.use { out -> file.inputStream().use { it.copyTo(out, 64 * 1024) } }
         } catch (e: Exception) {
             runCatching { DocumentsContract.deleteDocument(resolver, destination) }
             throw e

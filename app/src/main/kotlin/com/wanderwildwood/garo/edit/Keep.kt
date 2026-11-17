@@ -54,9 +54,11 @@ object Keep {
      */
     fun write(resolver: ContentResolver, destination: Uri, bitmap: Bitmap, png: Boolean) {
         try {
-            resolver.openOutputStream(destination)!!.use { out ->
+            // "wt": a file chosen to be replaced is cut to nothing first, not written over in place.
+            val written = resolver.openOutputStream(destination, "wt")!!.use { out ->
                 bitmap.compress(if (png) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, QUALITY, out)
             }
+            if (!written) throw java.io.IOException("the picture was not written")
         } catch (e: Exception) {
             runCatching { DocumentsContract.deleteDocument(resolver, destination) }
             throw e
