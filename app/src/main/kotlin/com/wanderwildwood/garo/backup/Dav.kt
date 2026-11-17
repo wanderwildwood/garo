@@ -176,6 +176,29 @@ object Remote {
 /** One entry of a WebDAV listing. [path] is decoded; a folder's ends in "/". */
 data class Entry(val path: String, val size: Long, val isFolder: Boolean)
 
+/** The most of a PROPFIND answer read: far more than a folder of many thousand files needs. */
+private const val ANSWER_LIMIT = 32 * 1024 * 1024
+
+/**
+ * A PROPFIND answer, read whole within [ANSWER_LIMIT]. One with a doctype is refused: a
+ * server's answer is not trusted to name outside files or entities for the parser to fetch.
+ */
+internal fun davAnswer(body: InputStream): java.io.ByteArrayInputStream {
+    val out = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(64 * 1024)
+    while (true) {
+        val n = body.read(buffer)
+        if (n < 0) break
+        out.write(buffer, 0, n)
+        if (out.size() > ANSWER_LIMIT) throw IOException("the server's answer is too long")
+    }
+    val bytes = out.toByteArray()
+    if (String(bytes, Charsets.ISO_8859_1).contains("<!DOCTYPE", ignoreCase = true)) {
+        throw IOException("the server's answer has a doctype")
+    }
+    return java.io.ByteArrayInputStream(bytes)
+}
+
 /**
  * The answer to a PROPFIND: one `<d:response>` per file or folder, with the properties asked
  * for that the server has. Read with the platform's own XML parser, which works the same off
@@ -184,11 +207,11 @@ data class Entry(val path: String, val size: Long, val isFolder: Boolean)
 fun parseMultistatus(body: InputStream): List<Entry> {
     val factory = DocumentBuilderFactory.newInstance().apply {
         isNamespaceAware = true
-        // A server's answer is not trusted to name outside files for the parser to fetch.
+        // Android's parser does not know this feature; [davAnswer] refuses a doctype on the phone.
         runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
         isExpandEntityReferences = false
     }
-    val document = factory.newDocumentBuilder().parse(body)
+    val document = factory.newDocumentBuilder().parse(davAnswer(body))
     val responses = document.getElementsByTagNameNS(DAV, "response")
     val out = mutableListOf<Entry>()
     for (i in 0 until responses.length) {

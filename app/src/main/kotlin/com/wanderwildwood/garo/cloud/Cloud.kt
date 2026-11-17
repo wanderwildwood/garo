@@ -1,5 +1,6 @@
 package com.wanderwildwood.garo.cloud
 
+import com.wanderwildwood.garo.backup.davAnswer
 import com.wanderwildwood.garo.backup.decodeHref
 import com.wanderwildwood.garo.backup.encodePath
 import com.wanderwildwood.garo.media.Arrange
@@ -157,11 +158,11 @@ object Cloud {
     fun parse(body: InputStream, user: String): List<CloudItem> {
         val factory = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
-            // A server's answer is not trusted to name outside files for the parser to fetch.
+            // Android's parser does not know this feature; davAnswer refuses a doctype on the phone.
             runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
             isExpandEntityReferences = false
         }
-        val document = factory.newDocumentBuilder().parse(body)
+        val document = factory.newDocumentBuilder().parse(davAnswer(body))
         val marker = "/remote.php/dav/files/$user/"
         val responses = document.getElementsByTagNameNS(DAV, "response")
         val out = mutableListOf<CloudItem>()

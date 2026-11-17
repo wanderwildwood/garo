@@ -68,4 +68,11 @@ class RemoteTest {
         )
         assertEquals("Photos/Kompakt/My%20Shot.jpg", encodePath("Photos/Kompakt/My Shot.jpg"))
     }
+
+    @Test
+    fun `an answer with a doctype is refused`() {
+        val xml = """<?xml version="1.0"?><!DOCTYPE d [<!ENTITY x "y">]><d:multistatus xmlns:d="DAV:"/>"""
+        val refused = runCatching { parseMultistatus(xml.byteInputStream()) }.exceptionOrNull()
+        assertTrue(refused is java.io.IOException)
+    }
 }
