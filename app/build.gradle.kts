@@ -51,10 +51,7 @@ android {
             ndk { abiFilters += listOf("arm64-v8a") }
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             realSigningConfig?.let { signingConfig = it }
 
             // AGP stamps the git revision into META-INF. The build box works from an rsync
