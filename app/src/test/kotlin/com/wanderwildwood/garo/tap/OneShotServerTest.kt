@@ -112,6 +112,29 @@ class OneShotServerTest {
         assertEquals(200, get(s, "/${s.token}").responseCode)
     }
 
+    @Test fun stoppingClosesADownloadUnderWay() {
+        val big = ByteArray(40_000_000)
+        val s = server(bytes = big)
+        Socket("127.0.0.1", s.port).use { sock ->
+            sock.soTimeout = 3000
+            sock.getOutputStream().write("GET /${s.token} HTTP/1.1\r\nHost: x\r\n\r\n".toByteArray())
+            val input = sock.getInputStream()
+            val buf = ByteArray(64 * 1024)
+            var got = input.read(buf).toLong()
+            s.stop()
+            try {
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    got += n
+                }
+            } catch (_: java.net.SocketException) {
+                // reset by the server: closed, as it should be
+            }
+            assertTrue(got < big.size)
+        }
+    }
+
     @Test fun listensOnTheGivenAddressOnly() {
         val s = server()
         // 127.0.0.2 is also loopback on Linux, but the server was not bound to it.

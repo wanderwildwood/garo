@@ -29,6 +29,8 @@ class OneShotServer(
     private val socket = AtomicReference<ServerSocket?>(null)
     private val state = AtomicReference(State.WAITING)
     private val busy = AtomicBoolean(false)
+    /** Connections being served: closed when the share ends any way but sent, so none outlives it. */
+    private val clients = java.util.concurrent.ConcurrentHashMap.newKeySet<Socket>()
 
     val current: State get() = state.get()
 
@@ -55,13 +57,22 @@ class OneShotServer(
     private fun finish(to: State) {
         if (!state.compareAndSet(State.WAITING, to)) return
         runCatching { socket.get()?.close() }
+        if (to != State.SENT) clients.forEach { runCatching { it.close() } }
         onState(to)
     }
 
     private fun acceptLoop(server: ServerSocket) {
         while (!server.isClosed) {
             val client = try { server.accept() } catch (_: IOException) { return }
-            Thread({ serve(client) }, "tap-client").apply { isDaemon = true }.start()
+            // As many at once as the backlog holds; one more is turned away unread.
+            if (clients.size >= MAX_CLIENTS || state.get() != State.WAITING) {
+                runCatching { client.close() }
+                continue
+            }
+            clients.add(client)
+            Thread({
+                try { serve(client) } finally { clients.remove(client) }
+            }, "tap-client").apply { isDaemon = true }.start()
         }
     }
 
@@ -139,6 +150,8 @@ class OneShotServer(
     }
 
     companion object {
+        /** Connections served at once, as many as the listening backlog. */
+        private const val MAX_CLIENTS = 4
         private val REASONS = mapOf(200 to "OK", 400 to "Bad Request", 404 to "Not Found", 405 to "Method Not Allowed")
 
         fun headers(code: Int, length: Long, mime: String, filename: String?): String = buildString {
