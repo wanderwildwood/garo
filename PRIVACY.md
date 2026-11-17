@@ -22,8 +22,8 @@ android.permission.NFC
 ```
 
 On Android 12, which the Kompakt runs, the first is the permission that reads photos. Android
-words it as "photos and media"; the app reads only pictures, from Android's own index of
-them, and never lists or opens any other kind of file.
+words it as "photos and media"; the app reads only pictures and videos, from Android's own
+index of them, and never lists or opens any other kind of file.
 
 **`INTERNET` is there for Immich and Nextcloud, and for Share by tap and Receive by tap.** Android asks for
 the same permission whether an app talks to a server across the world or to the phone next to
@@ -52,7 +52,7 @@ started from asks for so it can search the storage itself.
 question — "Allow Pictures to delete this photo?", or "…delete 3 photos?" when several are
 marked — and only a yes deletes anything.
 
-**`NFC` is for Share by tap, and nothing else.** It is a normal permission, granted at install,
+**`NFC` is for Share by tap and Receive by tap, and nothing else.** It is a normal permission, granted at install,
 so nothing is asked. See the next section.
 
 **Editing never changes a picture.** An edited picture is saved as a new file where you choose, in

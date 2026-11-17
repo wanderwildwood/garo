@@ -1,6 +1,6 @@
 # 画廊 garō — Pictures
 
-The pictures and videos on the phone, by folder, one at a time, black on white, with nothing moving.
+The pictures and videos on the phone, by folder, one at a time, black on white (white on black in Dark mode), with nothing moving.
 A tap at either side of a picture turns the page, two fingers zoom, and Share by tap passes a picture
 to a phone beside it. If you run Immich or Nextcloud, its pictures sit below the phone's own, and
 either can take a backup of the camera's folders.
@@ -180,7 +180,7 @@ The address has to be `https://`. The app password is kept sealed by the phone's
 
 ## What it does not do
 
-No slideshow, no wallpapers, no themes. The editor is kept small: crop, turn and draw.
+No slideshow, no wallpapers, no themes beyond Dark mode, in which pictures and videos keep their colors. The editor is kept small: crop, turn and draw.
 It reads Android's own index of pictures rather than searching the storage itself, so a
 folder holding a `.nomedia` file — a folder asking not to be shown — is not shown.
 
