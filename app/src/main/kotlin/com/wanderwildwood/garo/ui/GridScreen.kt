@@ -104,7 +104,8 @@ fun GridScreen(
                         DottedRule(start = 52.dp, end = 16.dp)
                     }
                 }
-                items(rows.size, key = { rows[it].first().id }) { r ->
+                // The row's place as well: a picture listed twice must not give two rows one key.
+                items(rows.size, key = { "$it:" + rows[it].first().id }) { r ->
                     Row(horizontalArrangement = Arrangement.spacedBy(GAP), modifier = Modifier.fillMaxWidth()) {
                         rows[r].forEachIndexed { c, picture ->
                             Box(Modifier.weight(1f).aspectRatio(1f)) {

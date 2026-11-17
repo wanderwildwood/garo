@@ -862,7 +862,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
                 mime = if (o.isNull("mime")) null else o.getString("mime"),
                 camera = if (o.isNull("camera")) null else o.getString("camera"),
             )
-        }
+        }.distinctBy { it.remote }
     }.getOrNull()
 }
 

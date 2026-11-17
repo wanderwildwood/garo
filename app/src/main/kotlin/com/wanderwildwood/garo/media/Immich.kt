@@ -76,7 +76,8 @@ class Immich(server: String, private val key: String) {
             found += parsePictures(assets.getJSONArray("items"), album)
             page = assets.optString("nextPage", "").toIntOrNull()
         }
-        return found
+        // Pages can overlap when the album changes between two of them: each picture once.
+        return found.distinctBy { it.remote }
     }
 
     /** "thumbnail" (about 250 px, for the grid) or "preview" (1440 px, for the viewer). */
