@@ -234,6 +234,9 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
 
     /** The file for an Immich picture at one size, fetched once and then read from disk. */
     private fun fetch(assetId: String, size: String): File {
+        // The id comes from the server and becomes a file name: an Immich id is a UUID, and
+        // anything else (a slash, "..") is not let near the disk.
+        require(ASSET_ID.matches(assetId)) { "not an Immich asset id" }
         val file = File(File(remoteDir, size).apply { mkdirs() }, assetId)
         if (file.length() > 0) {
             file.setLastModified(System.currentTimeMillis())
@@ -246,7 +249,7 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         // Whole or not at all: a fetch cut off half way must not become a picture with half
         // its rows missing that is then served from disk for ever.
         part.renameTo(file)
-        trim(remoteDir)
+        trim(remoteDir, keep = file)
         return file
     }
 
@@ -295,7 +298,7 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         }
         val nc = cloud ?: throw IllegalStateException("not signed in")
         nc.download(item.path, file)
-        trim(cloudDir)
+        trim(cloudDir, keep = file)
         return file
     }
 
@@ -327,9 +330,13 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
 
-    /** Keeps a disk cache under its limit, the least recently seen going first. */
-    private fun trim(dir: File) {
-        val files = dir.walkTopDown().filter { it.isFile }.toList()
+    /**
+     * Keeps a disk cache under its limit, the least recently seen going first; never [keep], the
+     * file just fetched, which the caller is about to hand on (a video can be larger than the
+     * whole cache).
+     */
+    private fun trim(dir: File, keep: File? = null) {
+        val files = dir.walkTopDown().filter { it.isFile && it != keep }.toList()
         var total = files.sumOf { it.length() }
         if (total <= DISK_BYTES) return
         for (f in files.sortedBy { it.lastModified() }) {
@@ -388,6 +395,9 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
     private companion object {
         const val THUMBNAIL_BYTES = 24 * 1024 * 1024
         const val DISK_BYTES = 200L * 1024 * 1024
+
+        /** What an Immich asset id looks like: a UUID, letters, digits and dashes only. */
+        private val ASSET_ID = Regex("[0-9A-Za-z-]{1,64}")
         const val GRID = 24
         const val FRAME_TRIES = 8
         const val THUMBNAIL = "thumbnail"
