@@ -26,7 +26,7 @@ import com.wanderwildwood.garo.ui.DarkSelection
 class EditActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val uri = intent?.data
+        val uri = intent?.data?.takeUnless { isOwnPrivateFile(this, it) }
         if (uri == null) {
             finish()
             return

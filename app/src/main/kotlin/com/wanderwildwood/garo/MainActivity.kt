@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
         // Another app asking for one picture to be shown: a file from Files, an attachment from
         // Email, the camera's "last photo". Leaving the picture leaves the app, back to whoever
         // asked.
-        val handed: Uri? = intent?.takeIf { it.action in SHOW }?.data
+        val handed: Uri? = intent?.takeIf { it.action in SHOW }?.data?.takeUnless { isOwnPrivateFile(this, it) }
         // How to recognise the handed picture among the index's, when it can be recognised.
         val lookFor: ((Picture) -> Boolean)? = handed?.let { uri ->
             MediaIndex.indexId(uri)?.let { id -> { p: Picture -> p.id == id } }
@@ -464,4 +464,17 @@ private fun Gallery(
             },
         )
     }
+}
+
+/**
+ * A file: address that points into this app's own private storage. Another app may hand any
+ * address; one into the app's own data is never opened for it, since the app could read what
+ * the sender cannot.
+ */
+internal fun isOwnPrivateFile(context: android.content.Context, uri: Uri): Boolean {
+    if (uri.scheme != "file") return false
+    val path = uri.path ?: return true
+    val own = runCatching { java.io.File(context.applicationInfo.dataDir).canonicalPath }.getOrNull() ?: return true
+    val file = runCatching { java.io.File(path).canonicalPath }.getOrNull() ?: return true
+    return file == own || file.startsWith("$own/")
 }
