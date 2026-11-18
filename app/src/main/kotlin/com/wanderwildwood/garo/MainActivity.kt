@@ -481,14 +481,26 @@ private fun Gallery(
 }
 
 /**
- * A file: address that points into this app's own private storage. Another app may hand any
- * address; one into the app's own data is never opened for it, since the app could read what
- * the sender cannot.
+ * An address that points into this app's own private storage: a file: path into its data, or a
+ * content: address served by one of its own providers (the copies kept for sharing). Another
+ * app may hand any address; one into the app's own data is never opened for it, since the app
+ * could read what the sender cannot.
  */
 internal fun isOwnPrivateFile(context: android.content.Context, uri: Uri): Boolean {
+    if (uri.scheme == "content") return isOwnAuthority(uri.authority, context.packageName)
     if (uri.scheme != "file") return false
     val path = uri.path ?: return true
     val own = runCatching { java.io.File(context.applicationInfo.dataDir).canonicalPath }.getOrNull() ?: return true
     val file = runCatching { java.io.File(path).canonicalPath }.getOrNull() ?: return true
     return file == own || file.startsWith("$own/")
+}
+
+/**
+ * A content: authority belonging to this app: its own package name, or one below it
+ * (`<package>.files`, `<package>.darkmodeinit`). Compared without case, as Android resolves them.
+ */
+internal fun isOwnAuthority(authority: String?, packageName: String): Boolean {
+    val a = authority?.substringAfterLast('@')?.lowercase() ?: return false
+    val own = packageName.lowercase()
+    return a == own || a.startsWith("$own.")
 }
