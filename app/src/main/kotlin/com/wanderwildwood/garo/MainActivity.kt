@@ -191,6 +191,20 @@ private fun Gallery(
     var cloudFrom by rememberSaveable { mutableStateOf<String?>(null) }
     val markedSet = remember(marked) { marked.toSet() }
 
+    // A backup is a copy of each picture as taken, the place it was taken included, which
+    // Android lets through only with this permission. It belongs to the photos permission
+    // already given, so Android grants it without asking; only the backup reads with it.
+    // Asked whenever the gallery opens with backing up on, not only in settings, so a backup
+    // turned on before the permission existed keeps the place from its next run.
+    val askOriginals = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(state.backup.on, state.access) {
+        val mayReadOriginals = context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (handed == null && state.access == Access.GRANTED && state.backup.on && !mayReadOriginals) {
+            askOriginals.launch(android.Manifest.permission.ACCESS_MEDIA_LOCATION)
+        }
+    }
+
     // Turned sideways the grid keeps its squares about the size they are upright, so more go across.
     val wide = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val perRow = if (wide) (state.choices.perRow * 7 + 2) / 4 else state.choices.perRow
@@ -301,15 +315,6 @@ private fun Gallery(
             BackHandler { settingsOpen = false }
             // The worker writes its record from outside; read it fresh whenever settings show.
             LaunchedEffect(Unit) { viewModel.readBackup() }
-            // A backup is a copy of each picture as taken, the place it was taken included, which
-            // Android lets through only with this permission. It belongs to the photos permission
-            // already given, so Android grants it without asking; only the backup reads with it.
-            val askOriginals = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-            val mayReadOriginals = context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-            LaunchedEffect(state.backup.on) {
-                if (state.backup.on && !mayReadOriginals) askOriginals.launch(android.Manifest.permission.ACCESS_MEDIA_LOCATION)
-            }
             SettingsScreen(
                 choices = state.choices,
                 onChoose = viewModel::choose,
