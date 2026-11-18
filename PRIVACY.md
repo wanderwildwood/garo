@@ -203,10 +203,11 @@ The source is here in full. If you would rather not read it:
 aapt2 dump badging app-release.apk | grep uses-permission
 ```
 
-That prints every permission the built app actually carries. It prints eight lines:
+That prints every permission the built app actually carries. It prints nine lines:
 
 ```
 uses-permission: name='android.permission.READ_EXTERNAL_STORAGE'
+uses-permission: name='android.permission.ACCESS_MEDIA_LOCATION'
 uses-permission: name='android.permission.INTERNET'
 uses-permission: name='android.permission.NFC'
 uses-permission: name='android.permission.WAKE_LOCK'
@@ -216,7 +217,7 @@ uses-permission: name='android.permission.FOREGROUND_SERVICE'
 uses-permission: name='com.wanderwildwood.garo.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
-The first three are the ones described above. The next four come with WorkManager, Android's
+The first four are the ones described above. The next four come with WorkManager, Android's
 own library for work that waits on conditions, which is what runs the backup: it needs to
 know whether the phone is on Wi-Fi, to keep the phone awake for an upload already started, to
 put the schedule back after a restart, and to run a long job. None of them reads anything, and
