@@ -58,8 +58,18 @@ class BackupRecordTargetTest {
     }
 
     @Test fun onlyAFileItselfIsNotTaken() {
-        listOf(400, 404, 409, 413, 415, 422).forEach { assertTrue("$it", BackupAnswer.isNotTaken(it)) }
-        listOf(200, 201, 401, 403, 408, 429, 500, 503).forEach { assertFalse("$it", BackupAnswer.isNotTaken(it)) }
+        listOf(400, 413, 414, 415, 422).forEach { assertTrue("$it", BackupAnswer.isNotTaken(it)) }
+        // A folder gone or a file locked is the server's state, not the picture's: the run fails.
+        listOf(200, 201, 401, 403, 404, 408, 409, 423, 429, 500, 503).forEach { assertFalse("$it", BackupAnswer.isNotTaken(it)) }
+    }
+
+    @Test fun backUpNowTriesTheSkippedAgain() = inDir { dir ->
+        val file = File(dir, "backup.json")
+        BackupRecord(file, "t").apply { markSkipped(picture(2)); markDone(picture(1)); save() }
+        val again = BackupRecord(file, "t")
+        again.retrySkipped()
+        assertFalse(again.isSkipped(picture(2)))
+        assertTrue(again.isDone(picture(1)))
     }
 
     @Test fun theSkippedCountShowsOnTheLine() {

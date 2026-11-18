@@ -13,6 +13,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import android.provider.MediaStore
 import com.wanderwildwood.garo.R
 import com.wanderwildwood.garo.media.Backup
@@ -50,6 +51,8 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val to = settings.destination() ?: return Result.success()
 
         val record = record(applicationContext, to)
+        // Back up now tries again what was passed over: a server's limit may have been lifted.
+        if (inputData.getBoolean(RETRY_SKIPPED, false)) record.retrySkipped()
         val target = target(settings, to)
         val index = MediaIndex(
             applicationContext.contentResolver,
@@ -229,6 +232,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         private const val PERIODIC = "backup-periodic"
         private const val ON_NEW = "backup-new-picture"
         private const val NOW = "backup-now"
+        private const val RETRY_SKIPPED = "retry-skipped"
 
         /** What has gone up, one record for each destination: what is on Immich is not on Nextcloud. */
         fun record(context: Context, to: Destination = Destination.IMMICH) = BackupRecord(
@@ -306,7 +310,10 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             )
         }
 
-        /** Back up straight away on whatever network there is, whatever Upload says. */
+        /**
+     * Back up straight away on whatever network there is, whatever Upload says, trying again
+     * the pictures passed over before.
+     */
         fun backUpNow(context: Context): androidx.work.Operation? {
             val settings = Settings(context)
             if (settings.destination() == null || !settings.backupOn()) return null
@@ -315,6 +322,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 ExistingWorkPolicy.REPLACE,
                 OneTimeWorkRequestBuilder<BackupWorker>()
                     .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                    .setInputData(workDataOf(RETRY_SKIPPED to true))
                     .build(),
             )
         }

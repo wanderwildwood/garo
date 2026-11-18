@@ -137,7 +137,8 @@ at once. The server is asked first what it already has, by checksum, so nothing 
 The line under the switch says how many are up and when it last checked, or what it is waiting
 for, the network or the charger, or that the server cannot be reached. A picture the server
 will not take, or one that cannot be read, is passed over so the rest still go; the line says
-how many, and each is tried again once it changes. A backup is a copy of each picture as
+how many, and each is tried again once it changes or on **Back up now**. A missing folder or a
+locked file on the server is not the picture's fault: that run stops and is tried again later. A backup is a copy of each picture as
 taken, the place it was taken included; Share and Share by tap still send pictures without it.
 Changing the server, account or folder while a backup runs stops that run, and the next one
 starts afresh on the new place. The key needs permission to upload assets.

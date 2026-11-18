@@ -43,7 +43,8 @@ class BackupRecord(
 
     /**
      * Pictures the server would not take, or that could not be read: passed over, so the ones
-     * after them still go up. Tried again once the picture changes (its key does).
+     * after them still go up. Tried again once the picture changes (its key does), or when
+     * Back up now is pressed ([retrySkipped]): a limit on the server's side may have been lifted.
      */
     private val skipped = HashSet<String>()
     var status = Status()
@@ -80,6 +81,11 @@ class BackupRecord(
         skipped += key(picture)
     }
 
+    /** Every picture passed over is tried again on this run. */
+    fun retrySkipped() {
+        skipped.clear()
+    }
+
     fun finish(problem: Problem?) {
         status = Status(lastRun = System.currentTimeMillis(), problem = problem)
         save()
@@ -114,11 +120,14 @@ class BackupRecord(
 /** How a server's answer to one picture's upload is read. */
 object BackupAnswer {
     /**
-     * A 4xx that is about the file itself: a name the server will not have, a file over its
-     * limit, a type it refuses. Not 401/403 (the sign-in), 408 or 429 (the server busy), which
-     * the next picture would meet as well.
+     * A 4xx that is about the file itself: a name the server will not have (400), a file over its
+     * limit (413), a name too long (414), a type it refuses (415), a file it cannot read (422).
+     * Not the sign-in (401/403), the server busy (408/429), nor a folder gone or a file locked
+     * (404/409/423): the next picture would meet those as well, so the run fails and is tried again.
      */
-    fun isNotTaken(code: Int): Boolean = code in 400..499 && code !in setOf(401, 403, 408, 429)
+    fun isNotTaken(code: Int): Boolean = code in NOT_TAKEN
+
+    private val NOT_TAKEN = setOf(400, 413, 414, 415, 422)
 }
 
 object Backup {
