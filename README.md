@@ -6,7 +6,8 @@ to a phone beside it. If you run Immich or Nextcloud, its pictures sit below the
 either can take a backup of the camera's folders.
 
 Built for the [Mudita Kompakt](https://mudita.com/products/kompakt/), whose 4.3" panel has
-sixteen grays, a slow redraw, and is read outdoors as often as indoors.
+sixteen grays, a slow redraw, and is read outdoors as often as indoors. It needs Android 12 or
+later.
 
 ## Screenshots
 
