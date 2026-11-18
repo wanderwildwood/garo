@@ -111,6 +111,25 @@ class BackupRecordTargetTest {
         listOf(200, 201, 401, 403, 404, 408, 409, 423, 429, 500, 503).forEach { assertFalse("$it", BackupAnswer.isNotTaken(it)) }
     }
 
+    @Test fun theSameAnswerSeveralTimesInARowIsTheServer() {
+        val streak = NotTakenStreak()
+        assertFalse(streak.notTaken(413))
+        assertFalse(streak.notTaken(413))
+        assertTrue(streak.notTaken(413))
+    }
+
+    @Test fun anotherAnswerOrAPictureTakenStartsTheStreakAgain() {
+        val streak = NotTakenStreak()
+        assertFalse(streak.notTaken(413))
+        assertFalse(streak.notTaken(413))
+        assertFalse(streak.notTaken(415))
+        assertFalse(streak.notTaken(413))
+        streak.taken()
+        assertFalse(streak.notTaken(413))
+        assertFalse(streak.notTaken(413))
+        assertTrue(streak.notTaken(413))
+    }
+
     @Test fun backUpNowTriesTheSkippedAgain() = inDir { dir ->
         val file = File(dir, "backup.json")
         BackupRecord(file, "t").apply { markSkipped(picture(2)); markDone(picture(1)); save() }

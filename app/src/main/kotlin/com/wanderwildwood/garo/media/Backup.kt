@@ -151,6 +151,34 @@ object BackupAnswer {
     fun isNotTaken(code: Int): Boolean = code in NOT_TAKEN
 
     private val NOT_TAKEN = setOf(400, 413, 414, 415, 422)
+
+    /** Pictures in a row not taken with the same answer that say the server, not the pictures. */
+    const val SERVER_STREAK = 3
+}
+
+/**
+ * Pictures not taken one after another, by the server's answer. One picture over a limit is that
+ * picture; the same answer for several in a row (a proxy in front of the server with a small
+ * limit on every upload) is the server, and the run fails and is tried again rather than
+ * passing every picture over for good. A picture that goes up ends the streak.
+ */
+class NotTakenStreak(private val limit: Int = BackupAnswer.SERVER_STREAK) {
+    private var code = 0
+    private var count = 0
+
+    /** One more picture not taken with [code]: true when the streak now says the server. */
+    fun notTaken(code: Int): Boolean {
+        if (count > 0 && code == this.code) count++ else {
+            this.code = code
+            count = 1
+        }
+        return count >= limit
+    }
+
+    /** A picture went up. */
+    fun taken() {
+        count = 0
+    }
 }
 
 object Backup {

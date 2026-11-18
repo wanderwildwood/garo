@@ -23,6 +23,7 @@ import com.wanderwildwood.garo.media.Destination
 import com.wanderwildwood.garo.media.Picture
 import com.wanderwildwood.garo.media.Immich
 import com.wanderwildwood.garo.media.MediaIndex
+import com.wanderwildwood.garo.media.NotTakenStreak
 import com.wanderwildwood.garo.media.Settings
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -104,6 +105,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val login = settings.immich() ?: return Result.success()
         val server = Immich(login.server, login.key)
         val deviceId = "garo-" + Build.MODEL.replace(' ', '-').lowercase()
+        val streak = NotTakenStreak()
         try {
             for (batch in pending.chunked(BATCH)) {
                 if (isStopped || !same()) break
@@ -143,11 +145,17 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                                 modified = p.modified.takeIf { it > 0 } ?: p.`when`,
                             )
                         } catch (e: Immich.Trouble.NotTaken) {
+                            // The same answer for several in a row is the server: tried again later.
+                            if (streak.notTaken(e.code)) {
+                                record.finish(BackupRecord.Problem.FAILED)
+                                return Result.retry()
+                            }
                             // That one picture; the next may go.
                             record.markSkipped(p)
                             record.save()
                             continue
                         }
+                        streak.taken()
                     }
                     // Up now, or already there: either way not to be sent again.
                     record.markDone(p)
@@ -177,6 +185,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val folder = PhotoFolder(account, settings.nextcloudFolder())
         val resolver = applicationContext.contentResolver
         val seen = HashMap<String, MutableMap<String, Long>>()
+        val streak = NotTakenStreak()
         try {
             for (p in pending) {
                 if (isStopped || !same()) break
@@ -204,11 +213,17 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                         try {
                             folder.put(dir, step.name, length, p.mime) { openForBackup(p) }
                         } catch (e: NotTaken) {
+                            // The same answer for several in a row is the server: tried again later.
+                            if (streak.notTaken(e.code)) {
+                                record.finish(BackupRecord.Problem.FAILED)
+                                return Result.retry()
+                            }
                             // That one picture (its name, its size); the next may go.
                             record.markSkipped(p)
                             record.save()
                             continue
                         }
+                        streak.taken()
                         there[step.name] = length
                     }
                 }

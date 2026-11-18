@@ -29,7 +29,7 @@ class Immich(server: String, private val key: String) {
         /** No answer at all: off the tailnet, the server down, the address wrong. */
         class Unreachable(cause: Throwable) : Trouble(cause.message ?: "unreachable")
         /** The server answered about one file and would not take it (too large, a type it refuses). */
-        class NotTaken(code: Int) : Trouble("not taken $code")
+        class NotTaken(val code: Int) : Trouble("not taken $code")
     }
 
     fun albums(): List<Album> {
