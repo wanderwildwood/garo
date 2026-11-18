@@ -243,11 +243,15 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
             return file
         }
         val server = immich ?: throw IllegalStateException("no server")
-        val bytes = server.image(assetId, size)
         val part = File(file.path + ".part")
-        part.writeBytes(bytes)
         // Whole or not at all: a fetch cut off half way must not become a picture with half
         // its rows missing that is then served from disk for ever.
+        try {
+            part.outputStream().use { server.image(assetId, size, it) }
+        } catch (e: Exception) {
+            part.delete()
+            throw e
+        }
         part.renameTo(file)
         trim(remoteDir, keep = file)
         return file

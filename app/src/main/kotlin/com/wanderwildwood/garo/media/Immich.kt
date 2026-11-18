@@ -82,9 +82,13 @@ class Immich(server: String, private val key: String) {
         return found.distinctBy { it.remote }
     }
 
-    /** "thumbnail" (about 250 px, for the grid) or "preview" (1440 px, for the viewer). */
-    fun image(assetId: String, size: String): ByteArray =
-        open("/api/assets/$assetId/thumbnail?size=$size").use { it.readBytes() }
+    /**
+     * "thumbnail" (about 250 px, for the grid) or "preview" (1440 px, for the viewer), written
+     * to [into] as it comes rather than held in memory, and no more than [IMAGE_LIMIT] of it.
+     */
+    fun image(assetId: String, size: String, into: java.io.OutputStream) {
+        open("/api/assets/$assetId/thumbnail?size=$size").use { copyCapped(it, into, IMAGE_LIMIT) }
+    }
 
     /**
      * Which of these pictures the server already has, by SHA-1. Answers the ids to upload; one
@@ -155,7 +159,7 @@ class Immich(server: String, private val key: String) {
         answer(c).close()
     }
 
-    private fun get(path: String): String = open(path).bufferedReader().use { it.readText() }
+    private fun get(path: String): String = open(path).use(::text)
 
     private fun post(path: String, json: String): String {
         val c = connect(path)
@@ -163,7 +167,14 @@ class Immich(server: String, private val key: String) {
         c.doOutput = true
         c.setRequestProperty("Content-Type", "application/json")
         c.outputStream.use { it.write(json.toByteArray()) }
-        return answer(c).bufferedReader().use { it.readText() }
+        return answer(c).use(::text)
+    }
+
+    /** An answer read as text, no more than [ANSWER_LIMIT] of it. */
+    private fun text(body: InputStream): String {
+        val out = java.io.ByteArrayOutputStream()
+        copyCapped(body, out, ANSWER_LIMIT)
+        return out.toString("UTF-8")
     }
 
     private fun open(path: String) = answer(connect(path))
@@ -208,6 +219,30 @@ class Immich(server: String, private val key: String) {
 
     companion object {
         private const val PAGE = 250
+        /**
+         * The most read of one answer: a page of 250 pictures with their camera details is well
+         * under a megabyte, and a preview a few. A server sending more is not believed, rather
+         * than let fill the phone's small memory.
+         */
+        internal const val ANSWER_LIMIT = 16L * 1024 * 1024
+        internal const val IMAGE_LIMIT = 32L * 1024 * 1024
+
+        /** [body] into [out], and [Trouble.Unreachable] once it runs past [limit]. */
+        internal fun copyCapped(body: InputStream, out: java.io.OutputStream, limit: Long) {
+            val buffer = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val n = try {
+                    body.read(buffer)
+                } catch (e: IOException) {
+                    throw Trouble.Unreachable(e)
+                }
+                if (n < 0) break
+                total += n
+                if (total > limit) throw Trouble.Unreachable(IOException("the server's answer is too long"))
+                out.write(buffer, 0, n)
+            }
+        }
         /** The id the whole timeline goes by among the albums; Immich's own ids are UUIDs. */
         const val TIMELINE = "timeline"
         private const val TIMEOUT = 15_000

@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** Parsing Immich 2.7.5's answers, shaped as its API spec gives them. */
@@ -83,5 +84,15 @@ class ImmichTest {
             Immich.longId("c0ffee00-0000-4000-8000-000000000001"),
             Immich.longId("c0ffee00-0000-4000-8000-000000000002"),
         )
+    }
+
+    @Test
+    fun `an answer longer than the limit is not believed`() {
+        val out = java.io.ByteArrayOutputStream()
+        Immich.copyCapped(java.io.ByteArrayInputStream(ByteArray(1000)), out, 1000)
+        assertEquals(1000, out.size())
+        assertThrows(Immich.Trouble.Unreachable::class.java) {
+            Immich.copyCapped(java.io.ByteArrayInputStream(ByteArray(1001)), java.io.ByteArrayOutputStream(), 1000)
+        }
     }
 }
