@@ -91,11 +91,14 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
      */
     private fun openForBackup(p: Picture): java.io.InputStream {
         val resolver = applicationContext.contentResolver
-        if (applicationContext.checkSelfPermission(Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (mayReadPlace()) {
             runCatching { resolver.openInputStream(MediaStore.setRequireOriginal(p.uri)) }.getOrNull()?.let { return it }
         }
         return resolver.openInputStream(p.uri) ?: throw java.io.FileNotFoundException("no stream")
     }
+
+    private fun mayReadPlace(): Boolean =
+        applicationContext.checkSelfPermission(Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     private fun toImmich(settings: Settings, record: BackupRecord, pending: List<Picture>, same: () -> Boolean): Result {
         val login = settings.immich() ?: return Result.success()
@@ -106,16 +109,29 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 if (isStopped || !same()) break
                 // A picture that cannot be read is passed over, not the end of the backup.
                 val sums = LinkedHashMap<String, String>()
+                val placeToo = mayReadPlace()
                 for (p in batch) {
                     val sum = runCatching { openForBackup(p).use(::sha1) }.getOrNull()
-                    if (sum == null) record.markSkipped(p) else sums[Backup.deviceAssetId(p)] = sum
+                    if (sum == null) {
+                        record.markSkipped(p)
+                        continue
+                    }
+                    sums[Backup.deviceAssetId(p)] = sum
+                    // Sent before with the place left out (0.8.26 and earlier): asked about that
+                    // copy too, so a lost record does not put the same picture up twice.
+                    if (placeToo) {
+                        val plain = runCatching {
+                            applicationContext.contentResolver.openInputStream(p.uri)?.use(::sha1)
+                        }.getOrNull()
+                        if (plain != null && plain != sum) sums[Backup.plainAssetId(p)] = plain
+                    }
                 }
                 record.save()
                 val wanted = if (sums.isEmpty()) emptySet() else server.toUpload(sums)
                 for (p in batch) {
                     if (isStopped || !same()) break
                     if (Backup.deviceAssetId(p) !in sums) continue
-                    if (Backup.deviceAssetId(p) in wanted) {
+                    if (Backup.toSend(p, sums, wanted)) {
                         try {
                             server.upload(
                                 open = { openForBackup(p) },

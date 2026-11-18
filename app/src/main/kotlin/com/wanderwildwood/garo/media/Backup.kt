@@ -189,6 +189,23 @@ object Backup {
      */
     fun deviceAssetId(picture: Picture) = "garo-${picture.id}-${picture.size}"
 
+    /**
+     * The id the picture is asked about a second time, by the checksum of its bytes as Android
+     * gives them, without the place it was taken: how 0.8.26 and earlier sent it. A copy already
+     * there that way is the same picture, so a lost record sends no second one.
+     */
+    fun plainAssetId(picture: Picture) = deviceAssetId(picture) + "-plain"
+
+    /**
+     * Whether a picture goes up, given the checksums asked about ([sums], by id) and the ids the
+     * server said it does not have ([wanted]): not when either copy of it is already there.
+     */
+    fun toSend(picture: Picture, sums: Map<String, String>, wanted: Set<String>): Boolean {
+        val id = deviceAssetId(picture)
+        val plain = plainAssetId(picture)
+        return id in sums && id in wanted && (plain !in sums || plain in wanted)
+    }
+
     /** A destination as one line, for [BackupRecord]: where, as whom, into which folder. */
     fun target(to: Destination, server: String, user: String, folder: String): String =
         listOf(to.name, server.trim().trimEnd('/').lowercase(), user, folder.trim('/', ' ')).joinToString("|")

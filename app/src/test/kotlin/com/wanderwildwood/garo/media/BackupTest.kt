@@ -37,6 +37,22 @@ class BackupTest {
     }
 
     @Test
+    fun `a picture already up without its place is not sent again with it`() {
+        val p = pic(1, "DCIM/Camera/")
+        val id = Backup.deviceAssetId(p)
+        val plain = Backup.plainAssetId(p)
+        // Only one copy asked about, as when the place cannot be read: the server decides.
+        assertTrue(Backup.toSend(p, mapOf(id to "a"), setOf(id)))
+        assertFalse(Backup.toSend(p, mapOf(id to "a"), emptySet()))
+        // Both asked about: sent only when the server has neither.
+        assertTrue(Backup.toSend(p, mapOf(id to "a", plain to "b"), setOf(id, plain)))
+        assertFalse(Backup.toSend(p, mapOf(id to "a", plain to "b"), setOf(id)))
+        assertFalse(Backup.toSend(p, mapOf(id to "a", plain to "b"), setOf(plain)))
+        // Not read at all: not sent.
+        assertFalse(Backup.toSend(p, emptyMap(), setOf(id)))
+    }
+
+    @Test
     fun `a backlog goes up oldest first, and what is done is left`() {
         val pictures = listOf(
             pic(1, "DCIM/Camera/", taken = 300),
