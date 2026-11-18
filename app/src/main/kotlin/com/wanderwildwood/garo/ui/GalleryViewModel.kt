@@ -299,6 +299,9 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
     fun setKey(key: String) {
         settings.writeImmichKey(key.takeIf { it.isNotBlank() })
         _state.update { it.copy(hasKey = settings.hasImmichKey()) }
+        // Another key may be another account: the backup record names the key it was kept
+        // for, so the line is read again under the new one, and a run under the old one stops.
+        readBackup()
         connect()
         askServer()
         BackupWorker.schedule(getApplication())

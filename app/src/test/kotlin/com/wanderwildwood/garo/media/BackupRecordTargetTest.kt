@@ -46,6 +46,30 @@ class BackupRecordTargetTest {
         assertTrue(BackupRecord(file, Backup.target(Destination.IMMICH, "https://photos.example.org", "", "")).isDone(picture(1)))
     }
 
+    @Test fun anotherImmichKeyIsAnotherRecord() = inDir { dir ->
+        val file = File(dir, "backup.json")
+        val server = "https://photos.example.org"
+        val serverOnly = Backup.target(Destination.IMMICH, server, "", "")
+        val ada = Backup.target(Destination.IMMICH, server, Backup.keyPrint("key-for-ada"), "")
+        val tomas = Backup.target(Destination.IMMICH, server, Backup.keyPrint("key-for-tomas"), "")
+        // A record written with the server alone is kept under the key it now names.
+        BackupRecord(file, serverOnly).apply { markDone(picture(1)); save() }
+        BackupRecord(file, ada, serverOnly).apply {
+            assertTrue(isDone(picture(1)))
+            save()
+        }
+        // Once it names a key, another key does not inherit it.
+        assertTrue(BackupRecord(file, ada, serverOnly).isDone(picture(1)))
+        assertFalse(BackupRecord(file, tomas, serverOnly).isDone(picture(1)))
+    }
+
+    @Test fun aKeyPrintIsShortAndNotTheKey() {
+        val print = Backup.keyPrint("abcdefghijklmnopqrstuvwxyz0123456789")
+        assertEquals(print, Backup.keyPrint(" abcdefghijklmnopqrstuvwxyz0123456789 "))
+        assertFalse(print.contains("abcdef"))
+        assertEquals(16, print.length)
+    }
+
     @Test fun aSkippedPictureIsKeptAndGoesWhenDone() = inDir { dir ->
         val file = File(dir, "backup.json")
         BackupRecord(file, "t").apply { markSkipped(picture(2)); save() }

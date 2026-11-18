@@ -76,7 +76,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
     /**
      * Whether the destination is still the one this run began with. Changed under it (another
-     * server, account or folder), the run stops at once and records nothing more: what it sent
+     * server, account, Immich key or folder), the run stops at once and records nothing more: what it sent
      * went to the old place, and the next run starts on the new one.
      */
     private fun sameTarget(to: Destination, target: String): Boolean {
@@ -251,14 +251,31 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         private const val RETRY_SKIPPED = "retry-skipped"
 
         /** What has gone up, one record for each destination: what is on Immich is not on Nextcloud. */
-        fun record(context: Context, to: Destination = Destination.IMMICH) = BackupRecord(
-            File(context.filesDir, if (to == Destination.IMMICH) "backup.json" else "backup-nextcloud.json"),
-            target(Settings(context), to),
-        )
+        fun record(context: Context, to: Destination = Destination.IMMICH): BackupRecord {
+            val settings = Settings(context)
+            return BackupRecord(
+                File(context.filesDir, if (to == Destination.IMMICH) "backup.json" else "backup-nextcloud.json"),
+                target(settings, to),
+                // Written with the server alone, before the key was part of it: kept.
+                earlier = if (to == Destination.IMMICH) {
+                    Backup.target(to, settings.immichServer().orEmpty(), "", "")
+                } else {
+                    ""
+                },
+            )
+        }
 
-        /** The destination as one line: the server, and for Nextcloud the account and the folder. */
+        /**
+         * The destination as one line: the server, and the account — for Immich the key's, by a
+         * hash of it — and for Nextcloud the folder.
+         */
         fun target(settings: Settings, to: Destination): String = when (to) {
-            Destination.IMMICH -> Backup.target(to, settings.immichServer().orEmpty(), "", "")
+            Destination.IMMICH -> Backup.target(
+                to,
+                settings.immichServer().orEmpty(),
+                settings.immichKey()?.let(Backup::keyPrint).orEmpty(),
+                "",
+            )
             Destination.NEXTCLOUD -> settings.nextcloud().let {
                 Backup.target(to, it?.server.orEmpty(), it?.user.orEmpty(), settings.nextcloudFolder())
             }

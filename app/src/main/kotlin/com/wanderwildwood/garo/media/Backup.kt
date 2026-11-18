@@ -22,11 +22,17 @@ enum class BackupWhen {
 class BackupRecord(
     private val file: File,
     /**
-     * Where the pictures go: the server, and for Nextcloud the account and folder. A record
+     * Where the pictures go: the server and the account (for Immich, by a hash of the key),
+     * and for Nextcloud the folder. A record
      * written for another destination says nothing about this one and is not trusted (a backup
      * that was running when the destination changed wrote under its old one); empty accepts any.
      */
     private val target: String = "",
+    /**
+     * How an earlier version wrote this same destination, trusted too: an Immich record from
+     * before the key's account was part of it. Written afresh under [target] on the next save.
+     */
+    private val earlier: String = "",
 ) {
 
     data class Status(
@@ -54,7 +60,9 @@ class BackupRecord(
         runCatching {
             val o = JSONObject(file.readText())
             val wrote = o.optString("target")
-            if (target.isNotEmpty() && wrote.isNotEmpty() && wrote != target) return@runCatching
+            if (target.isNotEmpty() && wrote.isNotEmpty() && wrote != target &&
+                (earlier.isEmpty() || wrote != earlier)
+            ) return@runCatching
             val list = o.optJSONArray("done")
             if (list != null) for (i in 0 until list.length()) done += list.getString(i)
             val passed = o.optJSONArray("skipped")
@@ -204,6 +212,16 @@ object Backup {
         val id = deviceAssetId(picture)
         val plain = plainAssetId(picture)
         return id in sums && id in wanted && (plain !in sums || plain in wanted)
+    }
+
+    /**
+     * Which account an Immich key belongs to, as far as the phone can tell without asking: a
+     * short hash of the key, never the key. Another key, even for the same account, reads as
+     * another account; the server is then asked by checksum, so nothing goes up twice.
+     */
+    fun keyPrint(key: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(key.trim().toByteArray())
+        return "key-" + digest.take(6).joinToString("") { "%02x".format(it) }
     }
 
     /** A destination as one line, for [BackupRecord]: where, as whom, into which folder. */
