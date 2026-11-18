@@ -301,6 +301,15 @@ private fun Gallery(
             BackHandler { settingsOpen = false }
             // The worker writes its record from outside; read it fresh whenever settings show.
             LaunchedEffect(Unit) { viewModel.readBackup() }
+            // A backup is a copy of each picture as taken, the place it was taken included, which
+            // Android lets through only with this permission. It belongs to the photos permission
+            // already given, so Android grants it without asking; only the backup reads with it.
+            val askOriginals = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+            val mayReadOriginals = context.checkSelfPermission(android.Manifest.permission.ACCESS_MEDIA_LOCATION) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            LaunchedEffect(state.backup.on) {
+                if (state.backup.on && !mayReadOriginals) askOriginals.launch(android.Manifest.permission.ACCESS_MEDIA_LOCATION)
+            }
             SettingsScreen(
                 choices = state.choices,
                 onChoose = viewModel::choose,

@@ -651,7 +651,12 @@ private fun backupLine(line: BackupStatus.Line, destination: String, to: Destina
                     },
                 )
             }
-            "$count. $then"
+            val passed = if (line.skipped > 0) {
+                ". " + pluralStringResource(R.plurals.backup_skipped, line.skipped, line.skipped)
+            } else {
+                ""
+            }
+            "$count. $then$passed"
         }
     }
 }

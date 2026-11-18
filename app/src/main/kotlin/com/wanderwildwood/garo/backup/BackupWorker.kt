@@ -1,6 +1,8 @@
 package com.wanderwildwood.garo.backup
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -48,48 +50,85 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val to = settings.destination() ?: return Result.success()
 
         val record = record(applicationContext, to)
+        val target = target(settings, to)
         val index = MediaIndex(
             applicationContext.contentResolver,
             rootPhone = applicationContext.getString(R.string.folder_root_phone),
             rootCard = applicationContext.getString(R.string.folder_root_card),
         )
         val pending = runCatching {
-            Backup.pending(index.pictures(), settings.backupFolders(), videos = Backup.videosTo(to), isDone = record::isDone)
+            Backup.pending(index.pictures(), settings.backupFolders(), videos = Backup.videosTo(to)) {
+                record.isDone(it) || record.isSkipped(it)
+            }
         }.getOrElse { return Result.retry() }
         if (pending.isEmpty()) {
             record.finish(null)
             return Result.success()
         }
         return when (to) {
-            Destination.IMMICH -> toImmich(settings, record, pending)
-            Destination.NEXTCLOUD -> toNextcloud(settings, record, pending)
+            Destination.IMMICH -> toImmich(settings, record, pending) { sameTarget(to, target) }
+            Destination.NEXTCLOUD -> toNextcloud(settings, record, pending) { sameTarget(to, target) }
         }
     }
 
-    private fun toImmich(settings: Settings, record: BackupRecord, pending: List<Picture>): Result {
+    /**
+     * Whether the destination is still the one this run began with. Changed under it (another
+     * server, account or folder), the run stops at once and records nothing more: what it sent
+     * went to the old place, and the next run starts on the new one.
+     */
+    private fun sameTarget(to: Destination, target: String): Boolean {
+        val now = Settings(applicationContext)
+        return now.backupOn() && now.destination() == to && target(now, to) == target
+    }
+
+    /**
+     * The picture's bytes for a backup: the original, with the place it was taken, when the
+     * app may read it (ACCESS_MEDIA_LOCATION), as a backup is a copy of the picture as taken.
+     * Share and Share by tap read the picture as Android gives it, without the place.
+     */
+    private fun openForBackup(p: Picture): java.io.InputStream {
+        val resolver = applicationContext.contentResolver
+        if (applicationContext.checkSelfPermission(Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            runCatching { resolver.openInputStream(MediaStore.setRequireOriginal(p.uri)) }.getOrNull()?.let { return it }
+        }
+        return resolver.openInputStream(p.uri) ?: throw java.io.FileNotFoundException("no stream")
+    }
+
+    private fun toImmich(settings: Settings, record: BackupRecord, pending: List<Picture>, same: () -> Boolean): Result {
         val login = settings.immich() ?: return Result.success()
         val server = Immich(login.server, login.key)
-        val resolver = applicationContext.contentResolver
         val deviceId = "garo-" + Build.MODEL.replace(' ', '-').lowercase()
         try {
             for (batch in pending.chunked(BATCH)) {
-                if (isStopped) break
-                val sums = batch.associate { p ->
-                    Backup.deviceAssetId(p) to resolver.openInputStream(p.uri)!!.use(::sha1)
-                }
-                val wanted = server.toUpload(sums)
+                if (isStopped || !same()) break
+                // A picture that cannot be read is passed over, not the end of the backup.
+                val sums = LinkedHashMap<String, String>()
                 for (p in batch) {
-                    if (isStopped) break
+                    val sum = runCatching { openForBackup(p).use(::sha1) }.getOrNull()
+                    if (sum == null) record.markSkipped(p) else sums[Backup.deviceAssetId(p)] = sum
+                }
+                record.save()
+                val wanted = if (sums.isEmpty()) emptySet() else server.toUpload(sums)
+                for (p in batch) {
+                    if (isStopped || !same()) break
+                    if (Backup.deviceAssetId(p) !in sums) continue
                     if (Backup.deviceAssetId(p) in wanted) {
-                        server.upload(
-                            open = { resolver.openInputStream(p.uri)!! },
-                            name = p.name,
-                            mime = p.mime,
-                            deviceAssetId = Backup.deviceAssetId(p),
-                            deviceId = deviceId,
-                            created = p.`when`,
-                            modified = p.modified.takeIf { it > 0 } ?: p.`when`,
-                        )
+                        try {
+                            server.upload(
+                                open = { openForBackup(p) },
+                                name = p.name,
+                                mime = p.mime,
+                                deviceAssetId = Backup.deviceAssetId(p),
+                                deviceId = deviceId,
+                                created = p.`when`,
+                                modified = p.modified.takeIf { it > 0 } ?: p.`when`,
+                            )
+                        } catch (e: Immich.Trouble.NotTaken) {
+                            // That one picture; the next may go.
+                            record.markSkipped(p)
+                            record.save()
+                            continue
+                        }
                     }
                     // Up now, or already there: either way not to be sent again.
                     record.markDone(p)
@@ -114,14 +153,20 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
      * at once a run, and a picture already there by the same name and size is not sent again,
      * so a full backup started over, or after a lost record, sends only what is missing.
      */
-    private fun toNextcloud(settings: Settings, record: BackupRecord, pending: List<Picture>): Result {
+    private fun toNextcloud(settings: Settings, record: BackupRecord, pending: List<Picture>, same: () -> Boolean): Result {
         val account = settings.nextcloud() ?: return Result.success()
         val folder = PhotoFolder(account, settings.nextcloudFolder())
         val resolver = applicationContext.contentResolver
         val seen = HashMap<String, MutableMap<String, Long>>()
         try {
             for (p in pending) {
-                if (isStopped) break
+                if (isStopped || !same()) break
+                // A picture that cannot be read is passed over, not the end of the backup.
+                if (runCatching { openForBackup(p).close() }.isFailure) {
+                    record.markSkipped(p)
+                    record.save()
+                    continue
+                }
                 val dir = Remote.dirFor(p.path)
                 val there = seen.getOrPut(dir) {
                     folder.list(dir)?.toMutableMap() ?: run {
@@ -137,7 +182,14 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                 when (val step = Remote.step(p.name, length, p.id, there)) {
                     is Remote.Step.Skip -> Unit
                     is Remote.Step.Send -> {
-                        folder.put(dir, step.name, length, p.mime) { resolver.openInputStream(p.uri)!! }
+                        try {
+                            folder.put(dir, step.name, length, p.mime) { openForBackup(p) }
+                        } catch (e: NotTaken) {
+                            // That one picture (its name, its size); the next may go.
+                            record.markSkipped(p)
+                            record.save()
+                            continue
+                        }
                         there[step.name] = length
                     }
                 }
@@ -181,7 +233,16 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         /** What has gone up, one record for each destination: what is on Immich is not on Nextcloud. */
         fun record(context: Context, to: Destination = Destination.IMMICH) = BackupRecord(
             File(context.filesDir, if (to == Destination.IMMICH) "backup.json" else "backup-nextcloud.json"),
+            target(Settings(context), to),
         )
+
+        /** The destination as one line: the server, and for Nextcloud the account and the folder. */
+        fun target(settings: Settings, to: Destination): String = when (to) {
+            Destination.IMMICH -> Backup.target(to, settings.immichServer().orEmpty(), "", "")
+            Destination.NEXTCLOUD -> settings.nextcloud().let {
+                Backup.target(to, it?.server.orEmpty(), it?.user.orEmpty(), settings.nextcloudFolder())
+            }
+        }
 
         /**
          * Schedules backing up as settings say, or stops it. Called whenever settings change and

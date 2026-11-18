@@ -21,6 +21,9 @@ class Unreachable(message: String) : IOException(message)
 /** The server would not let this account in: signed out on the server, or a wrong password. */
 class Refused(message: String) : IOException(message)
 
+/** The server would not take one file (its name, its size); the next may go. */
+class NotTaken(code: Int) : IOException("not taken $code")
+
 internal const val AGENT = "Pictures (garo)"
 
 /**

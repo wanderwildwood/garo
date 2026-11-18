@@ -134,8 +134,12 @@ pictures already there as well as new ones. By default only on Wi-Fi while charg
 backlog goes up overnight; it can also be any Wi-Fi, or any network, and **Back up now** sends
 at once. The server is asked first what it already has, by checksum, so nothing goes up twice.
 The line under the switch says how many are up and when it last checked, or what it is waiting
-for, the network or the charger, or that the server cannot be reached. The key needs
-permission to upload assets.
+for, the network or the charger, or that the server cannot be reached. A picture the server
+will not take, or one that cannot be read, is passed over so the rest still go; the line says
+how many, and each is tried again once it changes. A backup is a copy of each picture as
+taken, the place it was taken included; Share and Share by tap still send pictures without it.
+Changing the server, account or folder while a backup runs stops that run, and the next one
+starts afresh on the new place. The key needs permission to upload assets.
 
 ## Nextcloud
 

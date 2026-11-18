@@ -11,12 +11,13 @@ another phone on the same Wi-Fi, it talks to those servers and nothing else.
 That is the whole policy. The rest of this page is the evidence for it, because a privacy
 policy that cannot be checked is just a promise.
 
-## Three permissions
+## Four permissions
 
-`app/src/main/AndroidManifest.xml` declares exactly three:
+`app/src/main/AndroidManifest.xml` declares exactly four:
 
 ```
 android.permission.READ_EXTERNAL_STORAGE
+android.permission.ACCESS_MEDIA_LOCATION
 android.permission.INTERNET
 android.permission.NFC
 ```
@@ -24,6 +25,14 @@ android.permission.NFC
 On Android 12, which the Kompakt runs, the first is the permission that reads photos. Android
 words it as "photos and media"; the app reads only pictures and videos, from Android's own
 index of them, and never lists or opens any other kind of file.
+
+**`ACCESS_MEDIA_LOCATION` is for backing up, and nothing else.** Android takes the place a
+picture was taken out of every picture an app reads, unless the app holds this permission and
+asks for the original. Backing up asks for the original, so the copy on your server keeps the
+place, as the picture on the phone does. Nothing else in the app asks for originals: Share and
+Share by tap send the picture without the place, and the app never reads or shows it. The
+permission belongs to the photos permission, so Android grants it with that and asks nothing
+more; the app requests it once backing up is on.
 
 **`INTERNET` is there for Immich and Nextcloud, and for Share by tap and Receive by tap.** Android asks for
 the same permission whether an app talks to a server across the world or to the phone next to
@@ -126,8 +135,8 @@ the local network.
 - The picture is copied into the app's cache for the time it is served and deleted when the
   screen is left.
 - **What is sent.** The file as the phone's library gives it. Android removes the location
-  from a picture in the phone's own library before this app can read it (the app does not
-  hold the permission that would allow the location through), the same as for Share; the
+  from a picture in the phone's own library before this app can read it (only backing up asks
+  for the original, with the location), the same as for Share; the
   camera, the date and other details stay in the file. A picture another app handed over is
   sent as that app gave it. There is no extra stripping setting.
 - The phone answers NFC readers as a tag only while the Share by tap screen is showing; the

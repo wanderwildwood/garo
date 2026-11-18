@@ -19,7 +19,15 @@ enum class BackupWhen {
  * guarantee: the server is asked by checksum before anything is sent, so a lost record costs
  * a round of checking, never a duplicate.
  */
-class BackupRecord(private val file: File) {
+class BackupRecord(
+    private val file: File,
+    /**
+     * Where the pictures go: the server, and for Nextcloud the account and folder. A record
+     * written for another destination says nothing about this one and is not trusted (a backup
+     * that was running when the destination changed wrote under its old one); empty accepts any.
+     */
+    private val target: String = "",
+) {
 
     data class Status(
         /** When the last attempt finished, or 0 for never. */
@@ -32,14 +40,24 @@ class BackupRecord(private val file: File) {
     enum class Problem { UNREACHABLE, REFUSED, FAILED }
 
     private val done = HashSet<String>()
+
+    /**
+     * Pictures the server would not take, or that could not be read: passed over, so the ones
+     * after them still go up. Tried again once the picture changes (its key does).
+     */
+    private val skipped = HashSet<String>()
     var status = Status()
         private set
 
     init {
         runCatching {
             val o = JSONObject(file.readText())
+            val wrote = o.optString("target")
+            if (target.isNotEmpty() && wrote.isNotEmpty() && wrote != target) return@runCatching
             val list = o.optJSONArray("done")
             if (list != null) for (i in 0 until list.length()) done += list.getString(i)
+            val passed = o.optJSONArray("skipped")
+            if (passed != null) for (i in 0 until passed.length()) skipped += passed.getString(i)
             status = Status(
                 lastRun = o.optLong("lastRun"),
                 problem = o.optString("problem").takeIf { it.isNotEmpty() }?.let { name ->
@@ -53,6 +71,13 @@ class BackupRecord(private val file: File) {
 
     fun markDone(picture: Picture) {
         done += key(picture)
+        skipped -= key(picture)
+    }
+
+    fun isSkipped(picture: Picture) = key(picture) in skipped
+
+    fun markSkipped(picture: Picture) {
+        skipped += key(picture)
     }
 
     fun finish(problem: Problem?) {
@@ -62,7 +87,9 @@ class BackupRecord(private val file: File) {
 
     fun save() {
         val o = JSONObject()
+            .put("target", target)
             .put("done", org.json.JSONArray(done.toList()))
+            .put("skipped", org.json.JSONArray(skipped.toList()))
             .put("lastRun", status.lastRun)
             .put("problem", status.problem?.name ?: "")
         val part = File(file.path + ".part")
@@ -74,6 +101,7 @@ class BackupRecord(private val file: File) {
 
     fun forget() {
         done.clear()
+        skipped.clear()
         status = Status()
         file.delete()
     }
@@ -81,6 +109,16 @@ class BackupRecord(private val file: File) {
     companion object {
         fun key(picture: Picture) = "${picture.id}:${picture.size}:${picture.modified}"
     }
+}
+
+/** How a server's answer to one picture's upload is read. */
+object BackupAnswer {
+    /**
+     * A 4xx that is about the file itself: a name the server will not have, a file over its
+     * limit, a type it refuses. Not 401/403 (the sign-in), 408 or 429 (the server busy), which
+     * the next picture would meet as well.
+     */
+    fun isNotTaken(code: Int): Boolean = code in 400..499 && code !in setOf(401, 403, 408, 429)
 }
 
 object Backup {
@@ -141,6 +179,10 @@ object Backup {
      * as stable as a picture on Android gets, and unlike a name unchanged by a rename.
      */
     fun deviceAssetId(picture: Picture) = "garo-${picture.id}-${picture.size}"
+
+    /** A destination as one line, for [BackupRecord]: where, as whom, into which folder. */
+    fun target(to: Destination, server: String, user: String, folder: String): String =
+        listOf(to.name, server.trim().trimEnd('/').lowercase(), user, folder.trim('/', ' ')).joinToString("|")
 }
 
 /** What the phone offers a backup just now: any network, Wi-Fi (or another unmetered one), a charger. */
@@ -172,7 +214,8 @@ object BackupStatus {
         data object Off : Line
         data object Refused : Line
         data object Nothing : Line
-        data class Progress(val done: Int, val total: Int, val then: Then) : Line
+        /** [skipped]: pictures the server would not take or that could not be read. */
+        data class Progress(val done: Int, val total: Int, val then: Then, val skipped: Int = 0) : Line
     }
 
     fun of(
@@ -184,13 +227,14 @@ object BackupStatus {
         whenTo: BackupWhen,
         now: Conditions,
         reach: Reach,
+        skipped: Int = 0,
     ): Line = when {
         !on -> Line.Off
         problem == BackupRecord.Problem.REFUSED -> Line.Refused
         total == 0 -> Line.Nothing
-        // All up and nothing wrong last time: when it last looked is the news, not what it waits for.
-        done >= total && lastRun > 0 && problem == null -> Line.Progress(done, total, Then.LastRun(lastRun))
-        else -> Line.Progress(done, total, then(problem, lastRun, whenTo, now, reach))
+        // All up (or passed over) and nothing wrong last time: when it last looked is the news.
+        done + skipped >= total && lastRun > 0 && problem == null -> Line.Progress(done, total, Then.LastRun(lastRun), skipped)
+        else -> Line.Progress(done, total, then(problem, lastRun, whenTo, now, reach), skipped)
     }
 
     private fun then(problem: BackupRecord.Problem?, lastRun: Long, whenTo: BackupWhen, now: Conditions, reach: Reach): Then {

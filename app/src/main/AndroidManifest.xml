@@ -12,6 +12,16 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <!--
+      Backing up only: a backup is a copy of each picture as taken, with the place it was taken,
+      which Android takes out of every read unless the app holds this and asks for the original.
+      Only the backup asks for originals (backup/BackupWorker.kt); Share, Share by tap and every
+      other read get the picture as Android gives it, without the place. It belongs to the photos
+      permission, so Android grants it with that and asks nothing more; it is requested once
+      backing up is on.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+
+    <!--
       For the servers set in settings and nothing else: Immich, whose albums are read and which
       can take a backup, and Nextcloud, whose folders are read and which can take a backup. Plain http is refused for both:
       the address has to be https. Share by tap and Receive by tap use it too, for one picture

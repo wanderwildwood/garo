@@ -28,6 +28,8 @@ class Immich(server: String, private val key: String) {
         class Refused(code: Int) : Trouble("refused $code")
         /** No answer at all: off the tailnet, the server down, the address wrong. */
         class Unreachable(cause: Throwable) : Trouble(cause.message ?: "unreachable")
+        /** The server answered about one file and would not take it (too large, a type it refuses). */
+        class NotTaken(code: Int) : Trouble("not taken $code")
     }
 
     fun albums(): List<Album> {
@@ -142,6 +144,14 @@ class Immich(server: String, private val key: String) {
         } catch (e: IOException) {
             throw Trouble.Unreachable(e)
         }
+        val code = try {
+            c.responseCode
+        } catch (e: IOException) {
+            throw Trouble.Unreachable(e)
+        }
+        // A 4xx about this one file, other than the key's own refusal or a busy server: the next
+        // picture may well go, so it is said apart from the server being out of reach.
+        if (BackupAnswer.isNotTaken(code)) throw Trouble.NotTaken(code)
         answer(c).close()
     }
 

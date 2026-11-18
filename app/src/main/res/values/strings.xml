@@ -272,6 +272,10 @@
     <!-- %1$s is where the pictures go, e.g. Immich -->
     <string name="backup_unreachable">%1$s cannot be reached on this network just now; it will try again</string>
     <string name="backup_soon">It will start shortly</string>
+    <plurals name="backup_skipped">
+        <item quantity="one">%1$d picture could not be backed up (the server would not take it, or it could not be read); it is tried again if it changes</item>
+        <item quantity="other">%1$d pictures could not be backed up (the server would not take them, or they could not be read); each is tried again if it changes</item>
+    </plurals>
     <string name="backup_waiting_charger">Waiting for the charger</string>
     <string name="backup_waiting_wifi_charging">Waiting for Wi-Fi and the charger</string>
     <string name="backup_waiting_wifi">Waiting for Wi-Fi</string>

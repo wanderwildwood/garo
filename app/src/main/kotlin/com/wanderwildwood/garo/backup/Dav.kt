@@ -87,7 +87,11 @@ class PhotoFolder(
                 open().source().use { sink.writeAll(it) }
             }
         }
-        call(request(dirUrl(dir) + encodePath(name)).put(body).build()) { response -> check(response) }
+        call(request(dirUrl(dir) + encodePath(name)).put(body).build()) { response ->
+            // A name or a size this server will not take: that one file, not the server.
+            if (com.wanderwildwood.garo.media.BackupAnswer.isNotTaken(response.code)) throw NotTaken(response.code)
+            check(response)
+        }
     }
 
     /**

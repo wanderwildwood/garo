@@ -370,6 +370,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
                         problem = record.status.problem,
                         total = chosen.size,
                         done = chosen.count(record::isDone),
+                        skipped = chosen.count { !record.isDone(it) && record.isSkipped(it) },
                         lastRun = record.status.lastRun,
                         whenTo = whenTo,
                         now = conditions(),
