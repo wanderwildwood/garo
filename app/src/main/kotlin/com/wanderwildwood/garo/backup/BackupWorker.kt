@@ -77,8 +77,8 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 
     /**
      * Whether the destination is still the one this run began with. Changed under it (another
-     * server, account, Immich key or folder), the run stops at once and records nothing more: what it sent
-     * went to the old place, and the next run starts on the new one.
+     * server, account, Immich key or folder), the run stops at once and records nothing more:
+     * what it sent went to the old place, and the next run starts on the new one.
      */
     private fun sameTarget(to: Destination, target: String): Boolean {
         val now = Settings(applicationContext)
@@ -359,9 +359,9 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         }
 
         /**
-     * Back up straight away on whatever network there is, whatever Upload says, trying again
-     * the pictures passed over before.
-     */
+         * Back up straight away on whatever network there is, whatever Upload says, trying again
+         * the pictures passed over before.
+         */
         fun backUpNow(context: Context): androidx.work.Operation? {
             val settings = Settings(context)
             if (settings.destination() == null || !settings.backupOn()) return null
