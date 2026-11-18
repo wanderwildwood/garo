@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -191,19 +192,27 @@ fun ReceiveByTapScreen(onClose: () -> Unit) {
     var round by remember { mutableIntStateOf(0) }
     val receiver = remember { Receiver(context.applicationContext) { got = it } }
     val scope = rememberCoroutineScope()
+    // The picture being saved, kept across the screen being made again while Android's own
+    // "save as" screen is up: the place chosen there is already made, and must be filled.
+    var saving by rememberSaveable { mutableStateOf<String?>(null) }
     val chooseWhere = rememberLauncherForActivityResult(SaveAs()) { destination ->
-        val ready = got as? Got.Ready
-        if (destination != null && ready != null) {
+        val received = (got as? Got.Ready)?.file ?: saving?.let(::File)?.takeIf { it.isFile }
+        saving = null
+        if (destination != null && received == null) {
+            // Nothing left to put there: not an empty file left behind at the chosen place.
+            runCatching { DocumentsContract.deleteDocument(context.contentResolver, destination) }
+            got = Got.SaveFailed
+        } else if (destination != null && received != null) {
             scope.launch {
                 val ok = runCatching {
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(destination, "wt")!!.use { out ->
-                            ready.file.inputStream().use { it.copyTo(out) }
+                            received.inputStream().use { it.copyTo(out) }
                         }
                     }
                 }.isSuccess
                 if (ok) {
-                    ready.file.delete()
+                    received.delete()
                     got = Got.Saved(destination)
                 } else {
                     runCatching { DocumentsContract.deleteDocument(context.contentResolver, destination) }
@@ -252,7 +261,11 @@ fun ReceiveByTapScreen(onClose: () -> Unit) {
                     Press(R.string.receive_save) {
                         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
                         val ask = SaveAs.Ask("Received-$stamp.${SaveAs.extensionFor(g.mime)}", g.mime)
-                        if (runCatching { chooseWhere.launch(ask) }.isFailure) got = Got.SaveFailed
+                        saving = g.file.path
+                        if (runCatching { chooseWhere.launch(ask) }.isFailure) {
+                            saving = null
+                            got = Got.SaveFailed
+                        }
                     }
                     Spacer(Modifier.height(10.dp))
                     Press(R.string.receive_again) { got = Got.Waiting; round++ }
