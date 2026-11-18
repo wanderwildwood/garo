@@ -56,6 +56,9 @@ class BackupRecord(
     var status = Status()
         private set
 
+    /** Read from a record written the [earlier] way, not yet under [target]. */
+    private var fromEarlier = false
+
     init {
         runCatching {
             val o = JSONObject(file.readText())
@@ -63,6 +66,7 @@ class BackupRecord(
             if (target.isNotEmpty() && wrote.isNotEmpty() && wrote != target &&
                 (earlier.isEmpty() || wrote != earlier)
             ) return@runCatching
+            fromEarlier = earlier.isNotEmpty() && wrote == earlier && wrote != target
             val list = o.optJSONArray("done")
             if (list != null) for (i in 0 until list.length()) done += list.getString(i)
             val passed = o.optJSONArray("skipped")
@@ -110,6 +114,17 @@ class BackupRecord(
         runCatching {
             part.writeText(o.toString())
             part.renameTo(file)
+        }
+    }
+
+    /**
+     * A record still written the [earlier] way is written afresh under [target], so it belongs
+     * to this destination alone; called before the destination changes (another Immich key).
+     */
+    fun claimEarlier() {
+        if (fromEarlier) {
+            save()
+            fromEarlier = false
         }
     }
 

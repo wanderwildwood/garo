@@ -297,6 +297,12 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
     }
 
     fun setKey(key: String) {
+        // A record from before the key was part of it is first written under the key it was
+        // kept for, while that key is still the one stored, so a new key does not inherit it.
+        val old = settings.immichKey()
+        if (old != null && old.trim() != key.trim()) {
+            BackupWorker.record(getApplication(), Destination.IMMICH).claimEarlier()
+        }
         settings.writeImmichKey(key.takeIf { it.isNotBlank() })
         _state.update { it.copy(hasKey = settings.hasImmichKey()) }
         // Another key may be another account: the backup record names the key it was kept

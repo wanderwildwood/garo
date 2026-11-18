@@ -63,6 +63,30 @@ class BackupRecordTargetTest {
         assertFalse(BackupRecord(file, tomas, serverOnly).isDone(picture(1)))
     }
 
+    @Test fun anEarlierRecordClaimedBeforeTheKeyChangesIsNotInherited() = inDir { dir ->
+        val file = File(dir, "backup.json")
+        val server = "https://photos.example.org"
+        val serverOnly = Backup.target(Destination.IMMICH, server, "", "")
+        val ada = Backup.target(Destination.IMMICH, server, Backup.keyPrint("key-for-ada"), "")
+        val tomas = Backup.target(Destination.IMMICH, server, Backup.keyPrint("key-for-tomas"), "")
+        BackupRecord(file, serverOnly).apply { markDone(picture(1)); save() }
+        // The key changes from Ada's to Tomas's before any run has saved the record.
+        BackupRecord(file, ada, serverOnly).claimEarlier()
+        assertFalse(BackupRecord(file, tomas, serverOnly).isDone(picture(1)))
+        assertTrue(BackupRecord(file, ada, serverOnly).isDone(picture(1)))
+    }
+
+    @Test fun claimingARecordForAnotherKeyLeavesItAlone() = inDir { dir ->
+        val file = File(dir, "backup.json")
+        val server = "https://photos.example.org"
+        val serverOnly = Backup.target(Destination.IMMICH, server, "", "")
+        val ada = Backup.target(Destination.IMMICH, server, Backup.keyPrint("key-for-ada"), "")
+        val tomas = Backup.target(Destination.IMMICH, server, Backup.keyPrint("key-for-tomas"), "")
+        BackupRecord(file, ada).apply { markDone(picture(1)); save() }
+        BackupRecord(file, tomas, serverOnly).claimEarlier()
+        assertTrue(BackupRecord(file, ada, serverOnly).isDone(picture(1)))
+    }
+
     @Test fun aKeyPrintIsShortAndNotTheKey() {
         val print = Backup.keyPrint("abcdefghijklmnopqrstuvwxyz0123456789")
         assertEquals(print, Backup.keyPrint(" abcdefghijklmnopqrstuvwxyz0123456789 "))
