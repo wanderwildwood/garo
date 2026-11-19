@@ -25,7 +25,10 @@ object HomeLink {
             is HomeAccount.Step.Keep -> Unit
             is HomeAccount.Step.Take -> {
                 val held = step.held
-                settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password))
+                // Not sealed: the old copy is not kept in its place either. Taken again next time.
+                if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password))) {
+                    settings.dropHome(following = true)
+                }
             }
             is HomeAccount.Step.Drop -> {
                 settings.dropHome(step.following)

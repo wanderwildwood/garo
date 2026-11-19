@@ -26,7 +26,7 @@ import kotlin.math.max
  * back to Android 8; on an Android 12 phone these two calls cover the same ground.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class Decoder(private val resolver: ContentResolver, cacheDir: File) {
+class Decoder(private val resolver: ContentResolver, private val cacheDir: File) {
 
     /** Set when an Immich server is: where an album's pictures come from. */
     @Volatile var immich: Immich? = null
@@ -383,12 +383,25 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
         full.evictAll()
     }
 
-    /** Everything fetched from Nextcloud, for signing out or signing in as someone else. */
+    /**
+     * Everything fetched from Nextcloud, for signing out or signing in as someone else. Quick
+     * enough for the main thread: the folders are only renamed out of the way here, and
+     * [sweepCloud] deletes them after.
+     */
     fun forgetCloud() {
-        cloudDir.deleteRecursively()
-        shareDir.deleteRecursively()
+        for (dir in listOf(cloudDir, shareDir)) {
+            if (!dir.exists()) continue
+            // Renaming fails only in odd cases; then it is deleted where it is, as before.
+            if (!dir.renameTo(File(cacheDir, "${dir.name}$GONE${System.nanoTime()}"))) dir.deleteRecursively()
+        }
         thumbnails.snapshot().keys.filter { it.contains(":nextcloud://") }.forEach(thumbnails::remove)
         full.snapshot().keys.filter { it.scheme == "nextcloud" }.forEach(full::remove)
+    }
+
+    /** Deletes what [forgetCloud] put out of the way, and any left by a run that ended first. Off the main thread. */
+    suspend fun sweepCloud() = withContext(Dispatchers.IO) {
+        cacheDir.listFiles { file -> file.name.contains(GONE) }?.forEach { it.deleteRecursively() }
+        Unit
     }
 
     fun forget(uri: Uri) {
@@ -399,6 +412,7 @@ class Decoder(private val resolver: ContentResolver, cacheDir: File) {
     private companion object {
         const val THUMBNAIL_BYTES = 24 * 1024 * 1024
         const val DISK_BYTES = 200L * 1024 * 1024
+        const val GONE = ".gone-"
 
         /** What an Immich asset id looks like: a UUID, letters, digits and dashes only. */
         private val ASSET_ID = Regex("[0-9A-Za-z-]{1,64}")

@@ -223,6 +223,8 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         albums = readAlbums()
         connect()
         decoder.cloud = settings.nextcloud()?.let { CloudFiles(it) }
+        // Anything a forgotten account left behind when the app ended before it was deleted.
+        viewModelScope.launch { decoder.sweepCloud() }
     }
 
     /**
@@ -231,8 +233,14 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
      */
     fun refresh() {
         askServer()
-        askCloud()
-        followHome()
+        // A backup run may have taken or dropped Home's account while the app was behind:
+        // caught up with first, so the server is not asked with a password no longer kept.
+        matchHome()
+        // With Home's account, the server is asked once Home has been: its password may be new.
+        if (settings.usingHome()) followHome(thenAskCloud = true) else {
+            askCloud()
+            followHome()
+        }
         // Put the schedule back every time: a phone that force-stopped the app forgot it.
         BackupWorker.schedule(getApplication())
         val granted = getApplication<Application>().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
@@ -536,7 +544,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         // the choice until changed on the backup page.
         if (settings.immich() == null) settings.writeBackupTo(Destination.NEXTCLOUD)
         nextcloud { it.copy(user = account.user, server = account.server, signIn = SignIn.IDLE, typed = "") }
-        decoder.forgetCloud()
+        forgetCloud()
         decoder.cloud = CloudFiles(account)
         _state.update { it.copy(cloud = CloudState(on = true, backupFolder = settings.nextcloudFolder())) }
         askCloud()
@@ -565,7 +573,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         // Nothing read from it is kept: its folders, and every picture fetched from it.
         cloudAsking?.cancel()
         decoder.cloud = null
-        decoder.forgetCloud()
+        forgetCloud()
         _state.update { it.copy(cloud = CloudState(backupFolder = settings.nextcloudFolder())) }
         readBackup()
         if (account != null) viewModelScope.launch(Dispatchers.IO) { LoginFlow.revoke(account) }
@@ -578,11 +586,15 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
     /** A change notice came while Home was being asked: ask once more after. */
     private var askHomeAgain = false
 
+    /** The backup folder is to be read once Home has been asked. */
+    private var cloudAfterHome = false
+
     /**
      * Asks Home again and does what it says: on every start and resume, on each change notice
      * from Home ([homeChanged]), and when the Nextcloud page opens. Off the main thread.
      */
-    private fun followHome() {
+    private fun followHome(thenAskCloud: Boolean = false) {
+        if (thenAskCloud) cloudAfterHome = true
         if (homeAsking?.isActive == true) {
             askHomeAgain = true
             return
@@ -593,12 +605,37 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
                 askHomeAgain = false
                 val result = withContext(Dispatchers.IO) { HomeLink.follow(app, settings) }
                 when (result.step) {
-                    is HomeAccount.Step.Keep -> Unit
+                    // Nothing new to this asking, but a backup run may have acted on the same news.
+                    is HomeAccount.Step.Keep -> matchHome()
                     is HomeAccount.Step.Take -> homeTaken(fresh = false)
                     is HomeAccount.Step.Drop -> homeDropped()
                 }
                 nextcloud { it.copy(homeOffered = HomeLink.offer(settings, result.answer)) }
             } while (askHomeAgain)
+            if (cloudAfterHome) {
+                cloudAfterHome = false
+                askCloud()
+            }
+        }
+    }
+
+    /**
+     * What is shown and used brought in line with Home's account as the settings hold it. The
+     * backup run follows Home too, in the same process, and what it writes to the settings is
+     * not news to the next asking here; this catches the page up with it.
+     */
+    private fun matchHome() {
+        val shown = _state.value.nextcloud
+        val inUse = decoder.cloud?.account
+        if (!settings.usingHome()) {
+            // Home held another account and the choice went with it.
+            if (shown.fromHome || shown.homeSignedOut) homeDropped()
+            return
+        }
+        val account = settings.nextcloud()
+        when {
+            account == null -> if (inUse != null || shown.fromHome || !shown.homeSignedOut) homeDropped()
+            account != inUse || !shown.fromHome -> homeTaken(fresh = false)
         }
     }
 
@@ -624,8 +661,8 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             }
             val own = if (settings.usingHome()) null else settings.nextcloud()
             val sameAccount = own != null && HomeAccount.who(own.server, own.user) == held.who
+            // Not sealed: nothing was changed, and the account in use before stays in use.
             if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password))) {
-                settings.forgetHomeChoice()
                 nextcloud { it.copy(problem = NextcloudProblem.NOT_KEPT) }
                 return@launch
             }
@@ -659,7 +696,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         if (fresh) {
             BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
             if (settings.immich() == null) settings.writeBackupTo(Destination.NEXTCLOUD)
-            decoder.forgetCloud()
+            forgetCloud()
         }
         nextcloud { it.copy(user = account.user, server = account.server, fromHome = true, homeSignedOut = false) }
         decoder.cloud = CloudFiles(account)
@@ -684,7 +721,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         }
         cloudAsking?.cancel()
         decoder.cloud = null
-        decoder.forgetCloud()
+        forgetCloud()
         _state.update { it.copy(cloud = CloudState(backupFolder = settings.nextcloudFolder())) }
         readBackup()
     }
@@ -700,6 +737,12 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         askCloud()
         BackupWorker.runSoon(getApplication(), replace = true)
         readBackup()
+    }
+
+    /** Everything read from Nextcloud let go: out of the way at once, deleted off the main thread. */
+    private fun forgetCloud() {
+        decoder.forgetCloud()
+        viewModelScope.launch { decoder.sweepCloud() }
     }
 
     // Browsing Nextcloud ------------------------------------------------------------------------

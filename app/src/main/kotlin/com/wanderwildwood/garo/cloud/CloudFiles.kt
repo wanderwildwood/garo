@@ -35,7 +35,7 @@ import kotlin.coroutines.resumeWithException
  * an address, never in a log. Each one stops when the coroutine waiting for it is cancelled, so
  * a thumbnail that has scrolled off the page is not still being fetched.
  */
-class CloudFiles(private val account: Account, private val client: OkHttpClient = http) {
+class CloudFiles(val account: Account, private val client: OkHttpClient = http) {
 
     val user: String get() = account.user
 

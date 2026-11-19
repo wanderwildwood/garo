@@ -142,17 +142,15 @@ class Settings(context: Context) {
     fun usingHome(): Boolean = homeWho().isNotEmpty()
 
     /**
-     * Home's account taken as this app's: the mirror written and its stamp kept. False, and
-     * nothing kept but the choice, when the password could not be sealed.
+     * Home's account taken as this app's: the choice, the mirror and its stamp written. False,
+     * and nothing at all changed, when the password could not be sealed: the account in use
+     * before, the app's own or Home's, stays as it was.
      */
     fun takeHome(who: String, stamp: String, account: Account): Boolean {
-        val sealed = Secrets.seal(account.password)
-        val edit = prefs.edit().putString(HOME_WHO, who)
-        if (sealed == null) {
-            edit.putString(HOME_STAMP, "").remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).apply()
-            return false
-        }
-        edit.putString(HOME_STAMP, stamp)
+        val sealed = Secrets.seal(account.password) ?: return false
+        prefs.edit()
+            .putString(HOME_WHO, who)
+            .putString(HOME_STAMP, stamp)
             .putString(NC_SERVER, account.server)
             .putString(NC_USER, account.user)
             .putString(NC_PASSWORD, sealed)
