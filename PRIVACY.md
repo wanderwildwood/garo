@@ -94,6 +94,15 @@ v2), the way Nextcloud's own apps do:
   on the server is ever deleted, moved or written over: a different file with a name already
   taken goes up under that name with the phone's number for it added. Every call is in
   `backup/Nextcloud.kt` and `backup/Dav.kt`.
+- **The phone's Nextcloud account.** If Home (the launcher, `com.wanderwildwood.iori`) is
+  signed in to a Nextcloud, you can choose **Use the phone's Nextcloud account** instead of
+  signing in here. Pictures then asks Home for the server, login name and app password, through
+  Home's own provider on the phone, and only after checking that the app answering is Home,
+  signed with Home's own certificate (`backup/HomeAccount.kt`). Nothing goes over the network for
+  this. Pictures keeps the choice (server and login name) and a sealed copy of the app password,
+  taken again from Home each time the app opens and before each backup, and deleted when Home
+  signs out, is uninstalled, or holds another account, or when you press **Stop using it**.
+  The app password stays Home's: Pictures never deletes it on the server.
 - To Nextcloud, videos in the chosen folders go too; to Immich only photos, as before.
 - The address has to be `https://`: Android blocks unencrypted traffic for this app.
 - **Browsing** (the Nextcloud section on the main screen) only reads, and reads only your own

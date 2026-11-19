@@ -31,10 +31,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mudita.mmd.ThemeMMD
 import com.mudita.mmd.components.text.TextMMD
+import com.wanderwildwood.garo.backup.HomeAccount
 import com.wanderwildwood.garo.cloud.Cloud
 import com.wanderwildwood.garo.media.Arrange
 import com.wanderwildwood.garo.media.MediaIndex
@@ -115,6 +117,23 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         turner.resume()
+    }
+
+    /** Stops listening to Home; set while the app is in front. */
+    private var stopHearingHome: (() -> Unit)? = null
+
+    // Home's Nextcloud account, when it is in use, is asked for again on each change Home
+    // announces (signed in, a new password, signed out); the screen's resume asks it too.
+    override fun onStart() {
+        super.onStart()
+        val model = ViewModelProvider(this)[GalleryViewModel::class.java]
+        stopHearingHome = HomeAccount.observe(this) { model.homeChanged() }
+    }
+
+    override fun onStop() {
+        stopHearingHome?.invoke()
+        stopHearingHome = null
+        super.onStop()
     }
 
     override fun onPause() {

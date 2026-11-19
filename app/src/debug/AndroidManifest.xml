@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- A debug build also takes Home's debug build's Nextcloud account (backup/HomeAccount.kt). -->
+    <queries>
+        <package android:name="com.wanderwildwood.iori.debug" />
+    </queries>
+</manifest>

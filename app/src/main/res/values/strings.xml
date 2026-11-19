@@ -229,6 +229,13 @@
     <string name="nextcloud_refused">Nextcloud did not accept the sign-in.</string>
     <string name="nextcloud_no_browser">There is no browser on this phone to sign in with. Type an app password instead.</string>
     <string name="nextcloud_not_kept">The app password could not be kept safely on this phone, so it was not kept.</string>
+    <string name="home_account_use">Use the phone\'s Nextcloud account</string>
+    <string name="home_account_use_note">The account Home is signed in to. Nothing to type.</string>
+    <string name="home_account_in_use">%1$s on %2$s, from Home.</string>
+    <string name="home_account_stop">Stop using it</string>
+    <string name="home_account_stop_note">Stops backing up to it and deletes the pictures fetched from it to look at. Home stays signed in.</string>
+    <string name="home_account_signed_out">Home is signed out of Nextcloud, so this app is too. Your %1$s stay on the phone.</string>
+    <string name="home_account_what_stays">pictures</string>
     <string name="nextcloud_timed_out">Signing in took longer than Nextcloud allows. Try again.</string>
     <!-- Both servers set up: %1$s and %2$s are Immich and Nextcloud -->
     <string name="settings_servers_both">%1$s and %2$s</string>

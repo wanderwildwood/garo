@@ -181,6 +181,13 @@ Backing up goes to one place at a time, chosen under **Settings → Servers and 
   or on any network, and **Back up now**.
 - **Signing out** deletes the app password on the server and on the phone. The pictures already
   backed up stay.
+- **The phone's Nextcloud account.** When Home (the launcher) is signed in to a Nextcloud,
+  the Nextcloud page offers **Use the phone's Nextcloud account**: nothing to type, and this
+  app's own sign-in, if it had one, is signed out. The page then says whose account it is,
+  "ada on cloud.example.org, from Home.", and **Stop using it** goes back to the app's own
+  sign-in. Pictures asks Home again each time it opens, before each backup and whenever Home
+  says its account changed. When Home signs out, so does Pictures, with no error, and the
+  account comes back by itself once Home signs in to it again.
 
 The address has to be `https://`. The app password is kept sealed by the phone's keystore.
 

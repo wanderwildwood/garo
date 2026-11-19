@@ -19,6 +19,8 @@ import com.wanderwildwood.garo.media.Destination
 import com.wanderwildwood.garo.backup.Account
 import com.wanderwildwood.garo.backup.CheckResult
 import com.wanderwildwood.garo.backup.LoginFlow
+import com.wanderwildwood.garo.backup.HomeAccount
+import com.wanderwildwood.garo.backup.HomeLink
 import com.wanderwildwood.garo.backup.NextcloudCheck
 import com.wanderwildwood.garo.backup.Problem
 import com.wanderwildwood.garo.backup.PhotoFolder
@@ -125,6 +127,12 @@ data class NextcloudState(
     val typed: String = "",
     val signIn: SignIn = SignIn.IDLE,
     val problem: NextcloudProblem? = null,
+    /** The account in use is Home's, the phone's own Nextcloud account. */
+    val fromHome: Boolean = false,
+    /** Home's account was chosen, and Home is signed out: nothing in use until it signs in again. */
+    val homeSignedOut: Boolean = false,
+    /** Home has an account for this app that is not in use: the row to use it shows. */
+    val homeOffered: Boolean = false,
 )
 
 enum class SignIn {
@@ -175,7 +183,13 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             serverAddress = settings.immichServer(),
             hasKey = settings.hasImmichKey(),
             nextcloud = settings.nextcloud().let { a ->
-                NextcloudState(user = a?.user, server = a?.server, folder = settings.nextcloudFolder())
+                NextcloudState(
+                    user = a?.user,
+                    server = a?.server,
+                    folder = settings.nextcloudFolder(),
+                    fromHome = settings.usingHome() && a != null,
+                    homeSignedOut = settings.usingHome() && a == null,
+                )
             },
             cloud = CloudState(on = settings.nextcloud() != null, backupFolder = settings.nextcloudFolder()),
         ),
@@ -218,6 +232,7 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
     fun refresh() {
         askServer()
         askCloud()
+        followHome()
         // Put the schedule back every time: a phone that force-stopped the app forgot it.
         BackupWorker.schedule(getApplication())
         val granted = getApplication<Application>().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
@@ -512,6 +527,9 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             nextcloud { it.copy(signIn = SignIn.IDLE, problem = NextcloudProblem.NOT_KEPT) }
             return
         }
+        // The app's own sign-in from now on, not Home's account.
+        settings.forgetHomeChoice()
+        nextcloud { it.copy(fromHome = false, homeSignedOut = false) }
         // A new account: nothing recorded as up belongs to it.
         BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
         // The first place set up is where backing up goes; with Immich already there, it stays
@@ -533,6 +551,11 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
      * Nothing already backed up is touched.
      */
     override fun signOutNextcloud() {
+        // Home's account is never signed out from here: its password is Home's to revoke.
+        if (settings.usingHome()) {
+            stopHomeAccount()
+            return
+        }
         val account = settings.nextcloud()
         settings.forgetNextcloud()
         BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
@@ -546,6 +569,124 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
         _state.update { it.copy(cloud = CloudState(backupFolder = settings.nextcloudFolder())) }
         readBackup()
         if (account != null) viewModelScope.launch(Dispatchers.IO) { LoginFlow.revoke(account) }
+    }
+
+    // Home's Nextcloud account ------------------------------------------------------------------
+
+    private var homeAsking: Job? = null
+
+    /** A change notice came while Home was being asked: ask once more after. */
+    private var askHomeAgain = false
+
+    /**
+     * Asks Home again and does what it says: on every start and resume, on each change notice
+     * from Home ([homeChanged]), and when the Nextcloud page opens. Off the main thread.
+     */
+    private fun followHome() {
+        if (homeAsking?.isActive == true) {
+            askHomeAgain = true
+            return
+        }
+        homeAsking = viewModelScope.launch {
+            val app = getApplication<Application>()
+            do {
+                askHomeAgain = false
+                val result = withContext(Dispatchers.IO) { HomeLink.follow(app, settings) }
+                when (result.step) {
+                    is HomeAccount.Step.Keep -> Unit
+                    is HomeAccount.Step.Take -> homeTaken(fresh = false)
+                    is HomeAccount.Step.Drop -> homeDropped()
+                }
+                nextcloud { it.copy(homeOffered = HomeLink.offer(settings, result.answer)) }
+            } while (askHomeAgain)
+        }
+    }
+
+    /** Home said its account changed: signed in, a new password, or signed out. */
+    fun homeChanged() = followHome()
+
+    /** The Nextcloud page opened: whether Home has an account to offer is asked again. */
+    override fun checkHome() = followHome()
+
+    /**
+     * "Use the phone's Nextcloud account": Home's account becomes this app's, and the app's own
+     * sign-in, if it had one, is dropped (its app password deleted on the server, as Sign out does).
+     */
+    override fun useHomeAccount() {
+        if (signingIn?.isActive == true) return
+        signingIn = viewModelScope.launch {
+            val app = getApplication<Application>()
+            val answer = withContext(Dispatchers.IO) { HomeAccount.ask(app) }
+            val held = (answer as? HomeAccount.Answer.Has)?.held
+            if (held == null) {
+                nextcloud { it.copy(homeOffered = false) }
+                return@launch
+            }
+            val own = if (settings.usingHome()) null else settings.nextcloud()
+            val sameAccount = own != null && HomeAccount.who(own.server, own.user) == held.who
+            if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password))) {
+                settings.forgetHomeChoice()
+                nextcloud { it.copy(problem = NextcloudProblem.NOT_KEPT) }
+                return@launch
+            }
+            if (own != null && own.password != held.password) {
+                viewModelScope.launch(Dispatchers.IO) { LoginFlow.revoke(own) }
+            }
+            homeTaken(fresh = !sameAccount)
+            nextcloud { it.copy(homeOffered = false, typed = "", problem = null, signIn = SignIn.IDLE) }
+        }
+    }
+
+    /**
+     * "Stop using it": the choice, the stamp and the copy of Home's password forgotten, and the
+     * page back to the app's own sign-in, empty. Home's password itself is Home's and stays.
+     */
+    override fun stopHomeAccount() {
+        settings.dropHome(following = false)
+        BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
+        if (settings.destination() == null) settings.writeBackupOn(false)
+        homeDropped()
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val answer = withContext(Dispatchers.IO) { HomeAccount.ask(app) }
+            nextcloud { it.copy(homeOffered = HomeLink.offer(settings, answer)) }
+        }
+    }
+
+    /** Home's account is in use now: [fresh] when it is another account than the one before. */
+    private fun homeTaken(fresh: Boolean) {
+        val account = settings.nextcloud() ?: return homeDropped()
+        if (fresh) {
+            BackupWorker.record(getApplication(), Destination.NEXTCLOUD).forget()
+            if (settings.immich() == null) settings.writeBackupTo(Destination.NEXTCLOUD)
+            decoder.forgetCloud()
+        }
+        nextcloud { it.copy(user = account.user, server = account.server, fromHome = true, homeSignedOut = false) }
+        decoder.cloud = CloudFiles(account)
+        if (!_state.value.cloud.on || fresh) {
+            _state.update { it.copy(cloud = CloudState(on = true, backupFolder = settings.nextcloudFolder())) }
+        }
+        askCloud()
+        BackupWorker.schedule(getApplication())
+        if (fresh) BackupWorker.runSoon(getApplication(), replace = true)
+        readBackup()
+    }
+
+    /**
+     * Home's account let go (Home signed out, gone, or holding another account; or Stop using
+     * it): shown signed out, nothing read from it kept, no backing up to it. No error, and
+     * nothing tried again until Home says it has changed.
+     */
+    private fun homeDropped() {
+        BackupWorker.schedule(getApplication())
+        nextcloud {
+            NextcloudState(folder = settings.nextcloudFolder(), homeSignedOut = settings.usingHome(), homeOffered = it.homeOffered)
+        }
+        cloudAsking?.cancel()
+        decoder.cloud = null
+        decoder.forgetCloud()
+        _state.update { it.copy(cloud = CloudState(backupFolder = settings.nextcloudFolder())) }
+        readBackup()
     }
 
     /** Another folder in the same account: the next run looks there, and sends what is missing. */

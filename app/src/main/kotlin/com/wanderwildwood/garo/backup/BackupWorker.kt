@@ -49,6 +49,10 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     private fun run(): Result {
         val settings = Settings(applicationContext)
         if (!settings.backupOn()) return Result.success()
+        // Home's account, when it is the one in use, is asked for before each backup: a new
+        // password is taken, and a Home signed out or gone leaves nothing to back up to.
+        if (settings.usingHome()) HomeLink.follow(applicationContext, settings)
+        if (!settings.backupOn()) return Result.success()
         val to = settings.destination() ?: return Result.success()
 
         val record = record(applicationContext, to)

@@ -77,6 +77,12 @@ interface NextcloudActions {
     fun signInNextcloudTyped(user: String, appPassword: String, keep: Boolean)
     fun signOutNextcloud()
     fun setNextcloudFolder(typed: String)
+    /** Asks Home, off the main thread, whether it has an account to offer. */
+    fun checkHome()
+    /** "Use the phone's Nextcloud account". */
+    fun useHomeAccount()
+    /** "Stop using it": back to the app's own sign-in, empty. */
+    fun stopHomeAccount()
 }
 
 /**
@@ -136,8 +142,13 @@ fun SettingsScreen(
                     item {
                         Setting(
                             title = nextcloudName,
-                            value = nextcloud.user?.let { stringResource(R.string.nextcloud_signed_in_short, it, host(nextcloud.server)) }
-                                ?: stringResource(R.string.nextcloud_signed_out),
+                            value = nextcloud.user?.let {
+                                stringResource(
+                                    if (nextcloud.fromHome) R.string.home_account_in_use else R.string.nextcloud_signed_in_short,
+                                    it,
+                                    host(nextcloud.server),
+                                )
+                            } ?: stringResource(R.string.nextcloud_signed_out),
                             onClick = { page = Page.NEXTCLOUD },
                         )
                     }
@@ -818,8 +829,51 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
     var editing by remember { mutableStateOf<NcEntry?>(null) }
     var user by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    // Whether Home has an account to offer is asked each time the page opens, and again on each
+    // change Home announces (the model hears those).
+    LaunchedEffect(Unit) { actions.checkHome() }
     SubPage(stringResource(R.string.nextcloud_name), onBack) {
-        if (state.user != null) {
+        if (state.homeOffered && !state.fromHome && !state.homeSignedOut) {
+            item {
+                Setting(
+                    title = stringResource(R.string.home_account_use),
+                    value = stringResource(R.string.home_account_use_note),
+                    onClick = actions::useHomeAccount,
+                )
+            }
+            if (state.problem == NextcloudProblem.NOT_KEPT && state.user != null) {
+                item { Note(stringResource(R.string.nextcloud_not_kept)) }
+            }
+        }
+        if (state.homeSignedOut) {
+            // Home's account was in use and Home signed out: so is this app, until Home signs in again.
+            item { Note(stringResource(R.string.home_account_signed_out, stringResource(R.string.home_account_what_stays))) }
+            item {
+                Setting(
+                    title = stringResource(R.string.home_account_stop),
+                    value = stringResource(R.string.home_account_stop_note),
+                    onClick = actions::stopHomeAccount,
+                )
+            }
+        } else if (state.user != null && state.fromHome) {
+            item { Note(stringResource(R.string.home_account_in_use, state.user, host(state.server))) }
+            item {
+                Setting(
+                    title = stringResource(R.string.nextcloud_folder),
+                    value = state.folder,
+                    onClick = { editing = NcEntry.FOLDER },
+                )
+            }
+            item { Note(stringResource(R.string.nextcloud_folder_note)) }
+            item { Note(stringResource(R.string.nextcloud_browse_note)) }
+            item {
+                Setting(
+                    title = stringResource(R.string.home_account_stop),
+                    value = stringResource(R.string.home_account_stop_note),
+                    onClick = actions::stopHomeAccount,
+                )
+            }
+        } else if (state.user != null) {
             item {
                 Setting(
                     title = stringResource(R.string.nextcloud_account),

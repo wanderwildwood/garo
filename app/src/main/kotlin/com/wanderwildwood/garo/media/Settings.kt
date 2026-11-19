@@ -126,6 +126,53 @@ class Settings(context: Context) {
 
     fun forgetNextcloud() = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).apply()
 
+    // Home's Nextcloud account -------------------------------------------------------------------
+    //
+    // Only the choice to use it is this app's own: whose account it is (server and user, no
+    // password) and the stamp it was last taken under. While it is in use the account above is a
+    // mirror of Home's, sealed like the app's own, taken again from Home on every start, change
+    // and backup, and removed when Home signs out, goes or holds another account.
+
+    /** Whose account in Home this app uses (HomeAccount.Held.who), or "" for its own sign-in. */
+    fun homeWho(): String = prefs.getString(HOME_WHO, null).orEmpty()
+
+    /** The stamp Home's account was last taken under; "" while Home is signed out. */
+    fun homeStamp(): String = prefs.getString(HOME_STAMP, null).orEmpty()
+
+    fun usingHome(): Boolean = homeWho().isNotEmpty()
+
+    /**
+     * Home's account taken as this app's: the mirror written and its stamp kept. False, and
+     * nothing kept but the choice, when the password could not be sealed.
+     */
+    fun takeHome(who: String, stamp: String, account: Account): Boolean {
+        val sealed = Secrets.seal(account.password)
+        val edit = prefs.edit().putString(HOME_WHO, who)
+        if (sealed == null) {
+            edit.putString(HOME_STAMP, "").remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).apply()
+            return false
+        }
+        edit.putString(HOME_STAMP, stamp)
+            .putString(NC_SERVER, account.server)
+            .putString(NC_USER, account.user)
+            .putString(NC_PASSWORD, sealed)
+            .apply()
+        return true
+    }
+
+    /**
+     * Home's account let go: the mirror and the stamp. With [following] the choice stays, so the
+     * same account is taken again when Home has it back; without, the choice goes too.
+     */
+    fun dropHome(following: Boolean) {
+        val edit = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).putString(HOME_STAMP, "")
+        if (!following) edit.remove(HOME_WHO).remove(HOME_STAMP)
+        edit.apply()
+    }
+
+    /** The choice to use Home's account forgotten, the mirror left alone (the app's own sign-in replaces it). */
+    fun forgetHomeChoice() = prefs.edit().remove(HOME_WHO).remove(HOME_STAMP).apply()
+
     /** The folder in the account's files that pictures go into. */
     fun nextcloudFolder(): String = prefs.getString(NC_FOLDER, null)?.takeIf { it.isNotBlank() } ?: DEFAULT_NEXTCLOUD_FOLDER
 
@@ -166,6 +213,8 @@ class Settings(context: Context) {
         const val NC_USER = "nextcloud_user"
         const val NC_PASSWORD = "nextcloud_password"
         const val NC_FOLDER = "nextcloud_folder"
+        const val HOME_WHO = "home_account_who"
+        const val HOME_STAMP = "home_account_stamp"
         const val HIDDEN = "hidden_folders"
     }
 }
