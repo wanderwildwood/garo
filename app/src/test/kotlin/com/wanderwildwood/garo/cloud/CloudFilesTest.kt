@@ -31,6 +31,8 @@ class CloudFilesTest {
     private lateinit var server: ServerSocket
     private val requests = Collections.synchronizedList(mutableListOf<String>())
     private val login = "Basic " + Base64.getEncoder().encodeToString("tester:made-up-app-password".toByteArray())
+    // The same account signed in with its login name (an email address), not its user id.
+    private val byEmail = "Basic " + Base64.getEncoder().encodeToString("Ada@Example.org:made-up-app-password".toByteArray())
     private val picture = ByteArray(70_000) { (it * 7).toByte() }
 
     @Before
@@ -70,7 +72,7 @@ class CloudFilesTest {
         }
         headers["content-length"]?.toInt()?.let { n -> input.readNBytes(n) }
         val (code, body) = when {
-            headers["authorization"] != login -> 401 to ByteArray(0)
+            headers["authorization"] != login && headers["authorization"] != byEmail -> 401 to ByteArray(0)
             method == "PROPFIND" && target == "/remote.php/dav/files/tester/My%20Pictures/" -> 207 to listing().toByteArray()
             method == "PROPFIND" -> 404 to ByteArray(0)
             method == "GET" && target == "/remote.php/dav/files/tester/My%20Pictures/%C3%A9t%C3%A9.jpg" -> 200 to picture
@@ -112,6 +114,15 @@ class CloudFilesTest {
         } finally {
             dir.deleteRecursively()
         }
+    }
+
+    @Test
+    fun `signed in with the login name, the paths use the user id`() = runBlocking<Unit> {
+        val files = CloudFiles(Account("http://127.0.0.1:${server.localPort}", "Ada@Example.org", "made-up-app-password", "tester"))
+        val items = files.list("My Pictures")
+        assertEquals(listOf("My Pictures/été.jpg"), Cloud.listing(items, "My Pictures").media.map { it.path })
+        assertTrue(requests.all { "Ada" !in it })
+        assertEquals(byEmail, files.headers()["Authorization"])
     }
 
     @Test

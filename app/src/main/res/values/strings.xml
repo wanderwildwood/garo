@@ -234,6 +234,7 @@
     <string name="home_account_in_use">%1$s on %2$s, from Home.</string>
     <string name="home_account_stop">Stop using it</string>
     <string name="home_account_stop_note">Stops backing up to it and deletes the pictures fetched from it to look at. Home stays signed in.</string>
+    <string name="home_account_stop_note_signed_out">Deletes the pictures fetched from it to look at and lets you sign in here yourself.</string>
     <string name="home_account_signed_out">Home is signed out of Nextcloud, so this app is too. Your %1$s stay on the phone.</string>
     <string name="home_account_what_stays">pictures</string>
     <string name="nextcloud_timed_out">Signing in took longer than Nextcloud allows. Try again.</string>

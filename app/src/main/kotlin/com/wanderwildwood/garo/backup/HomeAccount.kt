@@ -1,6 +1,9 @@
 package com.wanderwildwood.garo.backup
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.database.ContentObserver
@@ -20,7 +23,7 @@ import java.util.concurrent.Executors
  * Home signs in to the Nextcloud once and hands the account only to the apps it knows by package
  * and signing certificate. This is the app's side. It asks Home's provider
  * (`content://com.wanderwildwood.iori.accounts/nextcloud`: one row, `server`, `user`, `password`,
- * `stamp`, while Home is signed in; no row while it is not), and only after making sure the
+ * `stamp`, `uid`, while Home is signed in; no row while it is not), and only after making sure the
  * provider really is Home's: the package that holds the address must be Home, signed with Home's
  * release certificate and nothing else ([trusted]). Anything else that took the address is never
  * asked, so no other app can hand this one a server of its own choosing.
@@ -35,6 +38,8 @@ import java.util.concurrent.Executors
  *   it is needed. A copy kept for the sync code is let go as [follow] says, never kept past it.
  * - The password is never logged ([Held.toString] leaves it out) and never put where Android
  *   backs up.
+ * - Sign in to the server (basic auth) with [Held.user] and the password; build every WebDAV,
+ *   CalDAV and CardDAV path with [Held.uid] (`/remote.php/dav/files/<uid>/`).
  */
 object HomeAccount {
 
@@ -61,29 +66,66 @@ object HomeAccount {
 
     fun uri(home: String): Uri = Uri.parse("content://${authority(home)}/nextcloud")
 
-    /** The account as Home holds it now. */
-    data class Held(val server: String, val user: String, val password: String, val stamp: String) {
+    /**
+     * The account as Home holds it now. [user] is the login name: what the app signs in with
+     * (basic auth, with [password]). [uid] is the Nextcloud user id, which can differ from the
+     * login name (an email address, another case): every WebDAV, CalDAV and CardDAV path is built
+     * with it (`/remote.php/dav/files/<uid>/`). From a Home too old to give one, [uid] is [user].
+     */
+    data class Held(val server: String, val user: String, val password: String, val stamp: String, val uid: String = user) {
         /** Whose account it is (server and user, no password), to tell a new password from another account. */
         val who: String get() = who(server, user)
 
         /** Without the password, so it cannot end up in a log. */
-        override fun toString(): String = "Held(server=$server, user=$user, stamp=$stamp)"
+        override fun toString(): String = "Held(server=$server, user=$user, uid=$uid, stamp=$stamp)"
     }
 
-    /** Server and user as one string, the same with or without a slash at the end of the server. */
-    fun who(server: String, user: String): String = server.trimEnd('/') + "\n" + user
+    /**
+     * Server and user as one string. The server is written one way only: scheme and host in
+     * lower case, no default port (443 for https, 80 for http), no slash at the end; its path is
+     * kept as it is. So signing in to the same account again, typed another way, is the same.
+     */
+    fun who(server: String, user: String): String = sameServer(server) + "\n" + user
+
+    /** [server] written as [who] writes it. */
+    fun sameServer(server: String): String {
+        val t = server.trim().trimEnd('/')
+        val at = t.indexOf("://")
+        if (at < 0) return t
+        val scheme = t.substring(0, at).lowercase()
+        val rest = t.substring(at + 3)
+        val slash = rest.indexOf('/')
+        var host = (if (slash < 0) rest else rest.substring(0, slash)).lowercase()
+        val path = if (slash < 0) "" else rest.substring(slash)
+        val colon = host.lastIndexOf(':')
+        if (colon > host.lastIndexOf(']')) {
+            val port = host.substring(colon + 1)
+            if (port.isEmpty() || (scheme == "https" && port == "443") || (scheme == "http" && port == "80")) {
+                host = host.substring(0, colon)
+            }
+        }
+        return "$scheme://$host$path"
+    }
+
+    /** A [who] kept by the app (perhaps written by an older copy of this file) written as [who] writes it now. */
+    private fun again(who: String): String {
+        val n = who.indexOf('\n')
+        return if (n < 0) who else who(who.substring(0, n), who.substring(n + 1))
+    }
 
     sealed class Answer {
         /**
-         * No Home to ask: none installed, one that is not the real Home (another package or
-         * another key holds the address), or one that does not hand its account to this app
-         * (too old, or this app is not on its list).
+         * No Home to ask: none installed, or one that is not the real Home (another package or
+         * another key holds the address).
          */
         object NoHome : Answer()
 
         /**
-         * Home is there but cannot be asked just now (while it is being updated, say). Nothing
-         * is to be changed on this answer; ask again later.
+         * Home is there but gives no answer: it cannot be asked just now (while it is being
+         * updated, say), or it does not hand its account to this app (too old, or this app is not
+         * on its list; Android tells these apart from the first only as no answer). Nothing is to
+         * be changed on this answer; ask again later. An app that Home does not hand its account
+         * to never gets a row, so it never takes the account.
          */
         object Unsure : Answer()
 
@@ -129,8 +171,12 @@ object HomeAccount {
         object Unsure : Found()
     }
 
-    /** The packages that may be Home for this build of the app, in the order they are tried. */
-    fun candidates(debugBuild: Boolean): List<String> = if (debugBuild) listOf(HOME, HOME_DEBUG) else listOf(HOME)
+    /**
+     * The packages that may be Home for this build of the app, in the order they are tried. A
+     * debug build tries Home's debug build first: the release Home does not hand its account to
+     * a debug-signed app, so with both installed the debug Home is the one that answers.
+     */
+    fun candidates(debugBuild: Boolean): List<String> = if (debugBuild) listOf(HOME_DEBUG, HOME) else listOf(HOME)
 
     /**
      * Which Home to ask, from what [see] tells of each candidate. The first that is the real
@@ -155,7 +201,8 @@ object HomeAccount {
     /**
      * The account in Home's row, read through [column] (the text in a column, or null when the
      * column is missing or empty). Null when the row is not a whole account. The server must be
-     * https; a debug build ([debugBuild]) also takes http, for a test server on the desk.
+     * https; a debug build ([debugBuild]) also takes http, for a test server on the desk. Without
+     * a `uid` column (an older Home), the user id is the login name.
      */
     fun row(debugBuild: Boolean, column: (String) -> String?): Held? {
         val server = column("server")?.trim()?.trimEnd('/').orEmpty()
@@ -167,8 +214,17 @@ object HomeAccount {
         val http = server.startsWith("http://", ignoreCase = true)
         if (!https && !(debugBuild && http)) return null
         if (server.substringAfter("://").isEmpty()) return null
-        return Held(server, user, password, stamp)
+        val uid = column("uid")?.trim().takeUnless { it.isNullOrEmpty() } ?: user
+        return Held(server, user, password, stamp, uid)
     }
+
+    /**
+     * The answer when the Home that passed the check gave no answer at all (a null cursor), with
+     * [after] what [decide] finds once more. Only a Home that is gone by now is [Answer.NoHome];
+     * a Home that is still there (refusing this app, too old, or being updated) is
+     * [Answer.Unsure], never a sign-out.
+     */
+    fun unanswered(after: Found): Answer = if (after is Found.None) Answer.NoHome else Answer.Unsure
 
     /** What an app that uses Home's account does with Home's answer. */
     sealed class Step {
@@ -196,7 +252,7 @@ object HomeAccount {
         is Answer.Unsure -> Step.Keep
         is Answer.NoHome, is Answer.SignedOut -> if (stamp.isEmpty()) Step.Keep else Step.Drop(following = true)
         is Answer.Has -> when {
-            answer.held.who != who -> Step.Drop(following = false)
+            answer.held.who != again(who) -> Step.Drop(following = false)
             answer.held.stamp == stamp && stamp.isNotEmpty() -> Step.Keep
             else -> Step.Take(answer.held)
         }
@@ -261,8 +317,11 @@ object HomeAccount {
         }
         val debug = debuggable(context)
         val answer = try {
-            // Null from the real Home: it does not hand its account to this app (or is too old to have one).
-            val cursor = context.contentResolver.query(uri(pkg), null, null, null, null) ?: return Answer.NoHome
+            // Null from the real Home: it does not hand its account to this app, is too old to
+            // have one, or could not be reached (being updated, its process not starting). None
+            // of these is a sign-out; only a Home that is gone by now is no Home.
+            val cursor = context.contentResolver.query(uri(pkg), null, null, null, null)
+                ?: return unanswered(home(context))
             cursor.use { c ->
                 if (!c.moveToFirst()) Answer.SignedOut
                 else row(debug) { name -> text(c, name) }?.let { Answer.Has(it) } ?: Answer.SignedOut
@@ -304,21 +363,55 @@ object HomeAccount {
 
     /**
      * Calls [onChange] on the main thread whenever Home says its account changed (signed in,
-     * new password, signed out). The app then asks again ([ask]) and does as [follow] says.
-     * Watched whether or not Home is installed yet, so a Home that comes later is heard; a
-     * notice from anyone else only makes the app ask again, and asking checks Home first.
-     * Returns what stops the watching (call it in onStop or onDestroy).
+     * new password, signed out), and when Home (release or debug) is installed, updated or
+     * removed. The app then asks again ([ask]) and does as [follow] says. A Home installed while
+     * this watches is heard too: Android lets an app watch only an address some app holds, so the
+     * address of a Home that comes later is watched from the moment it is installed. A notice
+     * from anyone else only makes the app ask again, and asking checks Home first. Returns what
+     * stops the watching (call it in onStop or onDestroy).
      */
     fun observe(context: Context, onChange: () -> Unit): () -> Unit {
         val app = context.applicationContext
+        val homes = listOf(HOME, HOME_DEBUG)
         val observer = object : ContentObserver(main) {
             override fun onChange(selfChange: Boolean) = onChange()
         }
-        val watched = candidates(debuggable(app)).filter { pkg ->
-            runCatching {
-                app.contentResolver.registerContentObserver(Uri.parse("content://${authority(pkg)}"), true, observer)
-            }.isSuccess
+        val watched = mutableSetOf<String>()
+        var stopped = false
+        fun watch() {
+            for (pkg in homes) {
+                if (pkg in watched) continue
+                val ok = runCatching {
+                    app.contentResolver.registerContentObserver(Uri.parse("content://${authority(pkg)}"), true, observer)
+                }.isSuccess
+                if (ok) watched += pkg
+            }
         }
-        return { if (watched.isNotEmpty()) runCatching { app.contentResolver.unregisterContentObserver(observer) } }
+        watch()
+        val installs = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                val pkg = intent.data?.schemeSpecificPart ?: return
+                if (stopped || pkg !in homes) return
+                watch()
+                onChange()
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        }
+        val listening = runCatching {
+            if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(installs, filter, null, main, Context.RECEIVER_NOT_EXPORTED)
+            else app.registerReceiver(installs, filter, null, main)
+        }.isSuccess
+        return {
+            if (!stopped) {
+                stopped = true
+                if (listening) runCatching { app.unregisterReceiver(installs) }
+                if (watched.isNotEmpty()) runCatching { app.contentResolver.unregisterContentObserver(observer) }
+            }
+        }
     }
 }

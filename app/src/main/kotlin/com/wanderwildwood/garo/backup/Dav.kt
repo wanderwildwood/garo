@@ -32,7 +32,7 @@ class PhotoFolder(
     folder: String,
     private val client: OkHttpClient = http,
 ) {
-    private val home = account.server.trimEnd('/') + "/remote.php/dav/files/" + encodePath(account.user) + "/"
+    private val home = account.server.trimEnd('/') + "/remote.php/dav/files/" + encodePath(account.uid) + "/"
     private val root = folder.trim('/', ' ')
 
     private fun request(url: String) = Request.Builder().url(url)
@@ -102,7 +102,7 @@ class PhotoFolder(
         try {
             propfind(home, 0)
         } catch (_: Missing) {
-            throw Refused("no files for ${account.user}")
+            throw Refused("no files for ${account.uid}")
         }
     }
 

@@ -22,11 +22,19 @@ object HomeLink {
         val stamp = if (settings.nextcloud() == null) "" else settings.homeStamp()
         val step = HomeAccount.follow(who, stamp, answer)
         when (step) {
-            is HomeAccount.Step.Keep -> Unit
+            is HomeAccount.Step.Keep -> {
+                // Same account, same stamp, but Home may have learnt the user id since (an older
+                // Home kept none): the mirror takes it, so paths use the id the server knows.
+                val held = (answer as? HomeAccount.Answer.Has)?.held
+                val mirror = settings.nextcloud()
+                if (held != null && mirror != null && held.who == HomeAccount.who(mirror.server, mirror.user) && held.uid != mirror.uid) {
+                    settings.takeHome(who, settings.homeStamp(), mirror.copy(uid = held.uid))
+                }
+            }
             is HomeAccount.Step.Take -> {
                 val held = step.held
                 // Not sealed: the old copy is not kept in its place either. Taken again next time.
-                if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password))) {
+                if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password, held.uid))) {
                     settings.dropHome(following = true)
                 }
             }

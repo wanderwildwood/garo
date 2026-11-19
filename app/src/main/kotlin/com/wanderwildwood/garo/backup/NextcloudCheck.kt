@@ -49,7 +49,7 @@ object NextcloudCheck {
             return CheckResult.Bad(problemFor(e), e.message.orEmpty())
         }
         val id = userId(first.code, first.body)
-        if (id != null) return CheckResult.Good(Account(base, id, secret))
+        if (id != null) return CheckResult.Good(Account(base, id, secret, id))
         // Not let in. Any web server can say no, so ask whether this is a Nextcloud at all.
         val status = try {
             ask(client, "$base/status.php", null, null)
@@ -63,6 +63,12 @@ object NextcloudCheck {
             CheckResult.Bad(Problem.OTHER, "${first.code}")
         }
     }
+
+    /** The user id of the account [login] signs in to on [server], or null when the server does not say. */
+    fun uid(server: String, login: String, password: String, client: OkHttpClient = http): String? = runCatching {
+        val answer = ask(client, "${server.trimEnd('/')}/ocs/v2.php/cloud/user?format=json", login, password)
+        userId(answer.code, answer.body)
+    }.getOrNull()
 
     internal class Answer(val code: Int, val body: String)
 

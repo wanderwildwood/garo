@@ -11,9 +11,11 @@ import java.util.concurrent.TimeUnit
 /**
  * A Nextcloud account as its login page hands it over: the server, the user's login name and an
  * app password made for this phone alone, which can be revoked from the server's security
- * settings without touching the real one.
+ * settings without touching the real one. [uid] is the user id the server knows the account by,
+ * which every WebDAV path uses (/remote.php/dav/files/<uid>/); the login name, which signs in,
+ * may be an email address or differ from it in case.
  */
-data class Account(val server: String, val user: String, val password: String)
+data class Account(val server: String, val user: String, val password: String, val uid: String = user)
 
 /** The server could not be reached, or its certificate could not be trusted: nothing was sent. */
 class Unreachable(message: String) : IOException(message)
@@ -79,11 +81,11 @@ object LoginFlow {
                 if (response.code == 404) return null
                 if (!response.isSuccessful) throw Refused("${response.code}")
                 val json = JSONObject(response.body!!.string())
-                Account(
-                    server = json.getString("server").trimEnd('/'),
-                    user = json.getString("loginName"),
-                    password = json.getString("appPassword"),
-                )
+                val server = json.getString("server").trimEnd('/')
+                val login = json.getString("loginName")
+                val password = json.getString("appPassword")
+                // The login name may not be the user id the paths need: the server says which.
+                Account(server, login, password, NextcloudCheck.uid(server, login, password) ?: login)
             }
         } catch (e: IOException) {
             if (e is Refused) throw e

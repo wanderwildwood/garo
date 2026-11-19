@@ -110,7 +110,8 @@ class Settings(context: Context) {
         val server = prefs.getString(NC_SERVER, null)?.takeIf { it.isNotBlank() } ?: return null
         val user = prefs.getString(NC_USER, null)?.takeIf { it.isNotBlank() } ?: return null
         val password = Secrets.open(prefs.getString(NC_PASSWORD, null)) ?: return null
-        return Account(server, user, password)
+        val uid = prefs.getString(NC_UID, null)?.takeIf { it.isNotBlank() } ?: user
+        return Account(server, user, password, uid)
     }
 
     /** False, and nothing kept, when the password could not be sealed: it is never kept in the clear. */
@@ -119,12 +120,13 @@ class Settings(context: Context) {
         prefs.edit()
             .putString(NC_SERVER, account.server)
             .putString(NC_USER, account.user)
+            .putString(NC_UID, account.uid)
             .putString(NC_PASSWORD, sealed)
             .apply()
         return true
     }
 
-    fun forgetNextcloud() = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).apply()
+    fun forgetNextcloud() = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_UID).remove(NC_PASSWORD).apply()
 
     // Home's Nextcloud account -------------------------------------------------------------------
     //
@@ -153,6 +155,7 @@ class Settings(context: Context) {
             .putString(HOME_STAMP, stamp)
             .putString(NC_SERVER, account.server)
             .putString(NC_USER, account.user)
+            .putString(NC_UID, account.uid)
             .putString(NC_PASSWORD, sealed)
             .apply()
         return true
@@ -163,7 +166,7 @@ class Settings(context: Context) {
      * same account is taken again when Home has it back; without, the choice goes too.
      */
     fun dropHome(following: Boolean) {
-        val edit = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_PASSWORD).putString(HOME_STAMP, "")
+        val edit = prefs.edit().remove(NC_SERVER).remove(NC_USER).remove(NC_UID).remove(NC_PASSWORD).putString(HOME_STAMP, "")
         if (!following) edit.remove(HOME_WHO).remove(HOME_STAMP)
         edit.apply()
     }
@@ -209,6 +212,7 @@ class Settings(context: Context) {
         const val BACKUP_TO = "backup_to"
         const val NC_SERVER = "nextcloud_server"
         const val NC_USER = "nextcloud_user"
+        const val NC_UID = "nextcloud_uid"
         const val NC_PASSWORD = "nextcloud_password"
         const val NC_FOLDER = "nextcloud_folder"
         const val HOME_WHO = "home_account_who"

@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.garo.R
+import com.wanderwildwood.garo.backup.HomeAccount
 import com.wanderwildwood.garo.media.Choices
 import com.wanderwildwood.garo.media.FolderOrder
 import com.wanderwildwood.garo.media.PictureOrder
@@ -817,7 +818,9 @@ private fun SwitchSetting(title: String, on: Boolean, onChange: (Boolean) -> Uni
 }
 
 /** "https://cloud.example.com" as "cloud.example.com". */
-private fun host(server: String?): String = server.orEmpty().substringAfter("://").trimEnd('/')
+/** The server as shown: no scheme, no default port, a port of its own kept; the same for Home's account and the app's own. */
+private fun host(server: String?): String =
+    server?.takeIf { it.isNotBlank() }?.let { HomeAccount.sameServer(it).substringAfter("://") }.orEmpty()
 
 /**
  * Nextcloud: signing in by typing the address, the login name and an app password (the first
@@ -851,7 +854,7 @@ private fun NextcloudPage(state: NextcloudState, actions: NextcloudActions, onBa
             item {
                 Setting(
                     title = stringResource(R.string.home_account_stop),
-                    value = stringResource(R.string.home_account_stop_note),
+                    value = stringResource(R.string.home_account_stop_note_signed_out),
                     onClick = actions::stopHomeAccount,
                 )
             }

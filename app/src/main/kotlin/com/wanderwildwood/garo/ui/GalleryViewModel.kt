@@ -660,9 +660,11 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
                 return@launch
             }
             val own = if (settings.usingHome()) null else settings.nextcloud()
-            val sameAccount = own != null && HomeAccount.who(own.server, own.user) == held.who
+            // The app's own sign-in may hold the user id where Home holds the login name.
+            val sameAccount = own != null && HomeAccount.sameServer(own.server) == HomeAccount.sameServer(held.server) &&
+                (own.user == held.user || own.uid == held.uid)
             // Not sealed: nothing was changed, and the account in use before stays in use.
-            if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password))) {
+            if (!settings.takeHome(held.who, held.stamp, Account(held.server, held.user, held.password, held.uid))) {
                 nextcloud { it.copy(problem = NextcloudProblem.NOT_KEPT) }
                 return@launch
             }

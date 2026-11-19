@@ -45,11 +45,11 @@ class CloudFiles(val account: Account, private val client: OkHttpClient = http) 
         "User-Agent" to AGENT,
     )
 
-    fun fileUrl(path: String): String = Cloud.fileUrl(account.server, account.user, path)
+    fun fileUrl(path: String): String = Cloud.fileUrl(account.server, account.uid, path)
 
     /** The folder at [path] and what is directly in it; [Missing] when it is not there. */
     suspend fun list(path: String): List<CloudItem> {
-        val request = request(Cloud.folderUrl(account.server, account.user, path))
+        val request = request(Cloud.folderUrl(account.server, account.uid, path))
             .method("PROPFIND", Cloud.PROPFIND_BODY.toRequestBody(XML))
             .header("Depth", "1")
             .build()
@@ -57,7 +57,7 @@ class CloudFiles(val account: Account, private val client: OkHttpClient = http) 
             if (response.code == 404) throw Missing()
             check(response)
             if (response.code != 207) throw IOException("${response.code} for PROPFIND")
-            response.body!!.byteStream().use { Cloud.parse(it, account.user) }
+            response.body!!.byteStream().use { Cloud.parse(it, account.uid) }
         }
     }
 
