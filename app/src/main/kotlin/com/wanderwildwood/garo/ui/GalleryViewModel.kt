@@ -59,6 +59,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
+/** How long the phone's index is left to settle after a change before it is read again. */
+private const val INDEX_SETTLE_MS = 500L
+
 /** Whether the app may read the pictures. */
 enum class Access { GRANTED, ASK, REFUSED }
 
@@ -251,6 +254,10 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             return
         }
         _state.update { it.copy(access = Access.GRANTED) }
+        readIndex()
+    }
+
+    private fun readIndex() {
         reading?.cancel()
         reading = viewModelScope.launch {
             val pictures = withContext(Dispatchers.IO) { runCatching { index.pictures() }.getOrDefault(emptyList()) }
@@ -259,6 +266,22 @@ class GalleryViewModel(app: Application) : AndroidViewModel(app), NextcloudActio
             indexRead = true
             arrange()
             readBackup()
+        }
+    }
+
+    private var indexChanged: Job? = null
+
+    /**
+     * The phone's index changed while the app is in front — a screenshot, a download, a picture
+     * copied in — so it is read again, the list and the backup line with it. A burst of changes
+     * is one read, a moment after the last.
+     */
+    fun indexChanged() {
+        if (_state.value.access != Access.GRANTED) return
+        indexChanged?.cancel()
+        indexChanged = viewModelScope.launch {
+            delay(INDEX_SETTLE_MS)
+            readIndex()
         }
     }
 
