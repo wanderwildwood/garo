@@ -13,7 +13,7 @@ later.
 
 | | | | |
 |---|---|---|---|
-| ![Folders](screenshots/01-folders.png) | ![A folder](screenshots/02-folder.png) | ![A picture](screenshots/03-picture.png) | ![Editing a picture: crop, turn, draw](screenshots/04-edit.png) |
+| ![Folders](screenshots/1-folders.png) | ![A folder](screenshots/2-folder.png) | ![A picture](screenshots/3-picture.png) | ![Editing a picture: crop, turn, draw](screenshots/4-edit.png) |
 
 ## What it does
 
